@@ -1,0 +1,40 @@
+@import "tailwindcss";
+
+@theme {
+  --color-accent: #1f6f5c;
+  --color-accent-soft: #e3f0ec;
+  --color-ink: #18211f;
+  --color-muted: #5f6b68;
+  --color-line: #d9dfdd;
+  --color-paper: #ffffff;
+  --color-ground: #f2f4f3;
+  --color-warn: #b4570f;
+  --color-warn-soft: #fbeee2;
+  --color-bad: #b3261e;
+  --color-bad-soft: #fbe7e5;
+  --font-sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+body {
+  background: var(--color-ground);
+  color: var(--color-ink);
+}
+
+.input {
+  @apply w-full rounded-lg border border-line bg-paper px-3 py-2.5 text-[15px] outline-none focus:border-accent focus:ring-2 focus:ring-accent/20;
+}
+.btn {
+  @apply inline-flex items-center justify-center rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50;
+}
+.btn-ghost {
+  @apply inline-flex items-center justify-center rounded-lg border border-accent px-4 py-2 text-sm font-semibold text-accent hover:bg-accent-soft;
+}
+.btn-danger {
+  @apply inline-flex items-center justify-center rounded-lg border border-bad px-4 py-2 text-sm font-semibold text-bad hover:bg-bad-soft;
+}
+.card {
+  @apply rounded-xl border border-line bg-paper;
+}
+.label {
+  @apply mb-1 block text-[13px] text-muted;
+}

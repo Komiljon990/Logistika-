@@ -1,0 +1,73 @@
+// 1-bosqich: tashkilotlar, foydalanuvchilar va audit.
+// Keyingi bosqichlar jadvallari texnik shart tasdiqlangach qo'shiladi.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  SUPER_ADMIN
+  ACCOUNTANT // Buxgalter: barcha tashkilotlar
+  MANAGER // Menejer
+  DIRECTOR // Rahbar
+  DEPUTY // Ishonchli vakil
+}
+
+enum Status {
+  ACTIVE
+  BLOCKED
+  ARCHIVED
+}
+
+model Organization {
+  id        String   @id @default(cuid())
+  name      String
+  inn       String?  // STIR
+  phone     String?
+  address   String?
+  status    Status   @default(ACTIVE)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users User[]
+}
+
+model User {
+  id           String        @id @default(cuid())
+  phone        String        @unique // +998901234567 ko'rinishida
+  passwordHash String
+  fullName     String
+  role         Role
+  // SUPER_ADMIN va ACCOUNTANT uchun bo'sh, qolganlar uchun majburiy
+  orgId        String?
+  org          Organization? @relation(fields: [orgId], references: [id])
+  status       Status        @default(ACTIVE)
+  // Parol o'zgarsa yoki bloklansa eski sessiyalar bekor bo'ladi
+  sessionVersion Int         @default(0)
+  failedLogins Int           @default(0)
+  lockedUntil  DateTime?
+  lastLoginAt  DateTime?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  @@index([orgId])
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  at         DateTime @default(now())
+  actorId    String?
+  orgId      String?
+  action     String // masalan: user.create, user.password_reset, org.block
+  entity     String
+  entityId   String
+  details    Json?
+
+  @@index([orgId, at])
+  @@index([entity, entityId])
+}
