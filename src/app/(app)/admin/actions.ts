@@ -11,15 +11,9 @@ import { isGlobalRole } from "@/lib/roles";
 import { normalizePhone } from "@/lib/phone";
 import { generatePassword, hashPassword, MIN_PASSWORD_LENGTH } from "@/lib/password";
 import type { Dict } from "@/i18n";
+import { fail, type FormState } from "@/lib/form";
 
-export type FormState = { error?: keyof Dict; ok?: boolean; newPassword?: string; values?: Record<string, string> };
-
-/** React forma xatodan keyin tozalanadi; kiritilgan qiymatlar (parolsiz) qaytarilib qayta to'ldiriladi. */
-function fail(error: keyof Dict, formData: FormData): FormState {
-  const values: Record<string, string> = {};
-  for (const [k, v] of formData) if (typeof v === "string" && k !== "password" && !k.startsWith("$")) values[k] = v;
-  return { error, values };
-}
+export type { FormState };
 
 const ROLES = ["SUPER_ADMIN", "ACCOUNTANT", "MANAGER", "DIRECTOR", "DEPUTY"] as const satisfies readonly Role[];
 const STATUSES = ["ACTIVE", "BLOCKED", "ARCHIVED"] as const satisfies readonly Status[];
@@ -58,6 +52,7 @@ export async function updateOrg(id: string, _prev: FormState, formData: FormData
   await db.organization.update({ where: { id }, data: parsed.data });
   await audit({ actorId: admin.id, orgId: id, action: "org.update", entity: "Organization", entityId: id, details: parsed.data });
   revalidatePath("/admin/orgs");
+  revalidatePath(`/admin/orgs/${id}`);
   return { ok: true };
 }
 
@@ -153,6 +148,7 @@ export async function updateUser(id: string, _prev: FormState, formData: FormDat
     details: { from: { role: before.role, orgId: before.orgId, phone: before.phone }, to: v.data },
   });
   revalidatePath("/admin/users");
+  revalidatePath(`/admin/users/${id}`);
   return { ok: true };
 }
 
