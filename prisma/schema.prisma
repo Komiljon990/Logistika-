@@ -27,47 +27,180 @@ enum Status {
 model Organization {
   id        String   @id @default(cuid())
   name      String
-  inn       String?  // STIR
+  inn       String? // STIR
   phone     String?
   address   String?
   status    Status   @default(ACTIVE)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  users User[]
+  users     User[]
+  vehicles  Vehicle[]
+  drivers   Driver[]
+  documents Document[]
+  files     StoredFile[]
 }
 
 model User {
-  id           String        @id @default(cuid())
-  phone        String        @unique // +998901234567 ko'rinishida
-  passwordHash String
-  fullName     String
-  role         Role
+  id             String        @id @default(cuid())
+  phone          String        @unique // +998901234567 ko'rinishida
+  passwordHash   String
+  fullName       String
+  role           Role
   // SUPER_ADMIN va ACCOUNTANT uchun bo'sh, qolganlar uchun majburiy
-  orgId        String?
-  org          Organization? @relation(fields: [orgId], references: [id])
-  status       Status        @default(ACTIVE)
+  orgId          String?
+  org            Organization? @relation(fields: [orgId], references: [id])
+  status         Status        @default(ACTIVE)
   // Parol o'zgarsa yoki bloklansa eski sessiyalar bekor bo'ladi
-  sessionVersion Int         @default(0)
-  failedLogins Int           @default(0)
-  lockedUntil  DateTime?
-  lastLoginAt  DateTime?
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
+  sessionVersion Int           @default(0)
+  failedLogins   Int           @default(0)
+  lockedUntil    DateTime?
+  lastLoginAt    DateTime?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
 
   @@index([orgId])
 }
 
 model AuditLog {
-  id         String   @id @default(cuid())
-  at         DateTime @default(now())
-  actorId    String?
-  orgId      String?
-  action     String // masalan: user.create, user.password_reset, org.block
-  entity     String
-  entityId   String
-  details    Json?
+  id       String   @id @default(cuid())
+  at       DateTime @default(now())
+  actorId  String?
+  orgId    String?
+  action   String // masalan: user.create, user.password_reset, org.block
+  entity   String
+  entityId String
+  details  Json?
 
   @@index([orgId, at])
   @@index([entity, entityId])
+}
+
+// ---------- 2-bosqich: transport, haydovchilar, hujjatlar ----------
+
+enum VehicleType {
+  TRACTOR // tyagach
+  TRAILER // prisept
+  TRAIN // paravoz
+  OTHER
+}
+
+enum Ownership {
+  OWNED // balansda
+  LEASED // ijarada
+}
+
+enum DriverCategory {
+  EMPLOYEE // xodim-haydovchi
+  OWNER_OPERATOR // o'z transportida ishlovchi
+}
+
+model Vehicle {
+  id             String       @id @default(cuid())
+  orgId          String
+  org            Organization @relation(fields: [orgId], references: [id])
+  plate          String // davlat raqami, katta harflarda, bo'shliqsiz
+  model          String?
+  type           VehicleType
+  ownership      Ownership    @default(OWNED)
+  leaseOwner     String?
+  leaseStart     DateTime?    @db.Date
+  leaseEnd       DateTime?    @db.Date
+  // Standart juftlik: tyagachga prisept va haydovchi biriktiriladi
+  pairTrailerId  String?
+  pairTrailer    Vehicle?     @relation("Pair", fields: [pairTrailerId], references: [id])
+  pairedTractors Vehicle[]    @relation("Pair")
+  pairDriverId   String?
+  pairDriver     Driver?      @relation(fields: [pairDriverId], references: [id])
+  status         Status       @default(ACTIVE)
+  note           String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  documents Document[]
+
+  @@index([orgId, status])
+  @@index([orgId, plate])
+}
+
+model Driver {
+  id        String         @id @default(cuid())
+  orgId     String
+  org       Organization   @relation(fields: [orgId], references: [id])
+  fullName  String
+  phone     String?
+  category  DriverCategory
+  status    Status         @default(ACTIVE)
+  note      String?
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  documents      Document[]
+  pairedVehicles Vehicle[]
+
+  @@index([orgId, status])
+}
+
+enum DocType {
+  // transport
+  TECH_PASSPORT
+  OWNERSHIP_DOC
+  LEASE_CONTRACT
+  LICENSE
+  INSURANCE
+  PERMIT // dopusheniya
+  INSPECTION // texnik ko'rik
+  TACHOGRAPH
+  // haydovchi
+  PASSPORT
+  FOREIGN_PASSPORT
+  DRIVING_LICENSE
+  ADR
+  CERTIFICATE
+  VISA
+  OTHER
+}
+
+/// Hujjat = ma'lumot + ixtiyoriy fayl. Yangilansa eskisi ARCHIVED bo'ladi, yangisi prevId orqali bog'lanadi.
+model Document {
+  id          String       @id @default(cuid())
+  orgId       String
+  org         Organization @relation(fields: [orgId], references: [id])
+  vehicleId   String?
+  vehicle     Vehicle?     @relation(fields: [vehicleId], references: [id])
+  driverId    String?
+  driver      Driver?      @relation(fields: [driverId], references: [id])
+  type        DocType
+  number      String?
+  issuedAt    DateTime?    @db.Date
+  expiresAt   DateTime?    @db.Date
+  note        String?
+  fileId      String?      @unique
+  file        StoredFile?  @relation(fields: [fileId], references: [id])
+  status      Status       @default(ACTIVE)
+  prevId      String?      @unique
+  prev        Document?    @relation("Versions", fields: [prevId], references: [id])
+  next        Document?    @relation("Versions")
+  createdById String
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@index([orgId, status, expiresAt])
+  @@index([vehicleId])
+  @@index([driverId])
+}
+
+/// Fayl hozircha bazada saqlanadi (sinov uchun eng oddiy). Keyin S3 turidagi saqlashga ko'chiriladi.
+model StoredFile {
+  id           String       @id @default(cuid())
+  orgId        String
+  org          Organization @relation(fields: [orgId], references: [id])
+  name         String
+  mime         String
+  size         Int
+  data         Bytes
+  uploadedById String
+  createdAt    DateTime     @default(now())
+
+  document Document?
 }

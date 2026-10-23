@@ -30,7 +30,7 @@ export function OrgForm({ d, org }: { d: Dict; org?: Organization }) {
   const [state, formAction, pending] = useActionState(action, {});
   const v = state.values;
   return (
-    <form key={JSON.stringify(v)} action={formAction} className="grid gap-4 sm:grid-cols-2">
+    <form key={JSON.stringify(v ?? org ?? null)} action={formAction} className="grid gap-4 sm:grid-cols-2">
       <Field id="name" label={d["common.name"]}>
         <input id="name" name="name" required defaultValue={v?.name ?? org?.name} className="input" />
       </Field>
@@ -60,7 +60,7 @@ export function UserForm({ d, orgs, user, defaultOrgId }: { d: Dict; orgs: OrgOp
   const [state, formAction, pending] = useActionState(action, {});
   const v = state.values;
   return (
-    <form key={JSON.stringify(v)} action={formAction} className="grid gap-4 sm:grid-cols-2">
+    <form key={JSON.stringify(v ?? user ?? null)} action={formAction} className="grid gap-4 sm:grid-cols-2">
       <Field id="fullName" label={d["user.fullName"]}>
         <input id="fullName" name="fullName" required defaultValue={v?.fullName ?? user?.fullName} className="input" />
       </Field>
