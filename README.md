@@ -30,3 +30,7 @@ npm run dev
 npm run lint   # TypeScript
 npm test       # testlar (PostgreSQL kerak)
 ```
+
+## Noutbukda sinov serveri (Windows)
+
+Qadam-baqadam yo'riqnoma: [deploy/windows/README.md](deploy/windows/README.md)
