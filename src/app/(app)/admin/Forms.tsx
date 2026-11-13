@@ -4,7 +4,7 @@ import { useActionState } from "react";
 import type { Organization, Role, Status, User } from "@prisma/client";
 import type { Dict } from "@/i18n";
 import {
-  createOrg, updateOrg, createUser, updateUser, setUserStatus, resetPassword, type FormState,
+  createOrg, updateOrg, createUser, updateUser, setUserStatus, type FormState,
 } from "./actions";
 
 const ROLES: Role[] = ["MANAGER", "DIRECTOR", "DEPUTY", "ACCOUNTANT", "SUPER_ADMIN"];
@@ -12,7 +12,7 @@ const GLOBAL: Role[] = ["SUPER_ADMIN", "ACCOUNTANT"];
 
 function Message({ state, d }: { state: FormState; d: Dict }) {
   if (state.error) return <p role="alert" className="rounded-lg bg-bad-soft px-3 py-2 text-sm text-bad">{d[state.error]}</p>;
-  if (state.ok && !state.newPassword) return <p className="text-sm text-accent">{d["common.saved"]}</p>;
+  if (state.ok) return <p className="text-sm text-accent">{d["common.saved"]}</p>;
   return null;
 }
 
@@ -98,26 +98,14 @@ export function UserControls({ d, id, status }: { d: Dict; id: string; status: S
     async () => setUserStatus(id, status === "ACTIVE" ? "BLOCKED" : "ACTIVE"),
     {} as FormState,
   );
-  const [pwState, pwAction, pwPending] = useActionState(async () => resetPassword(id), {} as FormState);
   return (
     <div className="grid gap-3">
-      <div className="flex flex-wrap gap-3">
-        <form action={statusAction}>
-          <button className={status === "ACTIVE" ? "btn-danger" : "btn-ghost"} disabled={statusPending}>
-            {status === "ACTIVE" ? d["common.block"] : d["common.unblock"]}
-          </button>
-        </form>
-        <form action={pwAction}>
-          <button className="btn-ghost" disabled={pwPending}>{d["user.resetPassword"]}</button>
-        </form>
-      </div>
+      <form action={statusAction}>
+        <button className={status === "ACTIVE" ? "btn-danger" : "btn-ghost"} disabled={statusPending}>
+          {status === "ACTIVE" ? d["common.block"] : d["common.unblock"]}
+        </button>
+      </form>
       {statusState.error && <Message state={statusState} d={d} />}
-      {pwState.newPassword && (
-        <div className="rounded-lg bg-warn-soft px-4 py-3 text-sm">
-          <div>{d["user.newPassword"]}: <code className="select-all text-base font-semibold">{pwState.newPassword}</code></div>
-          <div className="mt-1 text-warn">{d["user.newPasswordNote"]}</div>
-        </div>
-      )}
     </div>
   );
 }

@@ -1,6 +1,6 @@
 import type { Dict } from "@/i18n/uz";
 
-export type FormState = { error?: keyof Dict; ok?: boolean; newPassword?: string; values?: Record<string, string> };
+export type FormState = { error?: keyof Dict; ok?: boolean; values?: Record<string, string> };
 
 /** React forma xatodan keyin tozalanadi; kiritilgan qiymatlar (parol va fayllarsiz) qaytarilib qayta to'ldiriladi. */
 export function fail(error: keyof Dict, formData: FormData): FormState {

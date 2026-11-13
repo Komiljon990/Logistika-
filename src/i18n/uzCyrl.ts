@@ -10,7 +10,7 @@ export const uzCyrl: Dict = {
   "login.phone": "Телефон рақами",
   "login.password": "Парол",
   "login.submit": "Кириш",
-  "login.forgot": "Паролни унутдингизми? Администраторга мурожаат қилинг.",
+  "login.forgot": "Паролни унутдингизми? Ташкилот раҳбари ёки Супер Админга мурожаат қилинг.",
   "login.error.invalid": "Телефон рақами ёки парол нотўғри.",
   "login.error.locked": "Кўп марта нотўғри парол киритилди. 15 дақиқадан кейин қайта уриниб кўринг.",
   "login.error.blocked": "Ҳисобингиз блокланган. Администраторга мурожаат қилинг.",
@@ -24,6 +24,7 @@ export const uzCyrl: Dict = {
   "nav.reports": "Ҳисоботлар",
   "nav.orgs": "Ташкилотлар",
   "nav.users": "Фойдаланувчилар",
+  "nav.team": "Ходимлар",
   "nav.soon": "кейинги босқичда",
 
   "role.SUPER_ADMIN": "Супер Админ",
@@ -63,6 +64,8 @@ export const uzCyrl: Dict = {
   "org.address": "Манзил",
   "org.users": "Фойдаланувчилар",
 
+  "team.title": "Ташкилот ходимлари",
+
   "user.title": "Фойдаланувчилар",
   "user.new": "Янги фойдаланувчи",
   "user.fullName": "Ф.И.О.",
@@ -74,7 +77,11 @@ export const uzCyrl: Dict = {
   "user.lastLogin": "Охирги кириш",
   "user.resetPassword": "Паролни тиклаш",
   "user.newPassword": "Янги парол",
-  "user.newPasswordNote": "Шу паролни фойдаланувчига беринг. У бошқа кўрсатилмайди.",
+  "user.passwordConfirm": "Паролни такрорланг",
+  "user.passwordChanged": "Парол ўзгартирилди. Фойдаланувчи янги парол билан қайта кириши керак.",
+  "user.resetOnlyAdmin": "Бу фойдаланувчининг паролини фақат Супер Админ ўзгартира олади.",
+  "user.error.passwordMismatch": "Пароллар бир хил эмас.",
+  "user.error.forbidden": "Бу фойдаланувчининг паролини ўзгартиришга рухсатингиз йўқ.",
   "user.error.phone": "Телефон рақами нотўғри. Масалан: +998 90 123 45 67.",
   "user.error.phoneTaken": "Бу рақам билан фойдаланувчи аллақачон бор.",
   "user.error.password": "Парол камида 8 белги бўлиши керак.",

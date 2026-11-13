@@ -33,7 +33,10 @@ export async function createSession(userId: string, sessionVersion: number) {
     .sign(secret());
   (await cookies()).set(COOKIE, token, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    // COOKIE_SECURE="false" — HTTPS'siz lokal tarmoqdagi sinov serveri uchun.
+    secure: process.env.COOKIE_SECURE
+      ? process.env.COOKIE_SECURE === "true"
+      : process.env.NODE_ENV === "production",
     sameSite: "lax",
     path: "/",
     maxAge: MAX_AGE_SECONDS,

@@ -10,7 +10,7 @@ export const ru: Dict = {
   "login.phone": "Номер телефона",
   "login.password": "Пароль",
   "login.submit": "Войти",
-  "login.forgot": "Забыли пароль? Обратитесь к администратору.",
+  "login.forgot": "Забыли пароль? Обратитесь к руководителю организации или Супер-админу.",
   "login.error.invalid": "Неверный номер телефона или пароль.",
   "login.error.locked": "Слишком много неудачных попыток. Попробуйте снова через 15 минут.",
   "login.error.blocked": "Ваша учётная запись заблокирована. Обратитесь к администратору.",
@@ -24,6 +24,7 @@ export const ru: Dict = {
   "nav.reports": "Отчёты",
   "nav.orgs": "Организации",
   "nav.users": "Пользователи",
+  "nav.team": "Сотрудники",
   "nav.soon": "на следующем этапе",
 
   "role.SUPER_ADMIN": "Супер-админ",
@@ -63,6 +64,8 @@ export const ru: Dict = {
   "org.address": "Адрес",
   "org.users": "Пользователи",
 
+  "team.title": "Сотрудники организации",
+
   "user.title": "Пользователи",
   "user.new": "Новый пользователь",
   "user.fullName": "Ф.И.О.",
@@ -74,7 +77,11 @@ export const ru: Dict = {
   "user.lastLogin": "Последний вход",
   "user.resetPassword": "Сбросить пароль",
   "user.newPassword": "Новый пароль",
-  "user.newPasswordNote": "Передайте этот пароль пользователю. Он больше не будет показан.",
+  "user.passwordConfirm": "Повторите пароль",
+  "user.passwordChanged": "Пароль изменён. Пользователь должен войти заново с новым паролем.",
+  "user.resetOnlyAdmin": "Пароль этого пользователя может изменить только Супер-админ.",
+  "user.error.passwordMismatch": "Пароли не совпадают.",
+  "user.error.forbidden": "У вас нет прав менять пароль этого пользователя.",
   "user.error.phone": "Неверный номер телефона. Пример: +998 90 123 45 67.",
   "user.error.phoneTaken": "Пользователь с таким номером уже существует.",
   "user.error.password": "Пароль должен быть не короче 8 символов.",
