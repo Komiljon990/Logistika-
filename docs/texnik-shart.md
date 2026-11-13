@@ -387,8 +387,13 @@ vaqtda, telefon va kompyuter ko'rinishi, ma'lumot yaxlitligi, arxiv
 ### Yangi talablar (13.11.2026, ikkinchi qism)
 
 - **Tashish kiritishning ikki usuli:** *Yangi tashish* (ro'yxatda faqat
-  bo'sh, yuki yo'q transportlar ko'rinadi) va *Qo'shimcha yuk*
-  (yuklangan transportning mavjud tashishiga yangi yuk qismi qo'shiladi).
+  bo'sh, yuki yo'q transportlar ko'rinadi) va *Qo'shimcha yuk* (tashish
+  kartochkasidagi "Qo'shimcha yuk" tugmasi orqali mavjud tashishga yangi
+  yuk qismi qo'shiladi; alohida tashish ochilmaydi).
+- **Har yuk qismida (SMR):** mijoz (bazadan), mijoz tomondan mas'ul
+  shaxsning F.I.O.si va telefon raqami.
+- **Tashishlar ko'rsatilgan barcha ro'yxatlarda** (mijoz kartochkasi va
+  boshqalar): tashish raqami, yo'nalish va tyagach raqami.
 - **Haydovchi uchun Telegram bot.** Tashish kiritilgach haydovchiga
   xabar keladi va u holatlarni ketma-ket belgilaydi: qabul qildim →
   yuklash manziliga yetib keldim → yuklandi (dastlabki hujjatlarni
@@ -417,9 +422,6 @@ vaqtda, telefon va kompyuter ko'rinishi, ma'lumot yaxlitligi, arxiv
 - Bot uchun **Telegram bot tokeni** kerak (@BotFather orqali bir marta
   ochiladi). Haydovchi botga telefon raqamini yuborib, tizimdagi
   raqami bo'yicha tanib olinadi — shunday bo'lsinmi?
-- Bir transportda bir vaqtda bir nechta tashish (qo'shimcha yuk alohida
-  tashish bo'ladimi yoki mavjud tashishga SMR qo'shiladimi)? Hozircha
-  mavjud tashishga yangi SMR qo'shiladi deb qabul qilindi.
 
 ### Takliflar (talab emas, tasdiqlash kerak)
 
