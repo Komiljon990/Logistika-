@@ -95,90 +95,36 @@
 }
 
 
-/* ---------- Fon: texnologik uslub — yorug' nuqtali xarita, tarmoq, oqib o'tadigan nur, sekin yuk mashinalari ---------- */
-:root {
-  --bg-base-1: #eef3fa;
-  --bg-base-2: #dde7f4;
-  --bg-dot: #1556b0;
-  --bg-dot-op: 0.2;
-  --bg-net: #1556b0;
-  --bg-net-op: 0.16;
-  --bg-glow: #2f7fe0;
-  --bg-truck: #1556b0;
-  --bg-silhouette-op: 0.07;
-}
-:root[data-theme="dark"] {
-  --bg-base-1: #0a1834;
-  --bg-base-2: #040a17;
-  --bg-dot: #4ea8ff;
-  --bg-dot-op: 0.38;
-  --bg-net: #4ea8ff;
-  --bg-net-op: 0.22;
-  --bg-glow: #9fd4ff;
-  --bg-truck: #6cbcff;
-  --bg-silhouette-op: 0.1;
-}
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --bg-base-1: #0a1834;
-    --bg-base-2: #040a17;
-    --bg-dot: #4ea8ff;
-    --bg-dot-op: 0.38;
-    --bg-net: #4ea8ff;
-    --bg-net-op: 0.22;
-    --bg-glow: #9fd4ff;
-    --bg-truck: #6cbcff;
-    --bg-silhouette-op: 0.1;
-  }
-}
-
-.bg-map-layer {
+/* ---------- Fon: logistika rasmi (o'zgarishsiz, harakatsiz) ---------- */
+.bg-photo-layer {
   position: fixed;
   inset: 0;
   z-index: -1;
   pointer-events: none;
-  overflow: hidden;
-  background: radial-gradient(120% 90% at 70% 20%, var(--bg-base-1), var(--bg-base-2) 75%);
+  background: #050c24 url("/bg-logistics.png") center / cover no-repeat;
 }
-.bg-map-layer svg { position: absolute; inset: 0; width: 100%; height: 100%; }
-.bg-map { fill: none; stroke: var(--bg-dot); stroke-width: 3.6; stroke-linecap: round; opacity: var(--bg-dot-op); }
-.bg-net line { stroke: var(--bg-net); stroke-width: 1; opacity: var(--bg-net-op); }
-.bg-node { fill: var(--bg-glow); opacity: 0.55; }
-.bg-route { fill: none; stroke: var(--bg-net); stroke-width: 1.6; stroke-linecap: round; opacity: 0.35; }
-/* Yo'nalish bo'ylab sekin oqib o'tadigan yorug' nur. */
-.bg-beam {
-  fill: none;
-  stroke: var(--bg-glow);
-  stroke-width: 3.2;
-  stroke-linecap: round;
-  stroke-dasharray: 7 93;
-  opacity: 0.9;
-  animation: beam-travel 22s linear infinite;
-}
-.bg-city { fill: var(--bg-glow); }
-.bg-city-ring {
-  fill: none;
-  stroke: var(--bg-glow);
-  stroke-width: 1.4;
-  transform-box: fill-box;
-  transform-origin: center;
-  animation: city-pulse 5s ease-out infinite;
-}
-.bg-truck { fill: var(--bg-truck); stroke: var(--bg-base-2); stroke-width: 1; opacity: 0.9; }
-.bg-silhouette { fill: var(--bg-truck); opacity: var(--bg-silhouette-op); }
-/* Markazni tinchroq qiladigan qatlam — kartalardan tashqaridagi matn ham aniq o'qilsin. */
-.bg-veil {
+/* Yorug' rejim: rasm to'q ko'k — to'q matn o'qilishi uchun oq parda. Qorong'i rejimda parda yo'q (rasm aynan o'zi). */
+.bg-photo-veil {
   position: absolute;
   inset: 0;
-  background: radial-gradient(60% 70% at 45% 45%, color-mix(in oklab, var(--color-ground) 55%, transparent), transparent 80%);
+  background: rgb(240 245 252 / 0.78);
 }
-@keyframes beam-travel { from { stroke-dashoffset: 100; } to { stroke-dashoffset: 0; } }
-@keyframes city-pulse {
-  0% { transform: scale(0.6); opacity: 0.7; }
-  100% { transform: scale(3.2); opacity: 0; }
+:root[data-theme="dark"] .bg-photo-veil { display: none; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .bg-photo-veil { display: none; }
 }
-@media (prefers-reduced-motion: reduce) {
-  .bg-beam, .bg-city-ring { animation: none; }
-  .bg-beam { display: none; }
-  .bg-truck-move { display: none; }
+/* Qorong'i rejimda kartadan tashqaridagi sarlavha va matn rasmdagi yorug' joylar ustida ham o'qilsin. */
+:root[data-theme="dark"] main > div > h1,
+:root[data-theme="dark"] main > div > div > h1,
+:root[data-theme="dark"] main > div > p,
+:root[data-theme="dark"] main > div > div > p {
+  text-shadow: 0 1px 2px rgb(0 0 0 / 0.85), 0 0 12px rgb(0 0 0 / 0.6);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) main > div > h1,
+  :root:not([data-theme="light"]) main > div > div > h1,
+  :root:not([data-theme="light"]) main > div > p,
+  :root:not([data-theme="light"]) main > div > div > p {
+    text-shadow: 0 1px 2px rgb(0 0 0 / 0.85), 0 0 12px rgb(0 0 0 / 0.6);
+  }
 }

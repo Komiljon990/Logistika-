@@ -27,7 +27,7 @@ export default async function ClientsPage({ searchParams }: { searchParams: Prom
   return (
     <div className="grid gap-5">
       <h1 className="text-2xl font-bold">{t("client.title")}</h1>
-      <form className="flex flex-wrap gap-2">
+      <form className="card flex flex-wrap items-center gap-2 p-3">
         <input name="q" defaultValue={sp.q} placeholder={t("client.search")} aria-label={t("common.search")} className="input w-auto min-w-0 flex-1 basis-40" />
         {global && (
           <select name="org" defaultValue={sp.org ?? ""} aria-label={t("common.org")} className="input w-auto">

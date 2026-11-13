@@ -39,7 +39,7 @@ export default async function VehiclesPage({ searchParams }: { searchParams: Pro
   return (
     <div className="grid gap-5">
       <h1 className="text-2xl font-bold">{t("veh.title")}</h1>
-      <form className="flex flex-wrap gap-2">
+      <form className="card flex flex-wrap items-center gap-2 p-3">
         <input name="q" defaultValue={sp.q} placeholder={t("common.search")} aria-label={t("common.search")} className="input w-auto min-w-0 flex-1 basis-40" />
         <select name="type" defaultValue={type ?? ""} aria-label={t("veh.type")} className="input w-auto">
           <option value="">{t("veh.type")}: —</option>

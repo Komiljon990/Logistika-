@@ -65,17 +65,17 @@ export default async function SettlementsPage({ searchParams }: { searchParams: 
         </div>
         <div className="card p-4">
           <div className="text-xs text-muted">{t("settle.driverCash")}</div>
-          <div className="mt-1 text-2xl font-bold tabular-nums text-warn">{money(sumBy(driverCash.map((p) => ({ currency: p.currency, value: p.amount }))))}</div>
+          <MoneyLines pairs={sumBy(driverCash.map((p) => ({ currency: p.currency, value: p.amount })))} className="text-warn" />
           <div className="mt-1 text-sm">{driverCash.length} {t("settle.notHanded")}</div>
         </div>
         <div className="card p-4">
           <div className="text-xs text-muted">{t("settle.thisMonth")}</div>
-          <div className="mt-1 text-2xl font-bold tabular-nums">{money(monthTotals)}</div>
+          <MoneyLines pairs={monthTotals} />
           <div className="mt-1 text-sm">{monthPays.length} {t("settle.payments")}</div>
         </div>
       </div>
 
-      <form className="flex flex-wrap gap-2">
+      <form className="card flex flex-wrap items-center gap-2 p-3">
         <input name="q" defaultValue={sp.q} placeholder={t("client.search")} aria-label={t("common.search")} className="input w-auto min-w-0 flex-1 basis-48" />
         {global && (
           <select name="org" defaultValue={sp.org ?? ""} aria-label={t("common.org")} className="input w-auto">
@@ -124,8 +124,9 @@ export default async function SettlementsPage({ searchParams }: { searchParams: 
             {rows.length === 0 && <tr><td colSpan={6} className="px-4 py-6 text-muted">{t("settle.none")}</td></tr>}
           </tbody>
         </table>
+        <p className="border-t border-line px-4 py-3 text-xs text-muted">{t("settle.formula")}</p>
       </div>
-      <p className="text-xs text-muted">{t("settle.formula")}</p>
+
 
       {driverCash.length > 0 && (
         <section className="grid gap-2">
@@ -147,6 +148,18 @@ export default async function SettlementsPage({ searchParams }: { searchParams: 
           </div>
         </section>
       )}
+    </div>
+  );
+}
+
+/** Bir nechta valyutadagi summa: birinchisi katta, qolganlari ostida alohida qatorlarda (sig'ishi uchun). */
+function MoneyLines({ pairs, className = "" }: { pairs: [string, number][]; className?: string }) {
+  if (!pairs.length) return <div className={`mt-1 text-2xl font-bold tabular-nums ${className}`}>0</div>;
+  const [[c0, v0], ...rest] = pairs;
+  return (
+    <div className={`mt-1 tabular-nums ${className}`}>
+      <div className="text-2xl font-bold">{`${formatNumber(v0)} ${c0}`}</div>
+      {rest.map(([c, v]) => <div key={c} className="text-base font-semibold">{`${formatNumber(v)} ${c}`}</div>)}
     </div>
   );
 }

@@ -65,7 +65,7 @@ export default async function TripsPage({ searchParams }: { searchParams: Promis
           </Link>
         ))}
       </div>
-      <form className="flex flex-wrap gap-2">
+      <form className="card flex flex-wrap items-center gap-2 p-3">
         <input type="hidden" name="f" value={f} />
         <input name="q" defaultValue={sp.q} placeholder={t("trip.search")} aria-label={t("common.search")} className="input w-auto min-w-0 flex-1 basis-48" />
         {global && (
