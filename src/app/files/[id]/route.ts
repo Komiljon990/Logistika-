@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import { getCurrentUser } from "@/lib/session";
 import { orgScope } from "@/lib/scope";
+import { isInlineMime } from "@/lib/files";
 
 /** Faylni faqat o'sha tashkilotni ko'ra oladigan foydalanuvchi ochadi. */
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -13,7 +14,8 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     headers: {
       "Content-Type": file.mime,
       "Content-Length": String(file.size),
-      "Content-Disposition": `inline; filename*=UTF-8''${encodeURIComponent(file.name)}`,
+      // Rasm va PDF brauzerda ochiladi, Office va arxivlar yuklab olinadi.
+      "Content-Disposition": `${isInlineMime(file.mime) ? "inline" : "attachment"}; filename*=UTF-8''${encodeURIComponent(file.name)}`,
       "Cache-Control": "private, no-store",
       "X-Content-Type-Options": "nosniff",
     },

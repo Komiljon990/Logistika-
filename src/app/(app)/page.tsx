@@ -7,31 +7,21 @@ import { orgScope } from "@/lib/scope";
 import { formatDate } from "@/lib/dates";
 import { tashkentToday } from "@/lib/docs";
 import { ExpiryPill } from "@/components/ExpiryPill";
+import { loadAlerts } from "@/lib/alerts";
 
 export default async function HomePage() {
   const user = await requireUser();
   const t = await getT();
   const scope = orgScope(user);
   const today = tashkentToday();
-  const in30 = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate() + 30));
-  const expiringWhere = {
-    ...scope,
-    status: "ACTIVE" as const,
-    expiresAt: { not: null, lte: in30 },
-    OR: [{ vehicle: { status: "ACTIVE" as const } }, { driver: { status: "ACTIVE" as const } }],
-  };
-  const [vehicles, drivers, expiringCount, expiring, orgCount] = await Promise.all([
+  const [vehicles, drivers, alerts, orgCount] = await Promise.all([
     db.vehicle.count({ where: { ...scope, status: "ACTIVE" } }),
     db.driver.count({ where: { ...scope, status: "ACTIVE" } }),
-    db.document.count({ where: expiringWhere }),
-    db.document.findMany({
-      where: expiringWhere,
-      orderBy: { expiresAt: "asc" },
-      take: 10,
-      include: { vehicle: { select: { id: true, plate: true } }, driver: { select: { id: true, fullName: true } } },
-    }),
+    loadAlerts(user, today),
     isGlobalRole(user.role) ? db.organization.count({ where: { status: "ACTIVE" } }) : Promise.resolve(null),
   ]);
+  const expiringCount = alerts.length;
+  const expiring = alerts.slice(0, 10);
 
   return (
     <div className="grid gap-6">
@@ -43,7 +33,7 @@ export default async function HomePage() {
         {orgCount !== null && <Kpi label={t("home.orgCount")} value={orgCount} />}
         <Kpi label={t("home.vehicles")} value={vehicles} href="/vehicles" />
         <Kpi label={t("home.drivers")} value={drivers} href="/drivers" />
-        <Kpi label={t("home.expiring")} value={expiringCount} warn={expiringCount > 0} />
+        <Kpi label={t("home.expiring")} value={expiringCount} warn={expiringCount > 0} href="/alerts" />
       </div>
       {expiring.length > 0 && (
         <section className="grid gap-2">
@@ -51,17 +41,14 @@ export default async function HomePage() {
           <div className="card overflow-x-auto">
             <table className="w-full text-sm">
               <tbody>
-                {expiring.map((x) => {
-                  const href = x.vehicle ? `/vehicles/${x.vehicle.id}` : `/drivers/${x.driver!.id}`;
-                  return (
-                    <tr key={x.id} className="border-t border-line first:border-t-0">
-                      <td className="px-4 py-2.5"><Link href={href} className="text-accent hover:underline">{x.vehicle?.plate ?? x.driver?.fullName}</Link></td>
-                      <td className="px-4 py-2.5">{t(`doc.t.${x.type}`)}</td>
-                      <td className="whitespace-nowrap px-4 py-2.5 tabular-nums">{formatDate(x.expiresAt)}</td>
-                      <td className="px-4 py-2.5"><ExpiryPill expiresAt={x.expiresAt} t={t} /></td>
-                    </tr>
-                  );
-                })}
+                {expiring.map((x) => (
+                  <tr key={x.key} className="border-t border-line first:border-t-0">
+                    <td className="px-4 py-2.5"><Link href={x.href} className="text-accent hover:underline">{x.owner}</Link></td>
+                    <td className="px-4 py-2.5">{x.docType ? t(`doc.t.${x.docType}`) : t("alerts.lease")}</td>
+                    <td className="whitespace-nowrap px-4 py-2.5 tabular-nums">{formatDate(x.expiresAt)}</td>
+                    <td className="px-4 py-2.5"><ExpiryPill expiresAt={x.expiresAt} t={t} /></td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>

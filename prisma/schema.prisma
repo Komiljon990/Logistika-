@@ -158,10 +158,15 @@ enum DocType {
   ADR
   CERTIFICATE
   VISA
+  // tashkilot (litsenziya va boshqa — yuqoridagi LICENSE, OTHER)
+  ORG_CERTIFICATE // guvohnoma
+  CHARTER // ustav
+  BANK_DETAILS // bank rekvizitlari
   OTHER
 }
 
 /// Hujjat = ma'lumot + ixtiyoriy fayl. Yangilansa eskisi ARCHIVED bo'ladi, yangisi prevId orqali bog'lanadi.
+/// Egasi: transport (vehicleId), haydovchi (driverId) yoki ikkalasi bo'sh bo'lsa — tashkilotning o'zi.
 model Document {
   id          String       @id @default(cuid())
   orgId       String

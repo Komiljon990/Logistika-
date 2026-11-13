@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-type Item = { href?: string; label: string; soon?: string };
+type Item = { href?: string; label: string; soon?: string; badge?: number };
 
 export function Nav({ items }: { items: Item[] }) {
   const path = usePathname();
@@ -21,6 +21,9 @@ export function Nav({ items }: { items: Item[] }) {
             }`}
           >
             {it.label}
+            {!!it.badge && (
+              <span className="ml-2 rounded-full bg-bad px-2 py-0.5 text-xs font-semibold text-white tabular-nums">{it.badge}</span>
+            )}
           </Link>
         ) : (
           <span key={it.label} title={it.soon} className="cursor-default whitespace-nowrap rounded-md px-3 py-2 text-muted/60">

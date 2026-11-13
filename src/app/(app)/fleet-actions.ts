@@ -9,8 +9,8 @@ import { requirePermission } from "@/lib/session";
 import { orgForWrite, orgScope, ForbiddenError } from "@/lib/scope";
 import { normalizePhone } from "@/lib/phone";
 import { parseDate } from "@/lib/dates";
-import { checkFile } from "@/lib/files";
-import { DRIVER_DOC_TYPES, FILE_REQUIRED, VEHICLE_DOC_TYPES, normalizePlate } from "@/lib/docs";
+import { checkFile, MAX_FILE_BYTES } from "@/lib/files";
+import { DOC_TYPES, FILE_REQUIRED, normalizePlate, type DocOwnerKind } from "@/lib/docs";
 import { fail, optStr, str, type FormState } from "@/lib/form";
 
 const VEHICLE_TYPES: VehicleType[] = ["TRACTOR", "TRAILER", "TRAIN", "OTHER"];
@@ -161,38 +161,62 @@ export async function setDriverStatus(id: string, status: Status) {
 
 // ---------- Hujjatlar ----------
 
-type Owner = { kind: "vehicle" | "driver"; id: string };
+type Owner = { kind: DocOwnerKind; id: string };
+
+/** Hujjat egasiga qarab: transport/haydovchi — menejer; tashkilot — menejer, rahbar, buxgalter. */
+async function docEditor(owner: Owner) {
+  if (owner.kind !== "org") {
+    const { user, orgId } = await editor();
+    const scope = orgScope(user);
+    const row =
+      owner.kind === "vehicle"
+        ? await db.vehicle.findFirst({ where: { id: owner.id, ...scope } })
+        : await db.driver.findFirst({ where: { id: owner.id, ...scope } });
+    if (!row) throw new ForbiddenError();
+    return { user, orgId };
+  }
+  const user = await requirePermission("orgdoc.edit");
+  // Tashkilot foydalanuvchisi uchun har doim o'z tashkiloti; buxgalter tanlagan tashkilot mavjud va faol bo'lishi shart.
+  const orgId = orgForWrite(user, owner.id);
+  const org = await db.organization.findFirst({ where: { id: orgId, status: "ACTIVE" } });
+  if (!org) throw new ForbiddenError();
+  return { user, orgId };
+}
+
+function ownerWhere(owner: Owner, orgId: string) {
+  if (owner.kind === "vehicle") return { vehicleId: owner.id };
+  if (owner.kind === "driver") return { driverId: owner.id };
+  return { orgId, vehicleId: null, driverId: null };
+}
+
+function ownerPath(owner: Owner) {
+  if (owner.kind === "vehicle") return `/vehicles/${owner.id}`;
+  if (owner.kind === "driver") return `/drivers/${owner.id}`;
+  return "/org-docs";
+}
 
 /**
  * Yangi hujjat qo'shadi. `renewOf` berilsa, bu yangi versiya: eski hujjat ARXIV bo'ladi, yangisi FAOL,
  * va `prevId` orqali bog'lanadi. Eski yozuv hech qachon o'chirilmaydi.
  */
 export async function addDocument(owner: Owner, renewOf: string | null, _prev: FormState, formData: FormData): Promise<FormState> {
-  const { user, orgId } = await editor();
-  const scope = orgScope(user);
-  const ownerRow =
-    owner.kind === "vehicle"
-      ? await db.vehicle.findFirst({ where: { id: owner.id, ...scope } })
-      : await db.driver.findFirst({ where: { id: owner.id, ...scope } });
-  if (!ownerRow) throw new ForbiddenError();
+  const { user, orgId } = await docEditor(owner);
 
   let prev = null;
   if (renewOf) {
-    prev = await db.document.findFirst({
-      where: { id: renewOf, ...scope, status: "ACTIVE", ...(owner.kind === "vehicle" ? { vehicleId: owner.id } : { driverId: owner.id }) },
-    });
+    prev = await db.document.findFirst({ where: { id: renewOf, orgId, status: "ACTIVE", ...ownerWhere(owner, orgId) } });
     if (!prev) throw new ForbiddenError();
   }
 
   const type = (prev?.type ?? str(formData, "type")) as DocType;
-  const allowed = owner.kind === "vehicle" ? VEHICLE_DOC_TYPES : DRIVER_DOC_TYPES;
-  if (!allowed.includes(type)) return fail("common.required", formData);
+  if (!DOC_TYPES[owner.kind].includes(type)) return fail("common.required", formData);
 
   const file = formData.get("file");
   let fileData: { bytes: Uint8Array; mime: string; name: string } | null = null;
   if (file instanceof File && file.size > 0) {
+    if (file.size > MAX_FILE_BYTES) return fail("doc.error.size", formData);
     const bytes = new Uint8Array(await file.arrayBuffer());
-    const check = checkFile(bytes);
+    const check = checkFile(bytes, file.name);
     if (!check.ok) return fail(check.error === "type" ? "doc.error.type" : "doc.error.size", formData);
     fileData = { bytes, mime: check.mime, name: file.name.slice(0, 200) || "file" };
   }
@@ -225,15 +249,22 @@ export async function addDocument(owner: Owner, renewOf: string | null, _prev: F
     actorId: user.id, orgId, action: prev ? "document.renew" : "document.create", entity: "Document", entityId: doc.id,
     details: { type, number: doc.number, prevId: prev?.id ?? null, file: fileData ? { name: fileData.name, size: fileData.bytes.byteLength } : null },
   });
-  revalidatePath(`/${owner.kind === "vehicle" ? "vehicles" : "drivers"}/${owner.id}`);
+  revalidatePath(ownerPath(owner));
   return { ok: true };
 }
 
 export async function archiveDocument(id: string) {
-  const { user, orgId } = await editor();
+  const user = await requirePermission("data.view");
   const doc = await db.document.findFirst({ where: { id, ...orgScope(user), status: "ACTIVE" } });
   if (!doc) throw new ForbiddenError();
+  const owner: Owner = doc.vehicleId
+    ? { kind: "vehicle", id: doc.vehicleId }
+    : doc.driverId
+      ? { kind: "driver", id: doc.driverId }
+      : { kind: "org", id: doc.orgId };
+  // Huquq hujjat egasiga qarab qayta tekshiriladi (tashkilot filtri ham shu ichida).
+  const { user: actor, orgId } = await docEditor(owner);
   await db.document.update({ where: { id }, data: { status: "ARCHIVED" } });
-  await audit({ actorId: user.id, orgId, action: "document.status", entity: "Document", entityId: id, details: { status: "ARCHIVED" } });
-  revalidatePath(doc.vehicleId ? `/vehicles/${doc.vehicleId}` : `/drivers/${doc.driverId}`);
+  await audit({ actorId: actor.id, orgId, action: "document.status", entity: "Document", entityId: id, details: { status: "ARCHIVED" } });
+  revalidatePath(ownerPath(owner));
 }

@@ -42,6 +42,8 @@ export default async function VehiclePage({ params, searchParams }: { params: Pr
         )}
       </div>
       {!can(user.role, "data.edit") && <p className="text-sm text-muted">{t("common.viewOnly")}</p>}
+      <Documents owner={{ kind: "vehicle", id: v.id }} canEdit={canEdit} showArchived={sp.docs === "all"} />
+      <h2 className="text-lg font-semibold">{t("common.details")}</h2>
       <section className="card p-5">
         <VehicleForm
           d={d}
@@ -55,7 +57,6 @@ export default async function VehiclePage({ params, searchParams }: { params: Pr
           }}
         />
       </section>
-      <Documents owner={{ kind: "vehicle", id: v.id }} canEdit={canEdit} showArchived={sp.docs === "all"} />
     </div>
   );
 }

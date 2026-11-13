@@ -2,6 +2,8 @@ import Link from "next/link";
 import { getT } from "@/i18n";
 import { requireUser } from "@/lib/session";
 import { can } from "@/lib/roles";
+import { countAlerts } from "@/lib/alerts";
+import { tashkentToday } from "@/lib/docs";
 import { logout } from "@/app/actions";
 import { LangSwitch } from "@/components/LangSwitch";
 import { Nav } from "./Nav";
@@ -9,10 +11,13 @@ import { Nav } from "./Nav";
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const user = await requireUser();
   const t = await getT();
+  const alertCount = can(user.role, "alerts.badge") ? await countAlerts(user, tashkentToday()) : 0;
   const items = [
     { href: "/", label: t("nav.home") },
+    { href: "/alerts", label: t("nav.alerts"), badge: alertCount },
     { href: "/vehicles", label: t("nav.vehicles") },
     { href: "/drivers", label: t("nav.drivers") },
+    { href: "/org-docs", label: t("nav.orgDocs") },
     ...(["nav.trips", "nav.tir", "nav.reports"] as const).map((k) => ({
       label: t(k),
       soon: t("nav.soon"),

@@ -2,9 +2,10 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import type { DocType } from "@prisma/client";
 import type { Dict } from "@/i18n";
+import type { DocOwnerKind } from "@/lib/docs";
 import { DocForm } from "./fleet-forms";
 import { archiveDocument } from "./fleet-actions";
 
@@ -13,29 +14,47 @@ export type DocRow = {
   pill: React.ReactNode; file: { id: string; name: string } | null; note: string | null;
 };
 
-export function DocsPanel({ d, owner, types, fileRequired, active, archived, archivedCount, canEdit }: {
-  d: Dict; owner: { kind: "vehicle" | "driver"; id: string }; types: DocType[]; fileRequired: DocType[];
+type Owner = { kind: DocOwnerKind; id: string };
+
+export function DocsPanel({ d, owner, types, fileRequired, missing, active, archived, archivedCount, canEdit }: {
+  d: Dict; owner: Owner; types: DocType[]; fileRequired: DocType[]; missing: DocType[];
   active: DocRow[]; archived: DocRow[] | null; archivedCount: number; canEdit: boolean;
 }) {
-  const [adding, setAdding] = useState(false);
+  // null — forma yopiq; aks holda shu tur oldindan tanlangan holda ochiladi.
+  const [adding, setAdding] = useState<DocType | null>(null);
   const [renewing, setRenewing] = useState<string | null>(null);
   const path = usePathname();
+  const search = useSearchParams();
   return (
     <section className="grid gap-3">
       <div className="flex flex-wrap items-center gap-3">
         <h2 className="text-lg font-semibold">{d["doc.title"]}</h2>
         <span className="flex-1" />
-        {canEdit && !adding && <button className="btn-ghost" onClick={() => setAdding(true)}>{d["doc.new"]}</button>}
+        {canEdit && !adding && <button className="btn" onClick={() => setAdding(types[0])}>{d["doc.new"]}</button>}
       </div>
+      {missing.length > 0 && !adding && (
+        <div className="flex flex-wrap items-center gap-2 rounded-lg bg-warn-soft px-4 py-3 text-sm">
+          <span className="text-warn">{d["doc.missing"]}</span>
+          {missing.map((m) =>
+            canEdit ? (
+              <button key={m} onClick={() => setAdding(m)} className="rounded-md border border-line bg-paper px-3 py-1.5 font-medium text-accent hover:bg-accent-soft">
+                + {d[`doc.t.${m}`]}
+              </button>
+            ) : (
+              <span key={m} className="font-medium">{d[`doc.t.${m}`]}</span>
+            ),
+          )}
+        </div>
+      )}
       {adding && (
         <div className="card p-5">
-          <DocForm d={d} owner={owner} types={types} fileRequired={fileRequired} onDone={() => setAdding(false)} />
-          <button className="mt-3 text-sm text-muted hover:underline" onClick={() => setAdding(false)}>{d["common.cancel"]}</button>
+          <DocForm key={adding} d={d} owner={owner} types={types} fileRequired={fileRequired} initialType={adding} onDone={() => setAdding(null)} />
+          <button className="mt-3 text-sm text-muted hover:underline" onClick={() => setAdding(null)}>{d["common.cancel"]}</button>
         </div>
       )}
       <DocTable d={d} rows={active} canEdit={canEdit} renewing={renewing} setRenewing={setRenewing} owner={owner} types={types} fileRequired={fileRequired} />
       {archivedCount > 0 && (
-        <Link href={archived ? path : `${path}?docs=all`} className="text-sm text-accent hover:underline">
+        <Link href={archivedHref(path, search, !archived)} className="text-sm text-accent hover:underline">
           {archived ? d["common.hideArchived"] : `${d["doc.archived"]} (${archivedCount})`}
         </Link>
       )}
@@ -47,7 +66,7 @@ export function DocsPanel({ d, owner, types, fileRequired, active, archived, arc
 function DocTable({ d, rows, canEdit, muted, renewing, setRenewing, owner, types, fileRequired }: {
   d: Dict; rows: DocRow[]; canEdit?: boolean; muted?: boolean;
   renewing?: string | null; setRenewing?: (id: string | null) => void;
-  owner?: { kind: "vehicle" | "driver"; id: string }; types?: DocType[]; fileRequired?: DocType[];
+  owner?: Owner; types?: DocType[]; fileRequired?: DocType[];
 }) {
   if (rows.length === 0) return muted ? null : <p className="card px-4 py-6 text-sm text-muted">{d["common.none"]}</p>;
   return (
@@ -75,7 +94,7 @@ function DocTable({ d, rows, canEdit, muted, renewing, setRenewing, owner, types
 
 function RowWithRenew({ r, d, canEdit, open, setRenewing, owner, types, fileRequired }: {
   r: DocRow; d: Dict; canEdit?: boolean; open: boolean; setRenewing?: (id: string | null) => void;
-  owner?: { kind: "vehicle" | "driver"; id: string }; types?: DocType[]; fileRequired?: DocType[];
+  owner?: Owner; types?: DocType[]; fileRequired?: DocType[];
 }) {
   return (
     <>
@@ -115,4 +134,13 @@ function RowWithRenew({ r, d, canEdit, open, setRenewing, owner, types, fileRequ
       )}
     </>
   );
+}
+
+/** Arxivni ko'rsatish/yashirish havolasi; boshqa parametrlar (masalan tanlangan tashkilot) saqlanadi. */
+function archivedHref(path: string, search: URLSearchParams | null, show: boolean) {
+  const p = new URLSearchParams(search?.toString() ?? "");
+  if (show) p.set("docs", "all");
+  else p.delete("docs");
+  const q = p.toString();
+  return q ? `${path}?${q}` : path;
 }

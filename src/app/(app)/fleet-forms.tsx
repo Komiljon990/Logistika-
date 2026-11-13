@@ -4,6 +4,8 @@ import { useActionState, useState } from "react";
 import type { DocType, DriverCategory, Ownership, VehicleType } from "@prisma/client";
 import type { Dict } from "@/i18n";
 import type { FormState } from "@/lib/form";
+import type { DocOwnerKind } from "@/lib/docs";
+import { FILE_ACCEPT } from "@/lib/files";
 import { createVehicle, updateVehicle, createDriver, updateDriver, addDocument } from "./fleet-actions";
 
 function Message({ state, d }: { state: FormState; d: Dict }) {
@@ -142,12 +144,13 @@ export function DriverForm({ d, driver, readOnly = false }: { d: Dict; driver?: 
 }
 
 /** Yangi hujjat yoki mavjud hujjatning yangi versiyasi (renewOf). */
-export function DocForm({ d, owner, types, fileRequired, renewOf, onDone }: {
+export function DocForm({ d, owner, types, fileRequired, renewOf, initialType, onDone }: {
   d: Dict;
-  owner: { kind: "vehicle" | "driver"; id: string };
+  owner: { kind: DocOwnerKind; id: string };
   types: DocType[];
   fileRequired: DocType[];
   renewOf?: { id: string; type: DocType };
+  initialType?: DocType;
   onDone?: () => void;
 }) {
   const [state, formAction, pending] = useActionState(
@@ -159,7 +162,7 @@ export function DocForm({ d, owner, types, fileRequired, renewOf, onDone }: {
     {},
   );
   const v = state.values;
-  const [type, setType] = useState<DocType>((v?.type as DocType) ?? renewOf?.type ?? types[0]);
+  const [type, setType] = useState<DocType>((v?.type as DocType) ?? renewOf?.type ?? initialType ?? types[0]);
   const required = fileRequired.includes(type);
   return (
     <form key={state.ok ? "done" : JSON.stringify(v)} action={formAction} className="grid gap-4 sm:grid-cols-2">
@@ -182,7 +185,7 @@ export function DocForm({ d, owner, types, fileRequired, renewOf, onDone }: {
         <input id="doc-expires" name="expiresAt" type="date" defaultValue={v?.expiresAt} className="input" />
       </Field>
       <Field id="doc-file" label={d["doc.file"]} wide>
-        <input id="doc-file" name="file" type="file" accept="application/pdf,image/jpeg,image/png" required={required} className="input py-2" />
+        <input id="doc-file" name="file" type="file" accept={FILE_ACCEPT} required={required} className="input py-2" />
         <p className="mt-1 text-xs text-muted">{required ? d["doc.fileRequired"] : d["doc.fileOptional"]}</p>
       </Field>
       <Field id="doc-note" label={d["common.note"]} wide>

@@ -48,6 +48,8 @@ export default async function DriverPage({ params, searchParams }: { params: Pro
           ))}
         </p>
       )}
+      <Documents owner={{ kind: "driver", id: x.id }} canEdit={canEdit} showArchived={sp.docs === "all"} />
+      <h2 className="text-lg font-semibold">{t("common.details")}</h2>
       <section className="card p-5">
         <DriverForm
           d={d}
@@ -55,7 +57,6 @@ export default async function DriverPage({ params, searchParams }: { params: Pro
           driver={{ id: x.id, fullName: x.fullName, phone: x.phone ?? "", category: x.category, note: x.note ?? "" }}
         />
       </section>
-      <Documents owner={{ kind: "driver", id: x.id }} canEdit={canEdit} showArchived={sp.docs === "all"} />
     </div>
   );
 }

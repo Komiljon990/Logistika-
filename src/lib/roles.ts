@@ -20,6 +20,10 @@ export const PERMISSIONS = {
   "team.view": ["DIRECTOR"],
   "data.view": ["SUPER_ADMIN", "ACCOUNTANT", "MANAGER", "DIRECTOR", "DEPUTY"],
   "data.edit": ["MANAGER"],
+  // Tashkilot hujjatlari (guvohnoma, ustav, litsenziya, bank rekvizitlari) — 13.11.2026 talabi.
+  "orgdoc.edit": ["MANAGER", "DIRECTOR", "ACCOUNTANT"],
+  // Menyuda muddati yaqin hujjatlar soni ko'rinadi.
+  "alerts.badge": ["MANAGER", "DIRECTOR"],
   "salary.official.edit": ["ACCOUNTANT"],
   "hard.delete": ["SUPER_ADMIN"],
 } as const satisfies Record<string, readonly Role[]>;

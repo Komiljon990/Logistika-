@@ -1,16 +1,43 @@
 import type { DocType } from "@prisma/client";
 
+export type DocOwnerKind = "vehicle" | "driver" | "org";
+
 export const VEHICLE_DOC_TYPES: readonly DocType[] = [
-  "TECH_PASSPORT", "OWNERSHIP_DOC", "LEASE_CONTRACT", "LICENSE",
-  "INSURANCE", "PERMIT", "INSPECTION", "TACHOGRAPH", "OTHER",
+  "TECH_PASSPORT", "LICENSE", "INSPECTION", "INSURANCE", "OWNERSHIP_DOC", "LEASE_CONTRACT",
+  "PERMIT", "TACHOGRAPH", "OTHER",
 ];
 
 export const DRIVER_DOC_TYPES: readonly DocType[] = [
-  "PASSPORT", "FOREIGN_PASSPORT", "DRIVING_LICENSE", "ADR", "CERTIFICATE", "VISA", "OTHER",
+  "DRIVING_LICENSE", "PASSPORT", "FOREIGN_PASSPORT", "CERTIFICATE", "ADR", "VISA", "OTHER",
 ];
 
-/** Texnik shart 3-bo'lim: bu hujjatlarda fayl majburiy, qolganlarida ixtiyoriy. */
+export const ORG_DOC_TYPES: readonly DocType[] = [
+  "ORG_CERTIFICATE", "CHARTER", "LICENSE", "BANK_DETAILS", "OTHER",
+];
+
+export const DOC_TYPES: Record<DocOwnerKind, readonly DocType[]> = {
+  vehicle: VEHICLE_DOC_TYPES,
+  driver: DRIVER_DOC_TYPES,
+  org: ORG_DOC_TYPES,
+};
+
+/**
+ * Har kartochkada bo'lishi kutiladigan asosiy hujjatlar: kiritilmagan bo'lsa "tez qo'shish" tugmasi chiqadi.
+ * Transport: texpasport, litsenziya, texnik ko'rik, sug'urta. Haydovchi: guvohnoma, pasport, zagran pasport, sertifikat.
+ */
+export const RECOMMENDED: Record<DocOwnerKind, readonly DocType[]> = {
+  vehicle: ["TECH_PASSPORT", "LICENSE", "INSPECTION", "INSURANCE"],
+  driver: ["DRIVING_LICENSE", "PASSPORT", "FOREIGN_PASSPORT", "CERTIFICATE"],
+  org: ["ORG_CERTIFICATE", "CHARTER", "LICENSE", "BANK_DETAILS"],
+};
+
+/** Texnik shart 4-bo'lim: bu hujjatlarda fayl majburiy, qolganlarida ixtiyoriy. */
 export const FILE_REQUIRED: readonly DocType[] = ["TECH_PASSPORT", "OWNERSHIP_DOC", "LEASE_CONTRACT"];
+
+/** Asosiy hujjatlardan qaysilari hali faol holatda kiritilmagan. */
+export function missingDocs(kind: DocOwnerKind, activeTypes: readonly DocType[]): DocType[] {
+  return RECOMMENDED[kind].filter((t) => !activeTypes.includes(t));
+}
 
 export type ExpiryLevel = "expired" | "d7" | "d15" | "d30" | "ok" | "none";
 
@@ -34,6 +61,11 @@ export function expiryLevel(days: number | null): ExpiryLevel {
   if (days <= 15) return "d15";
   if (days <= 30) return "d30";
   return "ok";
+}
+
+/** Bugundan `days` kun keyingi sana (Toshkent bo'yicha, kun boshi, UTC). */
+export function dayOffset(days: number, today: Date = tashkentToday()): Date {
+  return new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate() + days));
 }
 
 /** Davlat raqamini bir xil ko'rinishga keltiradi: "01 a 777 aa" → "01A777AA". */
