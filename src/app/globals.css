@@ -68,24 +68,30 @@
   ::selection { background: var(--color-accent); color: var(--color-on-accent); }
 }
 
-.input {
-  @apply w-full min-w-0 rounded-lg border border-line bg-paper px-3 py-2.5 text-[15px] text-ink outline-none transition-colors hover:border-muted focus:border-accent focus:ring-2 focus:ring-accent/25;
-}
-.btn {
-  @apply inline-flex items-center justify-center gap-2 rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-on-accent shadow-sm transition hover:brightness-110 active:brightness-95 disabled:opacity-50;
-}
-.btn-ghost {
-  @apply inline-flex items-center justify-center gap-2 rounded-lg border border-accent bg-paper px-4 py-2 text-sm font-semibold text-accent transition-colors hover:bg-accent-soft;
-}
-.btn-danger {
-  @apply inline-flex items-center justify-center gap-2 rounded-lg border border-bad bg-paper px-4 py-2 text-sm font-semibold text-bad transition-colors hover:bg-bad-soft;
-}
-/* Kartalar to'liq to'q fonda (shaffof emas) — matn har qanday fon ustida ham aniq o'qiladi. */
-.card {
-  @apply rounded-xl border border-line bg-paper shadow-[0_1px_2px_rgb(0_0_0/0.05),0_4px_16px_-8px_rgb(0_0_0/0.12)];
-}
-.label {
-  @apply mb-1 block text-[13px] font-medium text-muted;
+/*
+ * Komponent sinflari "components" qatlamida: shunda w-24, w-auto, max-w-52 kabi utility sinflar ularni
+ * to'g'ri o'zgartira oladi (qatlamsiz yozilsa, Tailwind 4 da ular utility'lardan ustun turadi).
+ */
+@layer components {
+  .input {
+    @apply w-full min-w-0 rounded-lg border border-line bg-paper px-3 py-2.5 text-[15px] text-ink outline-none transition-colors hover:border-muted focus:border-accent focus:ring-2 focus:ring-accent/25;
+  }
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-on-accent shadow-sm transition hover:brightness-110 active:brightness-95 disabled:opacity-50;
+  }
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg border border-accent bg-paper px-4 py-2 text-sm font-semibold text-accent transition-colors hover:bg-accent-soft;
+  }
+  .btn-danger {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg border border-bad bg-paper px-4 py-2 text-sm font-semibold text-bad transition-colors hover:bg-bad-soft;
+  }
+  /* Kartalar to'liq to'q fonda (shaffof emas) — matn har qanday fon ustida ham aniq o'qiladi. */
+  .card {
+    @apply rounded-xl border border-line bg-paper shadow-[0_1px_2px_rgb(0_0_0/0.05),0_4px_16px_-8px_rgb(0_0_0/0.12)];
+  }
+  .label {
+    @apply mb-1 block text-[13px] font-medium text-muted;
+  }
 }
 
 /* ---------- Fon: nuqtali xarita va sekin suzib yuradigan yumshoq rang to'lqinlari ---------- */
@@ -103,25 +109,34 @@
   stroke: var(--color-muted);
   stroke-width: 4;
   stroke-linecap: round;
-  opacity: 0.14;
+  opacity: 0.16;
 }
-.bg-glow {
-  position: absolute;
-  width: 70vmax;
-  height: 70vmax;
-  border-radius: 50%;
-  filter: blur(40px);
-  opacity: 0.55;
-  background: radial-gradient(closest-side, color-mix(in oklab, var(--color-accent) 22%, transparent), transparent);
-  animation: glow-drift 38s ease-in-out infinite alternate;
+.bg-route {
+  fill: none;
+  stroke: var(--color-accent);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-dasharray: 1 9;
+  opacity: 0.45;
+  animation: route-flow 5s linear infinite;
 }
-.bg-glow.one { top: -25vmax; left: -20vmax; }
-.bg-glow.two { bottom: -30vmax; right: -25vmax; animation-duration: 46s; animation-delay: -12s; }
-@keyframes glow-drift {
-  0% { transform: translate(0, 0) scale(1); }
-  50% { transform: translate(12vmax, 8vmax) scale(1.08); }
-  100% { transform: translate(-6vmax, 14vmax) scale(0.96); }
+.bg-city { fill: var(--color-accent); opacity: 0.6; }
+.bg-city-ring {
+  fill: none;
+  stroke: var(--color-accent);
+  stroke-width: 1.5;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: city-pulse 3.6s ease-out infinite;
+}
+/* Yuk mashinalari aniq ko'rinsin: to'q rang, kontur bilan. */
+.bg-truck { fill: var(--color-accent); stroke: var(--color-ground); stroke-width: 1.2; opacity: 0.85; }
+@keyframes route-flow { to { stroke-dashoffset: -100; } }
+@keyframes city-pulse {
+  0% { transform: scale(0.6); opacity: 0.7; }
+  100% { transform: scale(3.2); opacity: 0; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .bg-glow { animation: none; }
+  .bg-route, .bg-city-ring { animation: none; }
+  .bg-truck-move { display: none; }
 }

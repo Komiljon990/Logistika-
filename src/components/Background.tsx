@@ -47,13 +47,60 @@ for (let lat = LAT0 + 0.4; lat < LAT1; lat += 0.9) {
 }
 const MAP_PATH = parts.join("");
 
+// Shaharlar (nomsiz, faqat nuqta): Toshkent, Almati, Moskva, Varshava, Riga, Istanbul, Termiz, Astana, Berlin, Boku.
+const CITIES: Record<string, LonLat> = {
+  tas: [69.24, 41.3], ala: [76.9, 43.24], mow: [37.62, 55.75], waw: [21.0, 52.23], rix: [24.1, 56.95],
+  ist: [28.98, 41.0], tmz: [67.28, 37.22], ast: [71.43, 51.13], ber: [13.4, 52.52], bak: [49.87, 40.41],
+};
+
+const ROUTES: [string, string, number][] = [
+  ["tas", "mow", 0.12], ["mow", "waw", -0.1], ["waw", "ber", 0.15], ["waw", "rix", -0.2], ["tas", "ala", -0.18],
+  ["tas", "bak", 0.15], ["bak", "ist", 0.12], ["tas", "tmz", -0.25], ["tas", "ast", 0.15],
+];
+
+/** Ikki shahar orasidagi egri yo'l (kvadrat Bezye; bend — o'rtadagi og'ish ulushi). */
+function routePath(a: LonLat, b: LonLat, bend: number) {
+  const [x1, y1, x2, y2] = [px(a[0]), py(a[1]), px(b[0]), py(b[1])];
+  const mx = (x1 + x2) / 2 - (y2 - y1) * bend;
+  const my = (y1 + y2) / 2 + (x2 - x1) * bend;
+  return `M${x1.toFixed(1)} ${y1.toFixed(1)} Q${mx.toFixed(1)} ${my.toFixed(1)} ${x2.toFixed(1)} ${y2.toFixed(1)}`;
+}
+
+/** Yuk mashinasi (tyagach + tirkama), o'ngga qaragan; markazi yo'l ustida. */
+function Truck() {
+  return (
+    <g className="bg-truck" transform="scale(1.6) translate(-12 -6.5)">
+      <rect x="0" y="0" width="15" height="9" rx="1.4" />
+      <path d="M16 2.4h4l3 3.3V9h-7z" />
+      <circle cx="4.2" cy="10.4" r="2" />
+      <circle cx="11" cy="10.4" r="2" />
+      <circle cx="19.5" cy="10.4" r="2" />
+    </g>
+  );
+}
+
 export function Background() {
   return (
     <div className="bg-map-layer" aria-hidden="true">
-      <div className="bg-glow one" />
-      <div className="bg-glow two" />
       <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="xMidYMid slice">
         <path d={MAP_PATH} className="bg-map" />
+        {ROUTES.map(([a, b, bend], i) => (
+          <path key={i} id={`bg-route-${i}`} d={routePath(CITIES[a], CITIES[b], bend)} className="bg-route" />
+        ))}
+        {Object.values(CITIES).map(([lon, lat], i) => (
+          <g key={i}>
+            <circle cx={px(lon)} cy={py(lat)} r="4.5" className="bg-city" />
+            <circle cx={px(lon)} cy={py(lat)} r="5" className="bg-city-ring" style={{ animationDelay: `${(i * 0.5) % 3.6}s` }} />
+          </g>
+        ))}
+        {[0, 1, 4, 5, 6, 8].map((ri, k) => (
+          <g key={ri} className="bg-truck-move">
+            <Truck />
+            <animateMotion dur={`${18 + k * 4}s`} repeatCount="indefinite" rotate="auto" begin={`${-k * 3}s`}>
+              <mpath href={`#bg-route-${ri}`} />
+            </animateMotion>
+          </g>
+        ))}
       </svg>
     </div>
   );
