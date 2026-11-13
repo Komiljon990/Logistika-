@@ -415,13 +415,28 @@ vaqtda, telefon va kompyuter ko'rinishi, ma'lumot yaxlitligi, arxiv
 - 4-bo'limdagi "majburiy fayl" va 6-bo'limdagi fayl turlari (PDF, JPG,
   PNG) 10 MB va kengaytirilgan turlar bilan almashtirildi.
 
-### Ochiq savollar (13.11.2026)
+### Yangi talablar (13.11.2026, uchinchi qism)
 
-- Naqd kelishuvda **karta raqami kimniki** (tashkilot, rahbar yoki
-  boshqa shaxs) va buni har to'lovda yozib qo'yish kerakmi?
-- Bot uchun **Telegram bot tokeni** kerak (@BotFather orqali bir marta
-  ochiladi). Haydovchi botga telefon raqamini yuborib, tizimdagi
-  raqami bo'yicha tanib olinadi — shunday bo'lsinmi?
+- **Karta raqami** alohida maydon emas: kimning kartasiga tushgani
+  to'lov izohiga yoziladi (masalan "Rahbar kartasiga").
+- **Bot:** token foydalanuvchi beradi. Haydovchi botga yuborgan telefon
+  raqami bo'yicha taniladi. **Nofaol (arxivlangan) haydovchiga bot hech
+  qanday hujjat va ma'lumot bermaydi.**
+- **To'lov qabul qilishda** boshqa valyutadagi to'lov uchun kurs katagi
+  chiqadi: Markaziy bank kursi avtomatik qo'yiladi, kelishilgan kurs
+  shu katakning o'zida o'zgartiriladi (alohida tugma yo'q).
+- **To'lov qabul qilishda qaysi tashish(lar) uchun ekanini tanlash**
+  mumkin; avtomatik taqsimlash (eng eski qarzdan) qo'shimcha imkoniyat.
+- **Chegara kunlari bot orqali:** haydovchi O'zbekistondan chiqqan va
+  O'zbekistonga kirgan kunni belgilaydi (safar kunlari hisobi uchun).
+- **Menejer haydovchi o'rniga:** bot orqali belgilanadigan barcha
+  amallarni (holatlar, chegara kunlari, hujjat biriktirish) menejer
+  web platformadan ham kirita oladi (telefon buzilgan, internet yo'q,
+  Telegram ishlatmaydi va h.k.). Kim kiritgani (haydovchi yoki menejer)
+  saqlanadi.
+- **Transport va haydovchilar:** hujjat biriktirish va muddat
+  bo'yicha xabarlar ko'zga ko'rinadigan bo'lishi kerak (2-bosqichda
+  hujjatlar faqat kartochka ichida, xabarlar faqat bosh sahifada edi).
 
 ### Takliflar (talab emas, tasdiqlash kerak)
 
