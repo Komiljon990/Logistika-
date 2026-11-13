@@ -21,7 +21,9 @@ export async function Documents({ owner, canEdit, showArchived }: {
       ? { vehicleId: owner.id }
       : owner.kind === "driver"
         ? { driverId: owner.id }
-        : { orgId: owner.id, vehicleId: null, driverId: null };
+        : owner.kind === "trip"
+          ? { tripId: owner.id }
+          : { orgId: owner.id, vehicleId: null, driverId: null, tripId: null };
   const docs = await db.document.findMany({
     where,
     orderBy: [{ type: "asc" }, { createdAt: "desc" }],

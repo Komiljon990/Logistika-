@@ -121,9 +121,12 @@ export type DeleteState = { error?: "veh.error.deleteLinked" };
  */
 export async function deleteVehicle(id: string, _prev: DeleteState): Promise<DeleteState> {
   const user = await requirePermission("vehicle.delete");
-  const v = await db.vehicle.findFirst({ where: { id, ...orgScope(user) }, include: { _count: { select: { documents: true } } } });
+  const v = await db.vehicle.findFirst({
+    where: { id, ...orgScope(user) },
+    include: { _count: { select: { documents: true, tripsAsTractor: true, tripsAsTrailer: true } } },
+  });
   if (!v) throw new ForbiddenError();
-  if (v._count.documents > 0) return { error: "veh.error.deleteLinked" };
+  if (v._count.documents + v._count.tripsAsTractor + v._count.tripsAsTrailer > 0) return { error: "veh.error.deleteLinked" };
   await db.$transaction([
     // Shu prisept boshqa tyagachlarning standart juftligida bo'lsa, juftlikdan chiqariladi.
     db.vehicle.updateMany({ where: { orgId: v.orgId, pairTrailerId: id }, data: { pairTrailerId: null } }),
@@ -191,7 +194,9 @@ async function docEditor(owner: Owner) {
     const row =
       owner.kind === "vehicle"
         ? await db.vehicle.findFirst({ where: { id: owner.id, ...scope } })
-        : await db.driver.findFirst({ where: { id: owner.id, ...scope } });
+        : owner.kind === "driver"
+          ? await db.driver.findFirst({ where: { id: owner.id, ...scope } })
+          : await db.trip.findFirst({ where: { id: owner.id, ...scope } });
     if (!row) throw new ForbiddenError();
     return { user, orgId };
   }
@@ -206,12 +211,14 @@ async function docEditor(owner: Owner) {
 function ownerWhere(owner: Owner, orgId: string) {
   if (owner.kind === "vehicle") return { vehicleId: owner.id };
   if (owner.kind === "driver") return { driverId: owner.id };
-  return { orgId, vehicleId: null, driverId: null };
+  if (owner.kind === "trip") return { tripId: owner.id };
+  return { orgId, vehicleId: null, driverId: null, tripId: null };
 }
 
 function ownerPath(owner: Owner) {
   if (owner.kind === "vehicle") return `/vehicles/${owner.id}`;
   if (owner.kind === "driver") return `/drivers/${owner.id}`;
+  if (owner.kind === "trip") return `/trips/${owner.id}`;
   return "/org-docs";
 }
 
@@ -258,6 +265,7 @@ export async function addDocument(owner: Owner, renewOf: string | null, _prev: F
         type,
         vehicleId: owner.kind === "vehicle" ? owner.id : null,
         driverId: owner.kind === "driver" ? owner.id : null,
+        tripId: owner.kind === "trip" ? owner.id : null,
         title,
         number: optStr(formData, "number", 100),
         issuedAt: parseDate(formData.get("issuedAt")),
@@ -285,7 +293,9 @@ export async function archiveDocument(id: string) {
     ? { kind: "vehicle", id: doc.vehicleId }
     : doc.driverId
       ? { kind: "driver", id: doc.driverId }
-      : { kind: "org", id: doc.orgId };
+      : doc.tripId
+        ? { kind: "trip", id: doc.tripId }
+        : { kind: "org", id: doc.orgId };
   // Huquq hujjat egasiga qarab qayta tekshiriladi (tashkilot filtri ham shu ichida).
   const { user: actor, orgId } = await docEditor(owner);
   await db.document.update({ where: { id }, data: { status: "ARCHIVED" } });

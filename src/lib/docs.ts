@@ -1,6 +1,6 @@
 import type { DocType } from "@prisma/client";
 
-export type DocOwnerKind = "vehicle" | "driver" | "org";
+export type DocOwnerKind = "vehicle" | "driver" | "org" | "trip";
 
 export const VEHICLE_DOC_TYPES: readonly DocType[] = [
   "TECH_PASSPORT", "LICENSE", "INSPECTION", "INSURANCE", "OWNERSHIP_DOC", "LEASE_CONTRACT",
@@ -15,10 +15,14 @@ export const ORG_DOC_TYPES: readonly DocType[] = [
   "ORG_CERTIFICATE", "CHARTER", "LICENSE", "BANK_DETAILS", "OTHER",
 ];
 
+/** Tashish hujjatlari: putyovka, CMR/SMR, Dazvol, TIR, boshqa (texnik shart 4-bo'lim). */
+export const TRIP_DOC_TYPES: readonly DocType[] = ["WAYBILL", "CMR", "DAZVOL", "TIR_CARNET", "OTHER"];
+
 export const DOC_TYPES: Record<DocOwnerKind, readonly DocType[]> = {
   vehicle: VEHICLE_DOC_TYPES,
   driver: DRIVER_DOC_TYPES,
   org: ORG_DOC_TYPES,
+  trip: TRIP_DOC_TYPES,
 };
 
 /**
@@ -29,6 +33,7 @@ export const RECOMMENDED: Record<DocOwnerKind, readonly DocType[]> = {
   vehicle: ["TECH_PASSPORT", "LICENSE", "INSPECTION", "INSURANCE"],
   driver: ["DRIVING_LICENSE", "PASSPORT", "FOREIGN_PASSPORT", "CERTIFICATE"],
   org: ["ORG_CERTIFICATE", "CHARTER", "LICENSE", "BANK_DETAILS"],
+  trip: ["WAYBILL", "CMR"],
 };
 
 /** Texnik shart 4-bo'lim: bu hujjatlarda fayl majburiy, qolganlarida ixtiyoriy. */

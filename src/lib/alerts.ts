@@ -15,7 +15,7 @@ function docWhere(user: ScopeUser, until: Date) {
     OR: [
       { vehicle: { status: "ACTIVE" as const } },
       { driver: { status: "ACTIVE" as const } },
-      { vehicleId: null, driverId: null },
+      { vehicleId: null, driverId: null, tripId: null },
     ],
   };
 }

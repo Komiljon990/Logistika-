@@ -1,0 +1,132 @@
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import { getDict, getT } from "@/i18n";
+import { db } from "@/lib/db";
+import { requireUser } from "@/lib/session";
+import { can } from "@/lib/roles";
+import { orgScope } from "@/lib/scope";
+import { formatDate } from "@/lib/dates";
+import { formatNumber } from "@/lib/currency-core";
+import { activeCurrencies } from "@/lib/org-currency";
+import { EVENT_ORDER, formatTashkent, nextEvents, tashkentNowInput, tripNumber } from "@/lib/trips-core";
+import { Documents } from "../../Documents";
+import { AddShipmentPanel, CancelTripButton, EventForm } from "../forms";
+
+export default async function TripPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ docs?: string }> }) {
+  const user = await requireUser();
+  const [{ id }, sp] = [await params, await searchParams];
+  const [t, d] = [await getT(), await getDict()];
+  const trip = await db.trip.findFirst({
+    where: { id, ...orgScope(user) },
+    include: {
+      org: { select: { name: true } },
+      tractor: { select: { id: true, plate: true } },
+      trailer: { select: { id: true, plate: true } },
+      driver: { select: { id: true, fullName: true, phone: true } },
+      events: { orderBy: { at: "asc" } },
+      shipments: { orderBy: { createdAt: "asc" }, include: { client: { select: { id: true, name: true } } } },
+    },
+  });
+  if (!trip) notFound();
+  const editor = can(user.role, "data.edit");
+  const done = Object.fromEntries(trip.events.map((e) => [e.type, e.at]));
+  const allowed = trip.status === "CANCELLED" ? [] : nextEvents(done);
+  const loaded = trip.status === "ACTIVE" && !done.UNLOADED;
+  const userIds = [...new Set(trip.events.map((e) => e.userId).filter((x): x is string => !!x))];
+  const users = userIds.length ? await db.user.findMany({ where: { id: { in: userIds } }, select: { id: true, fullName: true } }) : [];
+  const userName = new Map(users.map((u) => [u.id, u.fullName]));
+  const [clients, currencies] = editor && loaded
+    ? await Promise.all([
+        db.client.findMany({ where: { orgId: trip.orgId, status: "ACTIVE" }, orderBy: { name: "asc" }, select: { id: true, name: true } }),
+        activeCurrencies(trip.orgId),
+      ])
+    : [[], []];
+  // Ichki tashishda chegara bosqichlari ko'rsatilmaydi (chiqish belgilanmagan va yuk tushirilgan bo'lsa).
+  const steps = EVENT_ORDER.filter((s) => !(s === "ENTERED_UZ" && done.UNLOADED && !done.EXITED_UZ) && !(s === "EXITED_UZ" && done.UNLOADED && !done.EXITED_UZ));
+
+  return (
+    <div className="grid gap-6">
+      <Link href="/trips" className="text-sm text-accent hover:underline">← {t("trip.title")}</Link>
+      <div className="flex flex-wrap items-center gap-3">
+        <h1 className="text-2xl font-bold">{tripNumber(trip.number)} · {trip.routeFrom} → {trip.routeTo}</h1>
+        <span className={`rounded-full px-3 py-1 text-sm font-semibold ${
+          trip.status === "CANCELLED" ? "bg-bad-soft text-bad" : trip.status === "COMPLETED" ? "bg-accent-soft text-accent" : loaded ? "bg-warn-soft text-warn" : "bg-accent-soft text-accent"
+        }`}>
+          {trip.status === "CANCELLED" ? t("trip.cancelled") : trip.status === "COMPLETED" ? t("trip.completed") : loaded ? t("trip.withCargo") : t("trip.unloadedReturning")}
+        </span>
+        {!user.orgId && <span className="text-sm text-muted">· {trip.org.name}</span>}
+        <span className="flex-1" />
+        {editor && trip.status === "ACTIVE" && <CancelTripButton d={d} tripId={trip.id} />}
+      </div>
+
+      <section className="card grid gap-4 p-5">
+        <div className="flex flex-wrap items-center gap-3">
+          <p className="text-sm text-muted">{t("trip.stagesHint")}</p>
+          <span className="flex-1" />
+          {editor && <EventForm d={d} tripId={trip.id} allowed={allowed} now={tashkentNowInput()} />}
+        </div>
+        <ol className="grid grid-cols-[repeat(auto-fit,minmax(130px,1fr))] gap-2 text-sm">
+          {steps.map((s, i) => {
+            const ev = trip.events.find((e) => e.type === s);
+            const isNext = !ev && allowed.includes(s);
+            return (
+              <li key={s} className={`rounded-lg p-3 ${ev ? "bg-accent-soft text-accent" : isNext ? "border-2 border-accent" : "bg-ground text-muted"}`}>
+                <div className="font-semibold">{i + 1}. {t(`trip.ev.${s}`)}</div>
+                {ev ? (
+                  <div className="mt-1 text-xs text-ink">
+                    {formatTashkent(ev.at)}
+                    <div className="text-muted">
+                      {ev.source === "MANAGER" ? `${t("trip.byManager")}${ev.userId && userName.get(ev.userId) ? `: ${userName.get(ev.userId)}` : ""}` : t("trip.byDriver")}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="mt-1 text-xs">{isNext ? t("trip.waiting") : "—"}</div>
+                )}
+              </li>
+            );
+          })}
+        </ol>
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(180px,1fr))] gap-3 border-t border-line pt-4 text-sm">
+          <div><div className="text-xs text-muted">{t("trip.tractor")}</div><Link href={`/vehicles/${trip.tractor.id}`} className="font-semibold text-accent hover:underline">{trip.tractor.plate}</Link></div>
+          <div><div className="text-xs text-muted">{t("trip.trailer")}</div>{trip.trailer ? <Link href={`/vehicles/${trip.trailer.id}`} className="font-semibold text-accent hover:underline">{trip.trailer.plate}</Link> : "—"}</div>
+          <div><div className="text-xs text-muted">{t("trip.driver")}</div><Link href={`/drivers/${trip.driver.id}`} className="font-semibold text-accent hover:underline">{trip.driver.fullName}</Link>{trip.driver.phone && <div className="text-xs tabular-nums">{trip.driver.phone}</div>}</div>
+          <div><div className="text-xs text-muted">{t("trip.loadDate")}</div><div className="font-semibold tabular-nums">{formatDate(trip.loadDate)}</div></div>
+        </div>
+      </section>
+
+      <div className="flex flex-wrap items-center gap-3">
+        <h2 className="text-lg font-semibold">{t("trip.shipments")}</h2>
+        <span className="flex-1" />
+      </div>
+      {editor && loaded && <AddShipmentPanel d={d} tripId={trip.id} clients={clients.map((c) => ({ id: c.id, label: c.name }))} currencies={currencies} />}
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(300px,1fr))] gap-4">
+        {trip.shipments.map((s, i) => (
+          <section key={s.id} className={`card grid gap-3 p-5 ${s.status !== "ACTIVE" ? "opacity-60" : ""}`}>
+            <div className="flex flex-wrap items-baseline gap-2">
+              <span className="text-xs text-muted">#{i + 1}</span>
+              <Link href={`/clients/${s.client.id}`} className="text-base font-semibold text-accent hover:underline">{s.client.name}</Link>
+            </div>
+            <div className="text-sm">{t("trip.contact")}: <span className="font-medium">{s.contactName}</span> · <a href={`tel:${s.contactPhone}`} className="tabular-nums text-accent">{s.contactPhone}</a></div>
+            <div className="flex flex-wrap gap-2 text-sm">
+              <span className={`rounded-md px-2 py-1 font-medium ${s.terms === "CONTRACT" ? "bg-accent-soft text-accent" : "bg-warn-soft text-warn"}`}>{t(`trip.terms.${s.terms}`)}</span>
+              {s.smrNumber && <span className="rounded-md bg-ground px-2 py-1">CMR {s.smrNumber}</span>}
+            </div>
+            {s.cargo && <div className="text-sm text-muted">{s.cargo}</div>}
+            <div className="flex items-baseline justify-between border-t border-line pt-3">
+              <span className="text-sm">{t("trip.price")}</span>
+              <span className="text-xl font-bold tabular-nums">{formatNumber(Number(s.price))} {s.currency}</span>
+            </div>
+            {s.accountingPrice != null && (
+              <div className="rounded-md bg-ground px-3 py-2 text-xs text-muted">
+                {t("trip.accountingPrice")}: <span className="font-semibold text-ink tabular-nums">{formatNumber(Number(s.accountingPrice))} {s.accountingCurrency}</span> — {t("trip.accountingShort")}
+              </div>
+            )}
+          </section>
+        ))}
+      </div>
+      <p className="text-xs text-muted">{t("trip.paymentsSoon")}</p>
+
+      <Documents owner={{ kind: "trip", id: trip.id }} canEdit={editor && trip.status !== "CANCELLED"} showArchived={sp.docs === "all"} />
+    </div>
+  );
+}

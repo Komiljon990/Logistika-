@@ -40,6 +40,8 @@ model Organization {
   documents  Document[]
   files      StoredFile[]
   currencies OrgCurrency[]
+  clients    Client[]
+  trips      Trip[]
 }
 
 // ---------- Valyutalar va kurslar ----------
@@ -144,6 +146,8 @@ model Vehicle {
   updatedAt      DateTime     @updatedAt
 
   documents Document[]
+  tripsAsTractor Trip[] @relation("TripTractor")
+  tripsAsTrailer Trip[] @relation("TripTrailer")
 
   @@index([orgId, status])
   @@index([orgId, plate])
@@ -163,6 +167,7 @@ model Driver {
 
   documents      Document[]
   pairedVehicles Vehicle[]
+  trips          Trip[]
 
   @@index([orgId, status])
 }
@@ -188,6 +193,11 @@ enum DocType {
   ORG_CERTIFICATE // guvohnoma
   CHARTER // ustav
   BANK_DETAILS // bank rekvizitlari
+  // tashish
+  WAYBILL // putyovka
+  CMR // CMR / SMR
+  DAZVOL
+  TIR_CARNET // TIR
   OTHER
 }
 
@@ -201,6 +211,8 @@ model Document {
   vehicle     Vehicle?     @relation(fields: [vehicleId], references: [id])
   driverId    String?
   driver      Driver?      @relation(fields: [driverId], references: [id])
+  tripId      String?
+  trip        Trip?        @relation(fields: [tripId], references: [id])
   type        DocType
   title       String? // "Boshqa" turidagi hujjat uchun foydalanuvchi bergan nom
   number      String?
@@ -220,6 +232,125 @@ model Document {
   @@index([orgId, status, expiresAt])
   @@index([vehicleId])
   @@index([driverId])
+  @@index([tripId])
+}
+
+// ---------- Mijozlar va tashishlar ----------
+
+/// Mijoz (yuk beruvchi). Har tashkilotning o'z bazasi.
+model Client {
+  id        String       @id @default(cuid())
+  orgId     String
+  org       Organization @relation(fields: [orgId], references: [id])
+  name      String
+  inn       String? // STIR
+  phone     String?
+  address   String?
+  note      String?
+  status    Status       @default(ACTIVE)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  shipments Shipment[]
+
+  @@index([orgId, status, name])
+}
+
+enum TripStatus {
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+/// Tashish holatlari ketma-ketligi (haydovchi bot orqali yoki menejer uning o'rniga belgilaydi).
+enum TripEventType {
+  ACCEPTED // qabul qildi
+  ARRIVED_LOADING // yuklash manziliga yetdi
+  LOADED // yuklandi
+  EXITED_UZ // O'zbekistondan chiqdi
+  ARRIVED_UNLOADING // tushirish manziliga yetdi
+  UNLOADED // yuk tushirildi — transport bo'shaydi
+  ENTERED_UZ // O'zbekistonga kirdi
+}
+
+enum EventSource {
+  DRIVER // Telegram bot orqali
+  MANAGER // menejer haydovchi o'rniga
+}
+
+enum PaymentTerms {
+  CONTRACT // shartnoma: faqat bank hisob raqamiga
+  CASH // naqd kelishuv: naqd pul yoki karta raqamiga
+}
+
+model Trip {
+  id          String       @id @default(cuid())
+  orgId       String
+  org         Organization @relation(fields: [orgId], references: [id])
+  number      Int // tashkilot ichida tartib raqami: TSH-0001
+  routeFrom   String
+  routeTo     String
+  tractorId   String
+  tractor     Vehicle      @relation("TripTractor", fields: [tractorId], references: [id])
+  trailerId   String?
+  trailer     Vehicle?     @relation("TripTrailer", fields: [trailerId], references: [id])
+  driverId    String
+  driver      Driver       @relation(fields: [driverId], references: [id])
+  loadDate    DateTime     @db.Date
+  cargo       String?
+  note        String?
+  status      TripStatus   @default(ACTIVE)
+  createdById String
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  shipments Shipment[]
+  events    TripEvent[]
+  documents Document[]
+
+  @@unique([orgId, number])
+  @@index([orgId, status])
+  @@index([tractorId, status])
+}
+
+model TripEvent {
+  id        String        @id @default(cuid())
+  tripId    String
+  trip      Trip          @relation(fields: [tripId], references: [id])
+  type      TripEventType
+  at        DateTime // haqiqiy vaqt (menejer kechikib kiritsa ham o'sha paytdagi vaqt)
+  source    EventSource
+  userId    String? // menejer kiritgan bo'lsa
+  note      String?
+  createdAt DateTime      @default(now())
+
+  @@unique([tripId, type])
+}
+
+/// Yuk qismi (SMR): har biri alohida mijoz, alohida narx va to'lov kelishuvi.
+model Shipment {
+  id                 String       @id @default(cuid())
+  orgId              String
+  tripId             String
+  trip               Trip         @relation(fields: [tripId], references: [id])
+  clientId           String
+  client             Client       @relation(fields: [clientId], references: [id])
+  contactName        String // mijoz tomondan mas'ul shaxs
+  contactPhone       String
+  cargo              String?
+  smrNumber          String? // CMR raqami
+  terms              PaymentTerms
+  price              Decimal      @db.Decimal(18, 2)
+  currency           String
+  accountingPrice    Decimal?     @db.Decimal(18, 2) // buxgalteriya narxi: qoldiqqa aralashmaydi
+  accountingCurrency String?
+  status             Status       @default(ACTIVE)
+  createdById        String
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+
+  @@index([orgId, clientId])
+  @@index([tripId])
 }
 
 /// Fayl hozircha bazada saqlanadi (sinov uchun eng oddiy). Keyin S3 turidagi saqlashga ko'chiriladi.
