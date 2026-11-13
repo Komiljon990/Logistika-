@@ -2,7 +2,9 @@ import { notFound } from "next/navigation";
 import { getDict, getT, getLocale } from "@/i18n";
 import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/session";
+import { canResetPassword } from "@/lib/roles";
 import { StatusPill } from "@/components/StatusPill";
+import { PasswordResetForm } from "@/components/PasswordResetForm";
 import { UserControls, UserForm } from "../../Forms";
 
 export default async function UserPage({ params }: { params: Promise<{ id: string }> }) {
@@ -23,6 +25,9 @@ export default async function UserPage({ params }: { params: Promise<{ id: strin
       <section className="card p-5"><UserForm d={d} orgs={orgs} user={{ id: user.id, fullName: user.fullName, phone: user.phone, role: user.role, orgId: user.orgId }} /></section>
       {user.id !== admin.id && (
         <section className="card p-5"><UserControls d={d} id={user.id} status={user.status} /></section>
+      )}
+      {canResetPassword(admin, user) && (
+        <section className="card p-5"><PasswordResetForm d={d} userId={user.id} /></section>
       )}
     </div>
   );

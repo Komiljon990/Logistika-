@@ -9,7 +9,7 @@ export const uz = {
   "login.phone": "Telefon raqami",
   "login.password": "Parol",
   "login.submit": "Kirish",
-  "login.forgot": "Parolni unutdingizmi? Administratorga murojaat qiling.",
+  "login.forgot": "Parolni unutdingizmi? Tashkilot rahbari yoki Super Admin'ga murojaat qiling.",
   "login.error.invalid": "Telefon raqami yoki parol noto'g'ri.",
   "login.error.locked": "Ko'p marta noto'g'ri parol kiritildi. 15 daqiqadan keyin qayta urinib ko'ring.",
   "login.error.blocked": "Hisobingiz bloklangan. Administratorga murojaat qiling.",
@@ -23,6 +23,7 @@ export const uz = {
   "nav.reports": "Hisobotlar",
   "nav.orgs": "Tashkilotlar",
   "nav.users": "Foydalanuvchilar",
+  "nav.team": "Xodimlar",
   "nav.soon": "keyingi bosqichda",
 
   "role.SUPER_ADMIN": "Super Admin",
@@ -62,6 +63,8 @@ export const uz = {
   "org.address": "Manzil",
   "org.users": "Foydalanuvchilar",
 
+  "team.title": "Tashkilot xodimlari",
+
   "user.title": "Foydalanuvchilar",
   "user.new": "Yangi foydalanuvchi",
   "user.fullName": "F.I.O.",
@@ -73,7 +76,11 @@ export const uz = {
   "user.lastLogin": "Oxirgi kirish",
   "user.resetPassword": "Parolni tiklash",
   "user.newPassword": "Yangi parol",
-  "user.newPasswordNote": "Shu parolni foydalanuvchiga bering. U boshqa ko'rsatilmaydi.",
+  "user.passwordConfirm": "Parolni takrorlang",
+  "user.passwordChanged": "Parol o'zgartirildi. Foydalanuvchi yangi parol bilan qayta kirishi kerak.",
+  "user.resetOnlyAdmin": "Bu foydalanuvchining parolini faqat Super Admin o'zgartira oladi.",
+  "user.error.passwordMismatch": "Parollar bir xil emas.",
+  "user.error.forbidden": "Bu foydalanuvchining parolini o'zgartirishga ruxsatingiz yo'q.",
   "user.error.phone": "Telefon raqami noto'g'ri. Masalan: +998 90 123 45 67.",
   "user.error.phoneTaken": "Bu raqam bilan foydalanuvchi allaqachon bor.",
   "user.error.password": "Parol kamida 8 belgi bo'lishi kerak.",

@@ -9,10 +9,10 @@ import { audit } from "@/lib/audit";
 import { requirePermission } from "@/lib/session";
 import { isGlobalRole } from "@/lib/roles";
 import { normalizePhone } from "@/lib/phone";
-import { generatePassword, hashPassword, MIN_PASSWORD_LENGTH } from "@/lib/password";
+import { hashPassword, MIN_PASSWORD_LENGTH } from "@/lib/password";
 import type { Dict } from "@/i18n";
 
-export type FormState = { error?: keyof Dict; ok?: boolean; newPassword?: string; values?: Record<string, string> };
+export type FormState = { error?: keyof Dict; ok?: boolean; values?: Record<string, string> };
 
 /** React forma xatodan keyin tozalanadi; kiritilgan qiymatlar (parolsiz) qaytarilib qayta to'ldiriladi. */
 function fail(error: keyof Dict, formData: FormData): FormState {
@@ -166,18 +166,4 @@ export async function setUserStatus(id: string, status: Status): Promise<FormSta
   return { ok: true };
 }
 
-export async function resetPassword(id: string): Promise<FormState> {
-  const admin = await requirePermission("user.manage");
-  const newPassword = generatePassword();
-  const user = await db.user.update({
-    where: { id },
-    data: {
-      passwordHash: await hashPassword(newPassword),
-      sessionVersion: { increment: 1 },
-      failedLogins: 0,
-      lockedUntil: null,
-    },
-  });
-  await audit({ actorId: admin.id, orgId: user.orgId, action: "user.password_reset", entity: "User", entityId: id });
-  return { ok: true, newPassword };
-}
+// Parolni qo'lda o'rnatish: ../password-actions.ts (Super Admin va rahbar uchun umumiy).

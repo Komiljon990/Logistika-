@@ -21,6 +21,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           { href: "/admin/users", label: t("nav.users") },
         ]
       : []),
+    ...(can(user.role, "team.view") ? [{ href: "/team", label: t("nav.team") }] : []),
   ];
   return (
     <div className="min-h-dvh">
