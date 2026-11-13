@@ -5,14 +5,14 @@
  * Yorug' rejim — standart; qorong'i — o'z ranglari (oddiy teskari emas).
  */
 @theme {
-  --color-accent: #17664f;
+  --color-accent: #1556b0;
   --color-on-accent: #ffffff;
-  --color-accent-soft: #dcefe7;
-  --color-ink: #0f1a17;
-  --color-muted: #4d5a56;
-  --color-line: #cdd6d2;
+  --color-accent-soft: #dde8f8;
+  --color-ink: #0b1626;
+  --color-muted: #46566c;
+  --color-line: #c8d4e3;
   --color-paper: #ffffff;
-  --color-ground: #eaeeec;
+  --color-ground: #e6edf6;
   --color-warn: #8f4508;
   --color-warn-soft: #fcebd9;
   --color-bad: #a82219;
@@ -23,34 +23,34 @@
 @layer base {
   :root { color-scheme: light; }
   :root[data-theme="dark"] {
-    --color-accent: #5fd0ae;
-    --color-on-accent: #04221a;
-    --color-accent-soft: #153f34;
-    --color-ink: #eef3f1;
-    --color-muted: #b0bdb9;
-    --color-line: #33433f;
-    --color-paper: #16211e;
-    --color-ground: #0b1210;
+    --color-accent: #5fb4ff;
+    --color-on-accent: #041a33;
+    --color-accent-soft: #11294a;
+    --color-ink: #ecf3fc;
+    --color-muted: #a9b8cc;
+    --color-line: #24375a;
+    --color-paper: #0f1b30;
+    --color-ground: #060d1c;
     --color-warn: #f5b06f;
-    --color-warn-soft: #3d2c17;
+    --color-warn-soft: #3a2a17;
     --color-bad: #ff8f86;
-    --color-bad-soft: #421f1c;
+    --color-bad-soft: #3f1d22;
     color-scheme: dark;
   }
   @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
-      --color-accent: #5fd0ae;
-      --color-on-accent: #04221a;
-      --color-accent-soft: #153f34;
-      --color-ink: #eef3f1;
-      --color-muted: #b0bdb9;
-      --color-line: #33433f;
-      --color-paper: #16211e;
-      --color-ground: #0b1210;
+      --color-accent: #5fb4ff;
+      --color-on-accent: #041a33;
+      --color-accent-soft: #11294a;
+      --color-ink: #ecf3fc;
+      --color-muted: #a9b8cc;
+      --color-line: #24375a;
+      --color-paper: #0f1b30;
+      --color-ground: #060d1c;
       --color-warn: #f5b06f;
-      --color-warn-soft: #3d2c17;
+      --color-warn-soft: #3a2a17;
       --color-bad: #ff8f86;
-      --color-bad-soft: #421f1c;
+      --color-bad-soft: #3f1d22;
       color-scheme: dark;
     }
   }
@@ -94,49 +94,91 @@
   }
 }
 
-/* ---------- Fon: nuqtali xarita va sekin suzib yuradigan yumshoq rang to'lqinlari ---------- */
+
+/* ---------- Fon: texnologik uslub — yorug' nuqtali xarita, tarmoq, oqib o'tadigan nur, sekin yuk mashinalari ---------- */
+:root {
+  --bg-base-1: #eef3fa;
+  --bg-base-2: #dde7f4;
+  --bg-dot: #1556b0;
+  --bg-dot-op: 0.2;
+  --bg-net: #1556b0;
+  --bg-net-op: 0.16;
+  --bg-glow: #2f7fe0;
+  --bg-truck: #1556b0;
+  --bg-silhouette-op: 0.07;
+}
+:root[data-theme="dark"] {
+  --bg-base-1: #0a1834;
+  --bg-base-2: #040a17;
+  --bg-dot: #4ea8ff;
+  --bg-dot-op: 0.38;
+  --bg-net: #4ea8ff;
+  --bg-net-op: 0.22;
+  --bg-glow: #9fd4ff;
+  --bg-truck: #6cbcff;
+  --bg-silhouette-op: 0.1;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg-base-1: #0a1834;
+    --bg-base-2: #040a17;
+    --bg-dot: #4ea8ff;
+    --bg-dot-op: 0.38;
+    --bg-net: #4ea8ff;
+    --bg-net-op: 0.22;
+    --bg-glow: #9fd4ff;
+    --bg-truck: #6cbcff;
+    --bg-silhouette-op: 0.1;
+  }
+}
+
 .bg-map-layer {
   position: fixed;
   inset: 0;
   z-index: -1;
   pointer-events: none;
   overflow: hidden;
-  background: var(--color-ground);
+  background: radial-gradient(120% 90% at 70% 20%, var(--bg-base-1), var(--bg-base-2) 75%);
 }
 .bg-map-layer svg { position: absolute; inset: 0; width: 100%; height: 100%; }
-.bg-map {
+.bg-map { fill: none; stroke: var(--bg-dot); stroke-width: 3.6; stroke-linecap: round; opacity: var(--bg-dot-op); }
+.bg-net line { stroke: var(--bg-net); stroke-width: 1; opacity: var(--bg-net-op); }
+.bg-node { fill: var(--bg-glow); opacity: 0.55; }
+.bg-route { fill: none; stroke: var(--bg-net); stroke-width: 1.6; stroke-linecap: round; opacity: 0.35; }
+/* Yo'nalish bo'ylab sekin oqib o'tadigan yorug' nur. */
+.bg-beam {
   fill: none;
-  stroke: var(--color-muted);
-  stroke-width: 4;
+  stroke: var(--bg-glow);
+  stroke-width: 3.2;
   stroke-linecap: round;
-  opacity: 0.16;
+  stroke-dasharray: 7 93;
+  opacity: 0.9;
+  animation: beam-travel 22s linear infinite;
 }
-.bg-route {
-  fill: none;
-  stroke: var(--color-accent);
-  stroke-width: 2;
-  stroke-linecap: round;
-  stroke-dasharray: 1 9;
-  opacity: 0.45;
-  animation: route-flow 5s linear infinite;
-}
-.bg-city { fill: var(--color-accent); opacity: 0.6; }
+.bg-city { fill: var(--bg-glow); }
 .bg-city-ring {
   fill: none;
-  stroke: var(--color-accent);
-  stroke-width: 1.5;
+  stroke: var(--bg-glow);
+  stroke-width: 1.4;
   transform-box: fill-box;
   transform-origin: center;
-  animation: city-pulse 3.6s ease-out infinite;
+  animation: city-pulse 5s ease-out infinite;
 }
-/* Yuk mashinalari aniq ko'rinsin: to'q rang, kontur bilan. */
-.bg-truck { fill: var(--color-accent); stroke: var(--color-ground); stroke-width: 1.2; opacity: 0.85; }
-@keyframes route-flow { to { stroke-dashoffset: -100; } }
+.bg-truck { fill: var(--bg-truck); stroke: var(--bg-base-2); stroke-width: 1; opacity: 0.9; }
+.bg-silhouette { fill: var(--bg-truck); opacity: var(--bg-silhouette-op); }
+/* Markazni tinchroq qiladigan qatlam — kartalardan tashqaridagi matn ham aniq o'qilsin. */
+.bg-veil {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(60% 70% at 45% 45%, color-mix(in oklab, var(--color-ground) 55%, transparent), transparent 80%);
+}
+@keyframes beam-travel { from { stroke-dashoffset: 100; } to { stroke-dashoffset: 0; } }
 @keyframes city-pulse {
   0% { transform: scale(0.6); opacity: 0.7; }
   100% { transform: scale(3.2); opacity: 0; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .bg-route, .bg-city-ring { animation: none; }
+  .bg-beam, .bg-city-ring { animation: none; }
+  .bg-beam { display: none; }
   .bg-truck-move { display: none; }
 }

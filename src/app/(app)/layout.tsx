@@ -57,7 +57,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           <DemoNotice text={t("demo.banner")} blocked={t("demo.blocked")} />
         </Suspense>
       )}
-      <div className="mx-auto grid max-w-6xl gap-6 px-4 py-6 md:grid-cols-[200px_minmax(0,1fr)]">
+      <div className="mx-auto grid max-w-6xl gap-6 px-4 py-6 md:grid-cols-[232px_minmax(0,1fr)]">
         <aside className="card self-start p-2 md:sticky md:top-20"><Nav items={items} /></aside>
         <main className="min-w-0">{children}</main>
       </div>

@@ -39,13 +39,32 @@ function inPolygon([x, y]: LonLat, poly: LonLat[]): boolean {
   return inside;
 }
 
-const parts: string[] = [];
+const LAND: [number, number][] = [];
 for (let lat = LAT0 + 0.4; lat < LAT1; lat += 0.9) {
   for (let lon = LON0 + 0.4; lon < LON1; lon += 1.15) {
-    if (!WATER.some((w) => inPolygon([lon, lat], w))) parts.push(`M${Math.round(px(lon))} ${Math.round(py(lat))}h0`);
+    if (!WATER.some((w) => inPolygon([lon, lat], w))) LAND.push([Math.round(px(lon)), Math.round(py(lat))]);
   }
 }
-const MAP_PATH = parts.join("");
+const MAP_PATH = LAND.map(([x, y]) => `M${x} ${y}h0`).join("");
+
+// Tarmoq: quruqlikdan tanlangan tugunlar (har safar bir xil — tasodifiy emas), har biri eng yaqin 2 qo'shnisiga ulanadi.
+const NODES: [number, number][] = [];
+for (let i = 0, seed = 7; i < 34; i++) {
+  seed = (seed * 1103515245 + 12345) % 2147483648;
+  NODES.push(LAND[seed % LAND.length]);
+}
+const NET: [number, number, number, number][] = [];
+const seen = new Set<string>();
+NODES.forEach((a, i) => {
+  NODES.map((b, j) => ({ j, d: (a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2 }))
+    .filter((x) => x.j !== i)
+    .sort((p, q) => p.d - q.d)
+    .slice(0, 2)
+    .forEach(({ j }) => {
+      const key = i < j ? `${i}-${j}` : `${j}-${i}`;
+      if (!seen.has(key)) { seen.add(key); NET.push([a[0], a[1], NODES[j][0], NODES[j][1]]); }
+    });
+});
 
 // Shaharlar (nomsiz, faqat nuqta): Toshkent, Almati, Moskva, Varshava, Riga, Istanbul, Termiz, Astana, Berlin, Boku.
 const CITIES: Record<string, LonLat> = {
@@ -79,29 +98,61 @@ function Truck() {
   );
 }
 
+/** Katta yuk mashinasi silueti (yon ko'rinish) — pastki o'ng burchakda, juda xira. */
+function Silhouette() {
+  return (
+    <g className="bg-silhouette" transform="translate(905 640) scale(1.45)">
+      <rect x="0" y="0" width="262" height="96" rx="5" />
+      <path fillRule="evenodd" d="M268 22h46l30 32v50h-76z M282 32v26h40l-20-26z" />
+      <rect x="-4" y="98" width="352" height="8" rx="2" />
+      {[34, 70, 196, 232, 318].map((x) => <circle key={x} cx={x} cy="114" r="15" />)}
+    </g>
+  );
+}
+
 export function Background() {
   return (
     <div className="bg-map-layer" aria-hidden="true">
       <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="xMidYMid slice">
+        <defs>
+          <filter id="bg-glow-f" x="-50%" y="-50%" width="200%" height="200%">
+            <feGaussianBlur stdDeviation="2.4" result="b" />
+            <feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge>
+          </filter>
+        </defs>
         <path d={MAP_PATH} className="bg-map" />
-        {ROUTES.map(([a, b, bend], i) => (
-          <path key={i} id={`bg-route-${i}`} d={routePath(CITIES[a], CITIES[b], bend)} className="bg-route" />
-        ))}
+        <g className="bg-net">
+          {NET.map(([x1, y1, x2, y2], i) => <line key={i} x1={x1} y1={y1} x2={x2} y2={y2} />)}
+        </g>
+        {NODES.map(([x, y], i) => <circle key={i} cx={x} cy={y} r="2.2" className="bg-node" />)}
+        <Silhouette />
+        {ROUTES.map(([a, b, bend], i) => {
+          const d = routePath(CITIES[a], CITIES[b], bend);
+          return (
+            <g key={i}>
+              <path id={`bg-route-${i}`} d={d} className="bg-route" />
+              {/* Yorug' nur yo'l bo'ylab sekin oqadi (pathLength=100 — har yo'lda bir xil tezlik ulushi). */}
+              <path d={d} pathLength={100} className="bg-beam" filter="url(#bg-glow-f)" style={{ animationDelay: `${-i * 2.3}s`, animationDuration: `${20 + (i % 4) * 4}s` }} />
+            </g>
+          );
+        })}
         {Object.values(CITIES).map(([lon, lat], i) => (
           <g key={i}>
-            <circle cx={px(lon)} cy={py(lat)} r="4.5" className="bg-city" />
-            <circle cx={px(lon)} cy={py(lat)} r="5" className="bg-city-ring" style={{ animationDelay: `${(i * 0.5) % 3.6}s` }} />
+            <circle cx={px(lon)} cy={py(lat)} r="4.5" className="bg-city" filter="url(#bg-glow-f)" />
+            <circle cx={px(lon)} cy={py(lat)} r="5" className="bg-city-ring" style={{ animationDelay: `${(i * 0.6) % 5}s` }} />
           </g>
         ))}
+        {/* Yuk mashinalari sekin harakatlanadi (bir yo'l 55–80 soniya). */}
         {[0, 1, 4, 5, 6, 8].map((ri, k) => (
           <g key={ri} className="bg-truck-move">
             <Truck />
-            <animateMotion dur={`${18 + k * 4}s`} repeatCount="indefinite" rotate="auto" begin={`${-k * 3}s`}>
+            <animateMotion dur={`${55 + k * 5}s`} repeatCount="indefinite" rotate="auto" begin={`${-k * 9}s`}>
               <mpath href={`#bg-route-${ri}`} />
             </animateMotion>
           </g>
         ))}
       </svg>
+      <div className="bg-veil" />
     </div>
   );
 }

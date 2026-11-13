@@ -8,13 +8,13 @@ type Item = { href?: string; label: string; soon?: string; badge?: number };
 export function Nav({ items }: { items: Item[] }) {
   const path = usePathname();
   return (
-    <nav className="flex gap-1 overflow-x-auto text-sm md:grid md:content-start">
+    <nav className="flex gap-1 overflow-x-auto text-base font-medium md:grid md:content-start">
       {items.map((it) =>
         it.href ? (
           <Link
             key={it.label}
             href={it.href}
-            className={`whitespace-nowrap rounded-md px-3 py-2 ${
+            className={`whitespace-nowrap rounded-lg px-3.5 py-2.5 ${
               (it.href === "/" ? path === "/" : path.startsWith(it.href))
                 ? "bg-accent-soft font-semibold text-accent"
                 : "text-ink hover:bg-ground"
@@ -26,7 +26,7 @@ export function Nav({ items }: { items: Item[] }) {
             )}
           </Link>
         ) : (
-          <span key={it.label} title={it.soon} className="flex cursor-default items-center gap-2 whitespace-nowrap rounded-md px-3 py-2 text-muted">
+          <span key={it.label} title={it.soon} className="flex cursor-default items-center gap-2 whitespace-nowrap rounded-lg px-3.5 py-2.5 text-muted">
             {it.label}
           </span>
         ),
