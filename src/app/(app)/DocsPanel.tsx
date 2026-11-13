@@ -128,7 +128,7 @@ function RowWithRenew({ r, d, canEdit, open, setRenewing, owner, types, fileRequ
       {open && owner && types && fileRequired && (
         <tr>
           <td colSpan={6} className="bg-ground px-4 py-4">
-            <DocForm d={d} owner={owner} types={types} fileRequired={fileRequired} renewOf={{ id: r.id, type: r.type }} onDone={() => setRenewing?.(null)} />
+            <DocForm d={d} owner={owner} types={types} fileRequired={fileRequired} renewOf={{ id: r.id, type: r.type, title: r.typeLabel }} onDone={() => setRenewing?.(null)} />
           </td>
         </tr>
       )}

@@ -8,7 +8,7 @@ import { orgScope } from "@/lib/scope";
 import { toInputDate } from "@/lib/dates";
 import { StatusPill } from "@/components/StatusPill";
 import { VehicleForm } from "../../fleet-forms";
-import { setVehicleStatus } from "../../fleet-actions";
+import { VehicleActions } from "./VehicleActions";
 import { Documents } from "../../Documents";
 
 export default async function VehiclePage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ docs?: string }> }) {
@@ -23,7 +23,6 @@ export default async function VehiclePage({ params, searchParams }: { params: Pr
     db.vehicle.findMany({ where: { orgId: v.orgId, type: "TRAILER", status: "ACTIVE" }, orderBy: { plate: "asc" }, select: { id: true, plate: true } }),
     db.driver.findMany({ where: { orgId: v.orgId, status: "ACTIVE" }, orderBy: { fullName: "asc" }, select: { id: true, fullName: true } }),
   ]);
-  const toggle = setVehicleStatus.bind(null, v.id, v.status === "ACTIVE" ? "ARCHIVED" : "ACTIVE");
   return (
     <div className="grid gap-6">
       <Link href="/vehicles" className="text-sm text-accent hover:underline">← {t("veh.title")}</Link>
@@ -33,17 +32,14 @@ export default async function VehiclePage({ params, searchParams }: { params: Pr
         <StatusPill status={v.status} t={t} />
         {!user.orgId && <span className="text-sm text-muted">· {v.org.name}</span>}
         <span className="flex-1" />
-        {can(user.role, "data.edit") && (
-          <form action={toggle}>
-            <button className={v.status === "ACTIVE" ? "btn-danger" : "btn-ghost"}>
-              {v.status === "ACTIVE" ? t("common.archive") : t("common.restore")}
-            </button>
-          </form>
-        )}
+        <VehicleActions
+          d={d} id={v.id} plate={v.plate} active={v.status === "ACTIVE"}
+          canEdit={can(user.role, "data.edit")} canDelete={can(user.role, "vehicle.delete")}
+        />
       </div>
       {!can(user.role, "data.edit") && <p className="text-sm text-muted">{t("common.viewOnly")}</p>}
       <Documents owner={{ kind: "vehicle", id: v.id }} canEdit={canEdit} showArchived={sp.docs === "all"} />
-      <h2 className="text-lg font-semibold">{t("common.details")}</h2>
+      <h2 id="details" className="scroll-mt-4 text-lg font-semibold">{t("common.details")}</h2>
       <section className="card p-5">
         <VehicleForm
           d={d}

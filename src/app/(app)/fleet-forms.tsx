@@ -149,7 +149,7 @@ export function DocForm({ d, owner, types, fileRequired, renewOf, initialType, o
   owner: { kind: DocOwnerKind; id: string };
   types: DocType[];
   fileRequired: DocType[];
-  renewOf?: { id: string; type: DocType };
+  renewOf?: { id: string; type: DocType; title?: string | null };
   initialType?: DocType;
   onDone?: () => void;
 }) {
@@ -167,12 +167,17 @@ export function DocForm({ d, owner, types, fileRequired, renewOf, initialType, o
   return (
     <form key={state.ok ? "done" : JSON.stringify(v)} action={formAction} className="grid gap-4 sm:grid-cols-2">
       {renewOf ? (
-        <p className="text-sm text-muted sm:col-span-2">{d[`doc.t.${renewOf.type}`]}: {d["doc.renewHint"]}</p>
+        <p className="text-sm text-muted sm:col-span-2">{renewOf.title || d[`doc.t.${renewOf.type}`]}: {d["doc.renewHint"]}</p>
       ) : (
         <Field id="doc-type" label={d["doc.type"]}>
           <select id="doc-type" name="type" value={type} onChange={(e) => setType(e.target.value as DocType)} className="input">
             {types.map((x) => <option key={x} value={x}>{d[`doc.t.${x}`]}</option>)}
           </select>
+        </Field>
+      )}
+      {!renewOf && type === "OTHER" && (
+        <Field id="doc-title" label={d["doc.title2"]}>
+          <input id="doc-title" name="title" required maxLength={100} defaultValue={v?.title} placeholder={d["doc.titleHint"]} className="input" />
         </Field>
       )}
       <Field id="doc-number" label={d["doc.number"]}>

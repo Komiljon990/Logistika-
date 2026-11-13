@@ -18,6 +18,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     { href: "/vehicles", label: t("nav.vehicles") },
     { href: "/drivers", label: t("nav.drivers") },
     { href: "/org-docs", label: t("nav.orgDocs") },
+    { href: "/currencies", label: t("nav.currencies") },
     ...(["nav.trips", "nav.tir", "nav.reports"] as const).map((k) => ({
       label: t(k),
       soon: t("nav.soon"),

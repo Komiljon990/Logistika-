@@ -30,7 +30,7 @@ export async function Documents({ owner, canEdit, showArchived }: {
   const toRow = (x: (typeof docs)[number]): DocRow => ({
     id: x.id,
     type: x.type,
-    typeLabel: t(`doc.t.${x.type}`),
+    typeLabel: x.title || t(`doc.t.${x.type}`),
     number: x.number ?? "—",
     issued: formatDate(x.issuedAt),
     expires: formatDate(x.expiresAt),

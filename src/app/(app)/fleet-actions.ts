@@ -113,6 +113,26 @@ export async function setVehicleStatus(id: string, status: Status) {
   revalidatePath(`/vehicles/${id}`);
 }
 
+export type DeleteState = { error?: "veh.error.deleteLinked" };
+
+/**
+ * Transportni butunlay o'chirish — faqat xato kiritilgan, tarixi yo'q transport uchun (hujjati yo'q).
+ * Tarixi bor transport o'chirilmaydi, nofaol (arxiv) qilinadi: texnik shart — ma'lumot yo'qolmasligi.
+ */
+export async function deleteVehicle(id: string, _prev: DeleteState): Promise<DeleteState> {
+  const user = await requirePermission("vehicle.delete");
+  const v = await db.vehicle.findFirst({ where: { id, ...orgScope(user) }, include: { _count: { select: { documents: true } } } });
+  if (!v) throw new ForbiddenError();
+  if (v._count.documents > 0) return { error: "veh.error.deleteLinked" };
+  await db.$transaction([
+    // Shu prisept boshqa tyagachlarning standart juftligida bo'lsa, juftlikdan chiqariladi.
+    db.vehicle.updateMany({ where: { orgId: v.orgId, pairTrailerId: id }, data: { pairTrailerId: null } }),
+    db.vehicle.delete({ where: { id } }),
+  ]);
+  await audit({ actorId: user.id, orgId: v.orgId, action: "vehicle.delete", entity: "Vehicle", entityId: id, details: { plate: v.plate, type: v.type } });
+  redirect("/vehicles");
+}
+
 // ---------- Haydovchilar ----------
 
 function driverInput(formData: FormData) {
@@ -210,6 +230,9 @@ export async function addDocument(owner: Owner, renewOf: string | null, _prev: F
 
   const type = (prev?.type ?? str(formData, "type")) as DocType;
   if (!DOC_TYPES[owner.kind].includes(type)) return fail("common.required", formData);
+  // "Boshqa" turidagi hujjatga foydalanuvchi o'zi nom beradi (yangilanganda eski nom saqlanadi).
+  const title = type === "OTHER" ? (prev?.title ?? optStr(formData, "title", 100)) : null;
+  if (type === "OTHER" && !title) return fail("doc.titleRequired", formData);
 
   const file = formData.get("file");
   let fileData: { bytes: Uint8Array; mime: string; name: string } | null = null;
@@ -235,6 +258,7 @@ export async function addDocument(owner: Owner, renewOf: string | null, _prev: F
         type,
         vehicleId: owner.kind === "vehicle" ? owner.id : null,
         driverId: owner.kind === "driver" ? owner.id : null,
+        title,
         number: optStr(formData, "number", 100),
         issuedAt: parseDate(formData.get("issuedAt")),
         expiresAt: parseDate(formData.get("expiresAt")),
@@ -247,7 +271,7 @@ export async function addDocument(owner: Owner, renewOf: string | null, _prev: F
   });
   await audit({
     actorId: user.id, orgId, action: prev ? "document.renew" : "document.create", entity: "Document", entityId: doc.id,
-    details: { type, number: doc.number, prevId: prev?.id ?? null, file: fileData ? { name: fileData.name, size: fileData.bytes.byteLength } : null },
+    details: { type, title, number: doc.number, prevId: prev?.id ?? null, file: fileData ? { name: fileData.name, size: fileData.bytes.byteLength } : null },
   });
   revalidatePath(ownerPath(owner));
   return { ok: true };

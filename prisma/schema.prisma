@@ -37,8 +37,34 @@ model Organization {
   users     User[]
   vehicles  Vehicle[]
   drivers   Driver[]
-  documents Document[]
-  files     StoredFile[]
+  documents  Document[]
+  files      StoredFile[]
+  currencies OrgCurrency[]
+}
+
+// ---------- Valyutalar va kurslar ----------
+
+/// Markaziy bank kursi: 1 birlik valyuta necha so'm (nominal hisobga olingan). Kun bo'yicha, o'zgarmaydi.
+model ExchangeRate {
+  date DateTime @db.Date
+  code String // ISO kod: USD, EUR, RUB, KZT ...
+  rate Decimal  @db.Decimal(20, 8)
+  name String? // valyuta nomi (MB ro'yxatidan)
+
+  @@id([date, code])
+  @@index([code, date])
+}
+
+/// Tashkilotning valyuta ro'yxati (13.11.2026: har tashkilotda o'zi, rahbar boshqaradi). UZS doim bor.
+model OrgCurrency {
+  id        String       @id @default(cuid())
+  orgId     String
+  org       Organization @relation(fields: [orgId], references: [id])
+  code      String
+  active    Boolean      @default(true)
+  createdAt DateTime     @default(now())
+
+  @@unique([orgId, code])
 }
 
 model User {
@@ -176,6 +202,7 @@ model Document {
   driverId    String?
   driver      Driver?      @relation(fields: [driverId], references: [id])
   type        DocType
+  title       String? // "Boshqa" turidagi hujjat uchun foydalanuvchi bergan nom
   number      String?
   issuedAt    DateTime?    @db.Date
   expiresAt   DateTime?    @db.Date

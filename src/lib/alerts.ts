@@ -63,6 +63,7 @@ export async function loadAlerts(user: ScopeUser, today: Date): Promise<AlertIte
     owner: x.vehicle?.plate ?? x.driver?.fullName ?? x.org.name,
     orgName: x.org.name,
     docType: x.type as DocType,
+    title: x.title,
     number: x.number,
     expiresAt: x.expiresAt!,
   }));

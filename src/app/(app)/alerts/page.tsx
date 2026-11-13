@@ -51,7 +51,7 @@ export default async function AlertsPage() {
                       <Link href={x.href} className="font-medium text-accent hover:underline">{x.owner}</Link>
                       <div className="text-xs text-muted">{t(`alerts.kind.${x.kind}`)}</div>
                     </td>
-                    <td className="px-4 py-2.5">{x.docType ? t(`doc.t.${x.docType}`) : t("alerts.lease")}</td>
+                    <td className="px-4 py-2.5">{x.title || (x.docType ? t(`doc.t.${x.docType}`) : t("alerts.lease"))}</td>
                     <td className="px-4 py-2.5 tabular-nums">{x.number ?? "—"}</td>
                     <td className="whitespace-nowrap px-4 py-2.5 tabular-nums">
                       {formatDate(x.expiresAt)} <span className="ml-1"><ExpiryPill expiresAt={x.expiresAt} t={t} /></span>

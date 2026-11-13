@@ -24,6 +24,10 @@ export const PERMISSIONS = {
   "orgdoc.edit": ["MANAGER", "DIRECTOR", "ACCOUNTANT"],
   // Menyuda muddati yaqin hujjatlar soni ko'rinadi.
   "alerts.badge": ["MANAGER", "DIRECTOR"],
+  // Tashkilot valyutalari ro'yxatini rahbar boshqaradi (13.11.2026).
+  "currency.manage": ["DIRECTOR"],
+  // Transportni o'chirish: faqat xato kiritilgan, hech narsaga bog'lanmagan transport (aks holda nofaol qilinadi).
+  "vehicle.delete": ["MANAGER", "SUPER_ADMIN"],
   "salary.official.edit": ["ACCOUNTANT"],
   "hard.delete": ["SUPER_ADMIN"],
 } as const satisfies Record<string, readonly Role[]>;

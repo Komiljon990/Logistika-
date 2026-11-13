@@ -11,6 +11,7 @@ export type AlertItem = {
   owner: string;
   orgName: string;
   docType: DocType | null; // ijara uchun null
+  title?: string | null; // "Boshqa" turidagi hujjat nomi
   number: string | null;
   expiresAt: Date;
 };

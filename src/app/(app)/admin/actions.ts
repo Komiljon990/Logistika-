@@ -12,6 +12,7 @@ import { normalizePhone } from "@/lib/phone";
 import { hashPassword, MIN_PASSWORD_LENGTH } from "@/lib/password";
 import type { Dict } from "@/i18n";
 import { fail, type FormState } from "@/lib/form";
+import { seedOrgCurrencies } from "@/lib/org-currency";
 
 export type { FormState };
 
@@ -41,6 +42,7 @@ export async function createOrg(_prev: FormState, formData: FormData): Promise<F
   const parsed = orgData(formData);
   if (!parsed.success) return fail("common.required", formData);
   const org = await db.organization.create({ data: parsed.data });
+  await seedOrgCurrencies(org.id);
   await audit({ actorId: admin.id, orgId: org.id, action: "org.create", entity: "Organization", entityId: org.id });
   redirect(`/admin/orgs/${org.id}`);
 }
