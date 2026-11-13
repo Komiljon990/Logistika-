@@ -19,9 +19,15 @@ export async function checkLogin(phoneInput: string, password: string, now = new
     await verifyPassword(password, DUMMY_HASH);
     return { ok: false, error: "invalid" };
   }
-  if (user.lockedUntil && user.lockedUntil > now) return { ok: false, error: "locked" };
+  if (!user.isDemo && user.lockedUntil && user.lockedUntil > now) return { ok: false, error: "locked" };
 
   const valid = await verifyPassword(password, user.passwordHash);
+  // Demo hisob ochiq: uni noto'g'ri parol bilan bloklab, reklamani ishdan chiqarib bo'lmaydi; bazaga hech narsa yozilmaydi.
+  if (user.isDemo) {
+    if (!valid) return { ok: false, error: "invalid" };
+    if (user.status !== "ACTIVE" || (user.org && user.org.status !== "ACTIVE")) return { ok: false, error: "blocked" };
+    return { ok: true, userId: user.id, sessionVersion: user.sessionVersion };
+  }
   if (!valid) {
     const failed = user.failedLogins + 1;
     const lock = failed >= MAX_FAILED_LOGINS;

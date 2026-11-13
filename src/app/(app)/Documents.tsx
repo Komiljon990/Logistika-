@@ -35,7 +35,7 @@ export async function Documents({ owner, canEdit, showArchived }: {
     typeLabel: x.title || t(`doc.t.${x.type}`),
     number: x.number ?? "—",
     issued: formatDate(x.issuedAt),
-    expires: formatDate(x.expiresAt),
+    expires: x.noExpiry ? t("doc.noExpiry") : formatDate(x.expiresAt),
     pill: x.status === "ACTIVE" ? <ExpiryPill expiresAt={x.expiresAt} t={t} /> : null,
     file: x.file ? { id: x.file.id, name: x.file.name } : null,
     note: x.note,

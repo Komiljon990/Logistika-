@@ -5,6 +5,11 @@ import type { DoneEvents } from "./trips-core";
 
 type Tx = Prisma.TransactionClient | typeof db;
 
+/** Bir tashkilot ichidagi yozuvlar (tashish, yuk, to'lov taqsimoti) ketma-ket bajariladi. */
+export async function lockOrg(tx: Prisma.TransactionClient, orgId: string) {
+  await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${orgId}))::text`;
+}
+
 /** Yuki bor transportlar (tyagach va prisept): faol tashish, yuk hali tushirilmagan. */
 export async function loadedVehicleIds(orgId: string, tx: Tx = db): Promise<Set<string>> {
   const trips = await tx.trip.findMany({

@@ -12,7 +12,7 @@ import { parseAmount } from "@/lib/currency-core";
 import { activeCurrencies } from "@/lib/org-currency";
 import { fail, optStr, str, type FormState } from "@/lib/form";
 import { EVENT_ORDER, checkEvent, completesTrip, normalizeContactPhone, parseTashkentDateTime } from "@/lib/trips-core";
-import { doneEvents, loadedVehicleIds } from "@/lib/trips";
+import { doneEvents, loadedVehicleIds, lockOrg } from "@/lib/trips";
 import type { Dict } from "@/i18n";
 
 /** Tashish, yuk va holatlarni menejer kiritadi; tashkilot sessiyadan olinadi. */
@@ -22,11 +22,6 @@ async function editor() {
 }
 
 type Tx = Prisma.TransactionClient;
-
-/** Bir tashkilot ichida tashish yaratish/yuk qo'shish ketma-ket bajariladi (band transport va raqam uchun). */
-async function lockOrg(tx: Tx, orgId: string) {
-  await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${orgId}))::text`;
-}
 
 type ShipmentData = Omit<Prisma.ShipmentUncheckedCreateInput, "tripId" | "orgId" | "createdById" | "clientId">;
 

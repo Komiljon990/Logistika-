@@ -128,6 +128,8 @@ export async function updateUser(id: string, _prev: FormState, formData: FormDat
   // O'z rolini o'zgartirib, tizimni Super Adminsiz qoldirmaslik uchun.
   if (id === admin.id && v.data.role !== "SUPER_ADMIN") return fail("user.error.self", formData);
   const before = await db.user.findUniqueOrThrow({ where: { id } });
+  // Demo hisob (paroli ochiq) roli va tashkiloti o'zgartirilmaydi: aks holda u boshqa tashkilotlarni ko'rib qolishi mumkin.
+  if (before.isDemo && (before.role !== v.data.role || before.orgId !== v.data.orgId)) return fail("user.error.demo", formData);
   try {
     await db.user.update({
       where: { id },

@@ -2,8 +2,7 @@ import Link from "next/link";
 import { getT } from "@/i18n";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/session";
-import { isGlobalRole } from "@/lib/roles";
-import { orgScope } from "@/lib/scope";
+import { orgScope, seesAllOrgs } from "@/lib/scope";
 import { formatDate } from "@/lib/dates";
 import { tashkentToday } from "@/lib/docs";
 import { ExpiryPill } from "@/components/ExpiryPill";
@@ -38,7 +37,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
     db.vehicle.count({ where: { ...scope, status: "ACTIVE" } }),
     db.driver.count({ where: { ...scope, status: "ACTIVE" } }),
     loadAlerts(user, todayDate),
-    isGlobalRole(user.role) ? db.organization.count({ where: { status: "ACTIVE" } }) : Promise.resolve(null),
+    seesAllOrgs(user) ? db.organization.count({ where: { status: "ACTIVE" } }) : Promise.resolve(null),
     rateMap(today),
     rateMap(yesterday),
     rateMap(selected),

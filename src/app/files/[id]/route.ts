@@ -17,6 +17,9 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       // Rasm va PDF brauzerda ochiladi, Office va arxivlar yuklab olinadi.
       "Content-Disposition": `${isInlineMime(file.mime) ? "inline" : "attachment"}; filename*=UTF-8''${encodeURIComponent(file.name)}`,
       "Cache-Control": "private, no-store",
+      // Rasmlar "qum qutisi"da ochiladi. PDF'ga sandbox qo'yilmaydi: aks holda brauzerning PDF ko'ruvchisi ishlamaydi
+      // (PDF baribir brauzerning alohida ko'ruvchisida, sayt sessiyasidan ajratilgan holda ochiladi).
+      ...(file.mime.startsWith("image/") ? { "Content-Security-Policy": "sandbox; default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline'" } : {}),
       "X-Content-Type-Options": "nosniff",
     },
   });

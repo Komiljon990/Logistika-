@@ -81,6 +81,8 @@ model User {
   status         Status        @default(ACTIVE)
   // Parol o'zgarsa yoki bloklansa eski sessiyalar bekor bo'ladi
   sessionVersion Int           @default(0)
+  // Demo (reklama) hisobi: hamma narsani ko'radi, hech narsani saqlay olmaydi; faqat demo tashkilotda.
+  isDemo         Boolean       @default(false)
   failedLogins   Int           @default(0)
   lockedUntil    DateTime?
   lastLoginAt    DateTime?
@@ -168,6 +170,7 @@ model Driver {
   documents      Document[]
   pairedVehicles Vehicle[]
   trips          Trip[]
+  payments       Payment[]
 
   @@index([orgId, status])
 }
@@ -218,6 +221,7 @@ model Document {
   number      String?
   issuedAt    DateTime?    @db.Date
   expiresAt   DateTime?    @db.Date
+  noExpiry    Boolean      @default(false) // muddatsiz (doimiy): masalan guvohnoma, doimiy litsenziya
   note        String?
   fileId      String?      @unique
   file        StoredFile?  @relation(fields: [fileId], references: [id])
@@ -252,6 +256,7 @@ model Client {
   updatedAt DateTime     @updatedAt
 
   shipments Shipment[]
+  payments  Payment[]
 
   @@index([orgId, status, name])
 }
@@ -349,8 +354,91 @@ model Shipment {
   createdAt          DateTime     @default(now())
   updatedAt          DateTime     @updatedAt
 
+  charges     ShipmentCharge[]
+  allocations PaymentAllocation[]
+
   @@index([orgId, clientId])
   @@index([tripId])
+}
+
+// ---------- Hisob-kitob: qo'shimcha xarajat, prostoy, to'lovlar ----------
+
+enum ChargeKind {
+  EXTRA // qo'shimcha xarajat (mijozga hisoblanadi)
+  DEMURRAGE // prostoy = kunlar × kunlik summa
+}
+
+/// Mijozga hisoblanadigan qo'shimcha summa; yuk qismi valyutasida. Qoldiqni oshiradi.
+model ShipmentCharge {
+  id          String     @id @default(cuid())
+  orgId       String
+  shipmentId  String
+  shipment    Shipment   @relation(fields: [shipmentId], references: [id])
+  kind        ChargeKind
+  description String?
+  days        Int?
+  dailyAmount Decimal?   @db.Decimal(18, 2)
+  amount      Decimal    @db.Decimal(18, 2)
+  date        DateTime   @db.Date
+  status      Status     @default(ACTIVE) // ARCHIVED = bekor qilingan
+  createdById String
+  createdAt   DateTime   @default(now())
+
+  @@index([shipmentId])
+}
+
+enum PaymentMethod {
+  BANK // bank hisob raqamiga (shartnoma)
+  CASH // naqd pul (naqd kelishuv)
+  CARD // karta raqamiga (naqd kelishuv); kimning kartasi — izohda
+}
+
+enum CashHolder {
+  OFFICE // ofis kassasi
+  DRIVER // haydovchi oldi, kassaga keyin topshiradi
+}
+
+/// Mijozdan kelgan to'lov. Tashishlarga taqsimlanmagan qismi — avans.
+model Payment {
+  id           String         @id @default(cuid())
+  orgId        String
+  clientId     String
+  client       Client         @relation(fields: [clientId], references: [id])
+  date         DateTime       @db.Date
+  amount       Decimal        @db.Decimal(18, 2)
+  currency     String
+  method       PaymentMethod
+  receivedBy   CashHolder?
+  driverId     String?
+  driver       Driver?        @relation(fields: [driverId], references: [id])
+  handedOverAt DateTime? // haydovchi kassaga topshirgan vaqt
+  note         String?
+  status       Status         @default(ACTIVE) // ARCHIVED = bekor qilingan
+  createdById  String
+  createdAt    DateTime       @default(now())
+
+  allocations PaymentAllocation[]
+
+  @@index([orgId, clientId])
+  @@index([orgId, receivedBy, handedOverAt])
+}
+
+/// To'lovning yuk qismiga taqsimlangan qismi. Valyutalar har xil bo'lishi mumkin:
+/// rate = 1 yuk valyutasi necha to'lov valyutasi (MB kursi yoki qo'lda kelishilgan).
+model PaymentAllocation {
+  id         String   @id @default(cuid())
+  paymentId  String
+  payment    Payment  @relation(fields: [paymentId], references: [id])
+  shipmentId String
+  shipment   Shipment @relation(fields: [shipmentId], references: [id])
+  applied    Decimal  @db.Decimal(18, 2) // yuk valyutasida qarzdan yopilgan summa
+  consumed   Decimal  @db.Decimal(18, 2) // to'lov valyutasida sarflangan summa
+  rate       Decimal  @db.Decimal(20, 8)
+  rateManual Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  @@index([shipmentId])
+  @@index([paymentId])
 }
 
 /// Fayl hozircha bazada saqlanadi (sinov uchun eng oddiy). Keyin S3 turidagi saqlashga ko'chiriladi.

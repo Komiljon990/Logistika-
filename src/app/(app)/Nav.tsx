@@ -17,16 +17,16 @@ export function Nav({ items }: { items: Item[] }) {
             className={`whitespace-nowrap rounded-md px-3 py-2 ${
               (it.href === "/" ? path === "/" : path.startsWith(it.href))
                 ? "bg-accent-soft font-semibold text-accent"
-                : "hover:bg-paper"
+                : "text-ink hover:bg-ground"
             }`}
           >
             {it.label}
             {!!it.badge && (
-              <span className="ml-2 rounded-full bg-bad px-2 py-0.5 text-xs font-semibold text-white tabular-nums">{it.badge}</span>
+              <span className="ml-2 rounded-full bg-bad px-2 py-0.5 text-xs font-semibold text-on-accent tabular-nums">{it.badge}</span>
             )}
           </Link>
         ) : (
-          <span key={it.label} title={it.soon} className="cursor-default whitespace-nowrap rounded-md px-3 py-2 text-muted/60">
+          <span key={it.label} title={it.soon} className="flex cursor-default items-center gap-2 whitespace-nowrap rounded-md px-3 py-2 text-muted">
             {it.label}
           </span>
         ),

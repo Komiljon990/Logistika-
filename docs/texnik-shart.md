@@ -274,6 +274,51 @@ foyda-zarar).
 
 ## 10. Hozirgi holat va bosqichlar
 
+### Qurilgan va sinalgan (13.11.2026, dastur nomi: ReysPro)
+
+Sinov serveri: Windows noutbuk, PostgreSQL 16, ma'lumotlar `D:\logistika-data`
+(baza, zaxira nusxalar, loglar). 75 ta avtomatik test va ishlab turgan serverda
+165 ta tekshiruv o'tgan.
+
+- **Kirish va rollar:** parol qo'lda tiklanadi (Super Admin — hammaning; rahbar —
+  o'z tashkilotidagi menejer va vakilning). Markaziy tashkilot filtri.
+- **Transport, haydovchilar, hujjatlar:** hujjat + fayl (rasm, PDF, Office, arxiv;
+  10 MB), tez qo'shish (texpasport, litsenziya, texnik ko'rik, sug'urta; guvohnoma,
+  pasport, zagran pasport, sertifikat), "Boshqa" turiga o'z nomi, muddatsiz hujjat,
+  versiyalash. Transportni nofaol qilish; hujjatsiz va tashishsiz transportni o'chirish.
+- **Tashkilot hujjatlari** (menejer, rahbar, buxgalter kiritadi).
+- **Ogohlantirishlar:** muddati o'tgan / 7 / 15 / 30 kun; menejer va rahbar menyusida son.
+- **Valyutalar:** har tashkilotda o'zi (rahbar boshqaradi); Markaziy bank kurslari.
+- **Bosh sahifa:** kurslar va kechagiga nisbatan o'zgarish, 30 kunlik grafik,
+  kalendar (tanlangan sana kursi), valyuta kalkulyatori (qo'lda kelishilgan kurs).
+- **Mijozlar bazasi.**
+- **Tashishlar:** yangi tashish (faqat bo'sh transport), qo'shimcha yuk (kartochkadan),
+  mijoz va mas'ul shaxs, kelishuv (shartnoma / naqd), holatlar va chegara kunlari
+  (menejer haydovchi o'rniga belgilaydi), tashish hujjatlari, bekor qilish.
+- **Hisob-kitob:** qo'shimcha xarajat, prostoy, to'lovlar (bank / naqd / karta),
+  qaysi tashish uchunligini tanlash, MB kursi katakda va qo'lda kelishilgan kurs,
+  avans va uni qarzga yopish, naqd pul haydovchida yoki ofisda, kassaga topshirish,
+  "Mijozlar bilan hisob-kitob" bo'limi.
+- **Dizayn:** yorug' / qorong'i rejim (kontrast ≥ 5.7:1), xaritali fon, logo va ikonka.
+- **Demo (reklama):** rahbar, menejer, buxgalter demo hisoblari; login sahifasida
+  ko'rinadi; faqat demo tashkilotni ko'radi; server tomonida hech narsa saqlanmaydi.
+
+**Hali qurilmagan:** Telegram bot (token kutilmoqda), TIR/Dazvol registri (TIR
+jadvalining maydonlari kerak), safar kunlari va tariflar hisobi, haydovchi
+to'lovlari va ish haqi, hisobotlar.
+
+### Xavfsizlik auditi (13.11.2026)
+
+Tuzatilgan: Next.js 16.4.2 dagi xizmatni to'xtatish zaifligi (proxy orqali),
+xavfsizlik sarlavhalari (CSP, clickjacking), rasm fayllari sandbox'da, zod
+yangilandi, demo hisobni tashkilotsiz qoldirib bo'lmaydi, kurs so'rovlari 2 yil
+bilan cheklangan, proxy so'rov hajmi 11 MB.
+
+Tavsiyalar (ochiq): internetga chiqarishdan oldin HTTPS va `COOKIE_SECURE=true`;
+`C:\logistika` papkasi huquqlarini cheklash; IP bo'yicha kirish urinishlarini
+cheklash; Prisma 7 ga o'tish (CLI zanjiridagi zaiflik); zaxira nusxalarni
+shifrlash; Office va arxiv fayllarini antivirus bilan tekshirish.
+
 **Qurilgan (test qurilmasi, logistika-app.zip):** login va to'rt rol,
 markaziy tashkilot filtri, transport moduli (ro'yxat, yaratish,
 kartochka, hujjat versiyalash, arxivlash), dashboard, TIR/Dazvol

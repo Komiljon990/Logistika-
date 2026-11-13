@@ -164,6 +164,7 @@ export function DocForm({ d, owner, types, fileRequired, renewOf, initialType, o
   const v = state.values;
   const [type, setType] = useState<DocType>((v?.type as DocType) ?? renewOf?.type ?? initialType ?? types[0]);
   const required = fileRequired.includes(type);
+  const [noExpiry, setNoExpiry] = useState(v?.noExpiry === "on");
   return (
     <form key={state.ok ? "done" : JSON.stringify(v)} action={formAction} className="grid gap-4 sm:grid-cols-2">
       {renewOf ? (
@@ -187,7 +188,10 @@ export function DocForm({ d, owner, types, fileRequired, renewOf, initialType, o
         <input id="doc-issued" name="issuedAt" type="date" defaultValue={v?.issuedAt} className="input" />
       </Field>
       <Field id="doc-expires" label={d["doc.expiresAt"]}>
-        <input id="doc-expires" name="expiresAt" type="date" defaultValue={v?.expiresAt} className="input" />
+        <input id="doc-expires" name="expiresAt" type="date" defaultValue={v?.expiresAt} disabled={noExpiry} className="input disabled:opacity-50" />
+        <label className="mt-2 flex min-h-11 items-center gap-2 text-sm">
+          <input type="checkbox" name="noExpiry" checked={noExpiry} onChange={(e) => setNoExpiry(e.target.checked)} /> {d["doc.noExpiry"]}
+        </label>
       </Field>
       <Field id="doc-file" label={d["doc.file"]} wide>
         <input id="doc-file" name="file" type="file" accept={FILE_ACCEPT} required={required} className="input py-2" />

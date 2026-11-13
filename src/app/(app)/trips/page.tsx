@@ -3,8 +3,8 @@ import type { Prisma } from "@prisma/client";
 import { getT } from "@/i18n";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/session";
-import { can, isGlobalRole } from "@/lib/roles";
-import { orgScope } from "@/lib/scope";
+import { can } from "@/lib/roles";
+import { orgScope, seesAllOrgs } from "@/lib/scope";
 import { formatDate } from "@/lib/dates";
 import { currentStage, tripNumber } from "@/lib/trips-core";
 
@@ -15,7 +15,7 @@ export default async function TripsPage({ searchParams }: { searchParams: Promis
   const user = await requireUser();
   const sp = await searchParams;
   const t = await getT();
-  const global = isGlobalRole(user.role);
+  const global = seesAllOrgs(user);
   const f: Filter = FILTERS.includes(sp.f as Filter) ? (sp.f as Filter) : "active";
   const q = sp.q?.trim();
   const num = q && /^(tsh-?)?\d+$/i.test(q) ? Number(q.replace(/\D/g, "")) : null;
@@ -60,7 +60,7 @@ export default async function TripsPage({ searchParams }: { searchParams: Promis
       <div className="flex flex-wrap gap-2" role="tablist">
         {FILTERS.map((x) => (
           <Link key={x} href={href(x)} role="tab" aria-selected={f === x}
-            className={`rounded-full px-4 py-2 text-sm ${f === x ? "bg-accent font-semibold text-white" : "bg-paper hover:bg-accent-soft"}`}>
+            className={`rounded-full px-4 py-2 text-sm ${f === x ? "bg-accent font-semibold text-on-accent" : "bg-paper hover:bg-accent-soft"}`}>
             {t(`trip.f.${x}`)}
           </Link>
         ))}

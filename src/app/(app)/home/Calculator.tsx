@@ -49,15 +49,16 @@ export function Calculator({ codes, rates, rateDateLabel, labels }: {
         <span className="text-xs text-muted">{rateDateLabel}</span>
       </div>
 
-      <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-end gap-2">
-        <div className="grid gap-1">
-          <select aria-label={`${labels.amount} 1`} value={a} onChange={(e) => { setA(e.target.value); resetTo(e.target.value, b); }} className="input">
+      {/* Har valyuta alohida qatorda: summa butun kenglikni egallaydi, katta sonlar ham sig'adi. */}
+      <div className="grid gap-2">
+        <div className="flex min-w-0 gap-2">
+          <select aria-label={`${labels.amount} 1`} value={a} onChange={(e) => { setA(e.target.value); resetTo(e.target.value, b); }} className="input w-24 shrink-0">
             {codes.map((c) => <option key={c} value={c}>{c}</option>)}
           </select>
           <input
             aria-label={`${labels.amount} ${a}`} inputMode="decimal" value={amtA}
             onChange={(e) => { setAmtA(e.target.value); setLast("a"); recompute(rateNow, "a", e.target.value); }}
-            className="input text-right text-lg font-semibold tabular-nums"
+            className="input min-w-0 flex-1 text-right text-lg font-semibold tabular-nums"
           />
         </div>
         <button
@@ -69,18 +70,18 @@ export function Calculator({ codes, rates, rateDateLabel, labels }: {
             if (manual) setRateText(fmt(inv, inv ? rateDigits(inv) : 2));
             else { const r = crossRate(rates, b, a); setRateText(fmt(r, r ? rateDigits(r) : 2)); }
           }}
-          className="mb-1 grid size-11 place-items-center rounded-md border border-line hover:bg-ground"
+          className="grid size-11 place-items-center justify-self-center rounded-full border border-line text-lg hover:bg-accent-soft"
         >
-          ⇄
+          ⇅
         </button>
-        <div className="grid gap-1">
-          <select aria-label={`${labels.amount} 2`} value={b} onChange={(e) => { setB(e.target.value); resetTo(a, e.target.value); }} className="input">
+        <div className="flex min-w-0 gap-2">
+          <select aria-label={`${labels.amount} 2`} value={b} onChange={(e) => { setB(e.target.value); resetTo(a, e.target.value); }} className="input w-24 shrink-0">
             {codes.map((c) => <option key={c} value={c}>{c}</option>)}
           </select>
           <input
             aria-label={`${labels.amount} ${b}`} inputMode="decimal" value={amtB}
             onChange={(e) => { setAmtB(e.target.value); setLast("b"); recompute(rateNow, "b", e.target.value); }}
-            className="input text-right text-lg font-semibold tabular-nums"
+            className="input min-w-0 flex-1 text-right text-lg font-semibold tabular-nums"
           />
         </div>
       </div>
@@ -95,7 +96,7 @@ export function Calculator({ codes, rates, rateDateLabel, labels }: {
               setManual(true);
               recompute(parseAmount(e.target.value), last, last === "a" ? amtA : amtB);
             }}
-            className="input w-36 text-right font-semibold tabular-nums"
+            className="input min-w-0 max-w-52 flex-1 text-right font-semibold tabular-nums"
           />
           <span>{b}</span>
         </label>

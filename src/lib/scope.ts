@@ -19,25 +19,35 @@ export class ForbiddenError extends Error {
  * - Buxgalter va Super Admin: hamma tashkilot, yoki xohlasa bittasiga filtr.
  */
 export function orgScope(user: ScopeUser, requestedOrgId?: string | null): { orgId?: string } {
+  // Tashkilotga biriktirilgan foydalanuvchi (rolidan qat'i nazar, masalan demo buxgalter) — faqat o'z tashkiloti.
+  if (user.orgId) return { orgId: user.orgId };
   if (isGlobalRole(user.role)) {
     return requestedOrgId ? { orgId: requestedOrgId } : {};
   }
-  if (!user.orgId) throw new ForbiddenError("Foydalanuvchi tashkilotga biriktirilmagan");
-  return { orgId: user.orgId };
+  throw new ForbiddenError("Foydalanuvchi tashkilotga biriktirilmagan");
 }
 
 /** Yangi yozuv yaratilganda qaysi tashkilotga yozilishini aniqlaydi. */
 export function orgForWrite(user: ScopeUser, requestedOrgId?: string | null): string {
+  if (user.orgId) return user.orgId;
   if (isGlobalRole(user.role)) {
     if (!requestedOrgId) throw new ForbiddenError("Tashkilot tanlanmagan");
     return requestedOrgId;
   }
-  if (!user.orgId) throw new ForbiddenError("Foydalanuvchi tashkilotga biriktirilmagan");
-  return user.orgId;
+  throw new ForbiddenError("Foydalanuvchi tashkilotga biriktirilmagan");
 }
 
 /** Bitta yozuvni o'qishdan oldin: u foydalanuvchi ko'ra oladigan tashkilotga tegishlimi. */
 export function assertCanSeeOrg(user: ScopeUser, recordOrgId: string | null): void {
+  if (user.orgId) {
+    if (recordOrgId !== user.orgId) throw new ForbiddenError();
+    return;
+  }
   if (isGlobalRole(user.role)) return;
-  if (!user.orgId || recordOrgId !== user.orgId) throw new ForbiddenError();
+  throw new ForbiddenError();
+}
+
+/** Barcha tashkilotlarni ko'radimi (tashkilot tanlovi va "Tashkilot" ustuni uchun). */
+export function seesAllOrgs(user: ScopeUser): boolean {
+  return !user.orgId && isGlobalRole(user.role);
 }

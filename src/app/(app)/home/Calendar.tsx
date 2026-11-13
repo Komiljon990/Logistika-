@@ -43,14 +43,14 @@ export function Calendar({ t, today, selected, month }: { t: T; today: string; s
           const n = Number(day.slice(8));
           const isSel = day === selected;
           const isToday = day === today;
-          if (day > today) return <div key={day} className="grid h-10 place-items-center text-muted/50">{n}</div>;
+          if (day > today) return <div key={day} className="grid h-10 place-items-center text-muted opacity-60" aria-disabled="true">{n}</div>;
           return (
             <Link
               key={day}
               href={href({ date: day })}
               aria-current={isSel ? "date" : undefined}
               className={`grid h-10 place-items-center rounded-md tabular-nums ${
-                isSel ? "bg-accent font-semibold text-white" : isToday ? "ring-2 ring-accent ring-inset font-semibold" : "hover:bg-ground"
+                isSel ? "bg-accent font-semibold text-on-accent" : isToday ? "ring-2 ring-accent ring-inset font-semibold" : "hover:bg-ground"
               }`}
             >
               {n}

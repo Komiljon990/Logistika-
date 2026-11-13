@@ -11,6 +11,11 @@ import { activeCurrencies } from "@/lib/org-currency";
 import { EVENT_ORDER, formatTashkent, nextEvents, tashkentNowInput, tripNumber } from "@/lib/trips-core";
 import { Documents } from "../../Documents";
 import { AddShipmentPanel, CancelTripButton, EventForm } from "../forms";
+import { CancelChargeButton, ChargeForm } from "../../settlements/forms";
+import { payStatus, shipmentTotals } from "@/lib/settlement-core";
+import { tashkentToday } from "@/lib/docs";
+
+const PAY_STYLE = { UNPAID: "bg-bad-soft text-bad", PARTIAL: "bg-warn-soft text-warn", PAID: "bg-accent-soft text-accent" } as const;
 
 export default async function TripPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ docs?: string }> }) {
   const user = await requireUser();
@@ -24,12 +29,20 @@ export default async function TripPage({ params, searchParams }: { params: Promi
       trailer: { select: { id: true, plate: true } },
       driver: { select: { id: true, fullName: true, phone: true } },
       events: { orderBy: { at: "asc" } },
-      shipments: { orderBy: { createdAt: "asc" }, include: { client: { select: { id: true, name: true } } } },
+      shipments: {
+        orderBy: { createdAt: "asc" },
+        include: {
+          client: { select: { id: true, name: true } },
+          charges: { where: { status: "ACTIVE" }, orderBy: { date: "asc" } },
+          allocations: { where: { payment: { status: "ACTIVE" } }, select: { applied: true } },
+        },
+      },
     },
   });
   if (!trip) notFound();
   const editor = can(user.role, "data.edit");
-  const done = Object.fromEntries(trip.events.map((e) => [e.type, e.at]));
+  const today = tashkentToday().toISOString().slice(0, 10);
+  const done =Object.fromEntries(trip.events.map((e) => [e.type, e.at]));
   const allowed = trip.status === "CANCELLED" ? [] : nextEvents(done);
   const loaded = trip.status === "ACTIVE" && !done.UNLOADED;
   const userIds = [...new Set(trip.events.map((e) => e.userId).filter((x): x is string => !!x))];
@@ -112,10 +125,36 @@ export default async function TripPage({ params, searchParams }: { params: Promi
               {s.smrNumber && <span className="rounded-md bg-ground px-2 py-1">CMR {s.smrNumber}</span>}
             </div>
             {s.cargo && <div className="text-sm text-muted">{s.cargo}</div>}
-            <div className="flex items-baseline justify-between border-t border-line pt-3">
-              <span className="text-sm">{t("trip.price")}</span>
-              <span className="text-xl font-bold tabular-nums">{formatNumber(Number(s.price))} {s.currency}</span>
-            </div>
+            {(() => {
+              const tot = shipmentTotals(Number(s.price), s.charges.map((c) => Number(c.amount)), s.allocations.map((a) => Number(a.applied)));
+              const st = payStatus(tot.charged, tot.paid);
+              return (
+                <div className="grid gap-1.5 border-t border-line pt-3 text-sm tabular-nums">
+                  <div className="flex justify-between"><span>{t("trip.price")}</span><span>{formatNumber(Number(s.price))} {s.currency}</span></div>
+                  {s.charges.map((c) => (
+                    <div key={c.id} className="flex items-baseline justify-between gap-2">
+                      <span className="text-muted">
+                        {t(`pay.c.${c.kind}`)}{c.kind === "DEMURRAGE" && c.days ? `: ${c.days} × ${formatNumber(Number(c.dailyAmount))}` : ""}{c.description ? ` — ${c.description}` : ""}
+                        {editor && trip.status !== "CANCELLED" && <span className="ml-2"><CancelChargeButton d={d} chargeId={c.id} /></span>}
+                      </span>
+                      <span>+ {formatNumber(Number(c.amount))}</span>
+                    </div>
+                  ))}
+                  <div className="flex justify-between"><span>{t("settle.paid")}</span><span>− {formatNumber(tot.paid)}</span></div>
+                  <div className="flex items-baseline justify-between border-t border-line pt-2">
+                    <span className="font-semibold">{t("pay.debt")}</span>
+                    <span className={`text-xl font-bold ${tot.remaining > 0.005 ? "text-bad" : "text-accent"}`}>{formatNumber(tot.remaining)} {s.currency}</span>
+                  </div>
+                  <div><span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${PAY_STYLE[st]}`}>{t(`pay.s.${st}`)}</span></div>
+                </div>
+              );
+            })()}
+            {editor && s.status === "ACTIVE" && trip.status !== "CANCELLED" && (
+              <div className="flex flex-wrap gap-2">
+                <Link href={`/clients/${s.client.id}`} className="btn">+ {t("pay.receiveShort")}</Link>
+                <ChargeForm d={d} shipmentId={s.id} currency={s.currency} today={today} />
+              </div>
+            )}
             {s.accountingPrice != null && (
               <div className="rounded-md bg-ground px-3 py-2 text-xs text-muted">
                 {t("trip.accountingPrice")}: <span className="font-semibold text-ink tabular-nums">{formatNumber(Number(s.accountingPrice))} {s.accountingCurrency}</span> — {t("trip.accountingShort")}
@@ -124,7 +163,6 @@ export default async function TripPage({ params, searchParams }: { params: Promi
           </section>
         ))}
       </div>
-      <p className="text-xs text-muted">{t("trip.paymentsSoon")}</p>
 
       <Documents owner={{ kind: "trip", id: trip.id }} canEdit={editor && trip.status !== "CANCELLED"} showArchived={sp.docs === "all"} />
     </div>

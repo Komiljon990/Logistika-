@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { orgScope, orgForWrite, assertCanSeeOrg, ForbiddenError } from "@/lib/scope";
+import { orgScope, orgForWrite, assertCanSeeOrg, ForbiddenError, seesAllOrgs } from "@/lib/scope";
 import { can } from "@/lib/roles";
 
 const manager = { id: "m", role: "MANAGER" as const, orgId: "orgA" };
@@ -18,6 +18,22 @@ describe("orgScope", () => {
   });
   it("refuses an org-bound user without an org", () => {
     expect(() => orgScope({ id: "x", role: "MANAGER", orgId: null })).toThrow(ForbiddenError);
+  });
+});
+
+describe("demo / org-bound global role", () => {
+  const demoAccountant = { id: "da", role: "ACCOUNTANT" as const, orgId: "demoOrg" };
+  it("an accountant bound to an org sees only that org, whatever is requested", () => {
+    expect(orgScope(demoAccountant)).toEqual({ orgId: "demoOrg" });
+    expect(orgScope(demoAccountant, "realOrg")).toEqual({ orgId: "demoOrg" });
+    expect(orgForWrite(demoAccountant, "realOrg")).toBe("demoOrg");
+    expect(() => assertCanSeeOrg(demoAccountant, "realOrg")).toThrow(ForbiddenError);
+    expect(seesAllOrgs(demoAccountant)).toBe(false);
+  });
+  it("normal accountant and super admin still see all orgs", () => {
+    expect(seesAllOrgs(accountant)).toBe(true);
+    expect(seesAllOrgs(admin)).toBe(true);
+    expect(seesAllOrgs(manager)).toBe(false);
   });
 });
 

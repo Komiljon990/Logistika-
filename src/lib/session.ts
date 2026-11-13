@@ -1,5 +1,5 @@
 import "server-only";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { SignJWT, jwtVerify } from "jose";
 import type { Role } from "@prisma/client";
@@ -22,7 +22,37 @@ export type CurrentUser = {
   role: Role;
   orgId: string | null;
   orgName: string | null;
+  isDemo: boolean;
 };
+
+/** Ma'lumotni o'zgartiradigan huquqlar: demo hisobga hech qachon berilmaydi. */
+const WRITE_PERMISSIONS: ReadonlySet<Permission> = new Set<Permission>([
+  "data.edit", "orgdoc.edit", "currency.manage", "vehicle.delete", "user.manage", "org.manage", "hard.delete",
+]);
+
+/**
+ * Demo (reklama) hisobi hech narsani saqlay olmaydi: amal bajarilmaydi, foydalanuvchi o'sha sahifaga
+ * "?demo=readonly" belgisi bilan qaytariladi (sahifada tushuntirish chiqadi).
+ */
+export async function demoBlocked(): Promise<never> {
+  let back = "/";
+  const ref = (await headers()).get("referer");
+  if (ref) {
+    try {
+      const u = new URL(ref);
+      // Faqat yo'l olinadi (boshqa saytga yo'naltirish imkoni yo'q).
+      u.searchParams.set("demo", "readonly");
+      back = `${u.pathname}?${u.searchParams.toString()}`;
+    } catch {
+      back = "/";
+    }
+  }
+  redirect(back.startsWith("/") && !back.startsWith("//") ? back : "/");
+}
+
+export async function assertWritable(user: CurrentUser) {
+  if (user.isDemo) await demoBlocked();
+}
 
 export async function createSession(userId: string, sessionVersion: number) {
   const token = await new SignJWT({ v: sessionVersion })
@@ -64,6 +94,9 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
   if (!payload.sub) return null;
   const user = await db.user.findUnique({ where: { id: payload.sub }, include: { org: true } });
   if (!user || user.status !== "ACTIVE" || user.sessionVersion !== payload.v) return null;
+  // Himoya qatlami: demo hisob faqat o'z (demo) tashkilotida ishlaydi — tashkilotsiz demo hisob barcha
+  // tashkilotlarni ko'rib qolmasligi uchun sessiya qabul qilinmaydi.
+  if (user.isDemo && !user.orgId) return null;
   if (user.org && user.org.status !== "ACTIVE") return null;
   return {
     id: user.id,
@@ -72,6 +105,7 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
     role: user.role,
     orgId: user.orgId,
     orgName: user.org?.name ?? null,
+    isDemo: user.isDemo,
   };
 }
 
@@ -84,5 +118,7 @@ export async function requireUser(): Promise<CurrentUser> {
 export async function requirePermission(permission: Permission): Promise<CurrentUser> {
   const user = await requireUser();
   if (!can(user.role, permission)) redirect("/");
+  // Demo hisob sahifalarni (formalar bilan) ko'radi, lekin saqlash amali (server action) bajarilmaydi.
+  if (WRITE_PERMISSIONS.has(permission) && user.isDemo && (await headers()).has("next-action")) await demoBlocked();
   return user;
 }

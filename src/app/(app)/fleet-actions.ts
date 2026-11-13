@@ -269,7 +269,9 @@ export async function addDocument(owner: Owner, renewOf: string | null, _prev: F
         title,
         number: optStr(formData, "number", 100),
         issuedAt: parseDate(formData.get("issuedAt")),
-        expiresAt: parseDate(formData.get("expiresAt")),
+        // Muddatsiz (doimiy) hujjatda amal qilish muddati saqlanmaydi.
+        expiresAt: formData.get("noExpiry") === "on" ? null : parseDate(formData.get("expiresAt")),
+        noExpiry: formData.get("noExpiry") === "on",
         note: optStr(formData, "note"),
         fileId: stored?.id ?? null,
         prevId: prev?.id ?? null,

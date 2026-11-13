@@ -3,8 +3,8 @@ import type { Prisma } from "@prisma/client";
 import { getDict, getT } from "@/i18n";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/session";
-import { can, isGlobalRole } from "@/lib/roles";
-import { orgScope } from "@/lib/scope";
+import { can } from "@/lib/roles";
+import { orgScope, seesAllOrgs } from "@/lib/scope";
 import { StatusPill } from "@/components/StatusPill";
 import { ClientForm } from "../trips/forms";
 
@@ -12,7 +12,7 @@ export default async function ClientsPage({ searchParams }: { searchParams: Prom
   const user = await requireUser();
   const sp = await searchParams;
   const [t, d] = [await getT(), await getDict()];
-  const global = isGlobalRole(user.role);
+  const global = seesAllOrgs(user);
   const where: Prisma.ClientWhereInput = {
     ...orgScope(user, sp.org),
     status: sp.archived ? "ARCHIVED" : "ACTIVE",

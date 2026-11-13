@@ -2,7 +2,7 @@
 
 import { db } from "@/lib/db";
 import { audit } from "@/lib/audit";
-import { requireUser } from "@/lib/session";
+import { assertWritable, requireUser } from "@/lib/session";
 import { canResetPassword } from "@/lib/roles";
 import { hashPassword, MIN_PASSWORD_LENGTH } from "@/lib/password";
 import type { Dict } from "@/i18n";
@@ -12,6 +12,7 @@ export type PasswordState = { error?: keyof Dict; ok?: boolean };
 /** Parolni qo'lda o'rnatish. Ruxsat har safar serverda bazadagi joriy rol va tashkilot bo'yicha tekshiriladi. */
 export async function resetPassword(id: string, _prev: PasswordState, formData: FormData): Promise<PasswordState> {
   const actor = await requireUser();
+  await assertWritable(actor);
   const target = await db.user.findUnique({ where: { id }, select: { id: true, role: true, orgId: true } });
   if (!target || !canResetPassword(actor, target)) return { error: "user.error.forbidden" };
 

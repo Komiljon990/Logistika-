@@ -3,8 +3,8 @@ import type { DriverCategory, Prisma } from "@prisma/client";
 import { getDict, getT } from "@/i18n";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/session";
-import { can, isGlobalRole } from "@/lib/roles";
-import { orgScope } from "@/lib/scope";
+import { can } from "@/lib/roles";
+import { orgScope, seesAllOrgs } from "@/lib/scope";
 import { formatPhone } from "@/lib/phone";
 import { StatusPill } from "@/components/StatusPill";
 import { ExpiryPill } from "@/components/ExpiryPill";
@@ -16,7 +16,7 @@ export default async function DriversPage({ searchParams }: { searchParams: Prom
   const user = await requireUser();
   const sp = await searchParams;
   const [t, d] = [await getT(), await getDict()];
-  const global = isGlobalRole(user.role);
+  const global = seesAllOrgs(user);
   const category = CATS.includes(sp.category as DriverCategory) ? (sp.category as DriverCategory) : undefined;
   const digits = sp.q?.replace(/\D/g, "");
   const where: Prisma.DriverWhereInput = {

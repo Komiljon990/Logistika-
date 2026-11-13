@@ -1,40 +1,127 @@
 @import "tailwindcss";
 
+/*
+ * ReysPro dizayn tokenlari. Har ikkala rejimda matn juftliklari ≥ 5.7:1 (WCAG AA 4.5:1 dan yuqori), hisoblab tekshirilgan.
+ * Yorug' rejim — standart; qorong'i — o'z ranglari (oddiy teskari emas).
+ */
 @theme {
-  --color-accent: #1f6f5c;
-  --color-accent-soft: #e3f0ec;
-  --color-ink: #18211f;
-  --color-muted: #5f6b68;
-  --color-line: #d9dfdd;
+  --color-accent: #17664f;
+  --color-on-accent: #ffffff;
+  --color-accent-soft: #dcefe7;
+  --color-ink: #0f1a17;
+  --color-muted: #4d5a56;
+  --color-line: #cdd6d2;
   --color-paper: #ffffff;
-  --color-ground: #f2f4f3;
-  --color-warn: #b4570f;
-  --color-warn-soft: #fbeee2;
-  --color-bad: #b3261e;
-  --color-bad-soft: #fbe7e5;
-  --font-sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --color-ground: #eaeeec;
+  --color-warn: #8f4508;
+  --color-warn-soft: #fcebd9;
+  --color-bad: #a82219;
+  --color-bad-soft: #fbe4e1;
+  --font-sans: var(--font-inter), system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 }
 
-body {
-  background: var(--color-ground);
-  color: var(--color-ink);
+@layer base {
+  :root { color-scheme: light; }
+  :root[data-theme="dark"] {
+    --color-accent: #5fd0ae;
+    --color-on-accent: #04221a;
+    --color-accent-soft: #153f34;
+    --color-ink: #eef3f1;
+    --color-muted: #b0bdb9;
+    --color-line: #33433f;
+    --color-paper: #16211e;
+    --color-ground: #0b1210;
+    --color-warn: #f5b06f;
+    --color-warn-soft: #3d2c17;
+    --color-bad: #ff8f86;
+    --color-bad-soft: #421f1c;
+    color-scheme: dark;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --color-accent: #5fd0ae;
+      --color-on-accent: #04221a;
+      --color-accent-soft: #153f34;
+      --color-ink: #eef3f1;
+      --color-muted: #b0bdb9;
+      --color-line: #33433f;
+      --color-paper: #16211e;
+      --color-ground: #0b1210;
+      --color-warn: #f5b06f;
+      --color-warn-soft: #3d2c17;
+      --color-bad: #ff8f86;
+      --color-bad-soft: #421f1c;
+      color-scheme: dark;
+    }
+  }
+
+  body {
+    background: var(--color-ground);
+    color: var(--color-ink);
+    font-feature-settings: "cv11", "ss01", "tnum" 0;
+    line-height: 1.5;
+  }
+  h1, h2, h3 { color: var(--color-ink); letter-spacing: -0.01em; }
+  ::placeholder { color: var(--color-muted); opacity: 0.85; }
+  /* Klaviatura bilan yurganda tanlangan element aniq ko'rinsin. */
+  :focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; border-radius: 6px; }
+  ::selection { background: var(--color-accent); color: var(--color-on-accent); }
 }
 
 .input {
-  @apply w-full rounded-lg border border-line bg-paper px-3 py-2.5 text-[15px] outline-none focus:border-accent focus:ring-2 focus:ring-accent/20;
+  @apply w-full min-w-0 rounded-lg border border-line bg-paper px-3 py-2.5 text-[15px] text-ink outline-none transition-colors hover:border-muted focus:border-accent focus:ring-2 focus:ring-accent/25;
 }
 .btn {
-  @apply inline-flex items-center justify-center rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50;
+  @apply inline-flex items-center justify-center gap-2 rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-on-accent shadow-sm transition hover:brightness-110 active:brightness-95 disabled:opacity-50;
 }
 .btn-ghost {
-  @apply inline-flex items-center justify-center rounded-lg border border-accent px-4 py-2 text-sm font-semibold text-accent hover:bg-accent-soft;
+  @apply inline-flex items-center justify-center gap-2 rounded-lg border border-accent bg-paper px-4 py-2 text-sm font-semibold text-accent transition-colors hover:bg-accent-soft;
 }
 .btn-danger {
-  @apply inline-flex items-center justify-center rounded-lg border border-bad px-4 py-2 text-sm font-semibold text-bad hover:bg-bad-soft;
+  @apply inline-flex items-center justify-center gap-2 rounded-lg border border-bad bg-paper px-4 py-2 text-sm font-semibold text-bad transition-colors hover:bg-bad-soft;
 }
+/* Kartalar to'liq to'q fonda (shaffof emas) — matn har qanday fon ustida ham aniq o'qiladi. */
 .card {
-  @apply rounded-xl border border-line bg-paper;
+  @apply rounded-xl border border-line bg-paper shadow-[0_1px_2px_rgb(0_0_0/0.05),0_4px_16px_-8px_rgb(0_0_0/0.12)];
 }
 .label {
-  @apply mb-1 block text-[13px] text-muted;
+  @apply mb-1 block text-[13px] font-medium text-muted;
+}
+
+/* ---------- Fon: nuqtali xarita va sekin suzib yuradigan yumshoq rang to'lqinlari ---------- */
+.bg-map-layer {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  overflow: hidden;
+  background: var(--color-ground);
+}
+.bg-map-layer svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.bg-map {
+  fill: none;
+  stroke: var(--color-muted);
+  stroke-width: 4;
+  stroke-linecap: round;
+  opacity: 0.14;
+}
+.bg-glow {
+  position: absolute;
+  width: 70vmax;
+  height: 70vmax;
+  border-radius: 50%;
+  filter: blur(40px);
+  opacity: 0.55;
+  background: radial-gradient(closest-side, color-mix(in oklab, var(--color-accent) 22%, transparent), transparent);
+  animation: glow-drift 38s ease-in-out infinite alternate;
+}
+.bg-glow.one { top: -25vmax; left: -20vmax; }
+.bg-glow.two { bottom: -30vmax; right: -25vmax; animation-duration: 46s; animation-delay: -12s; }
+@keyframes glow-drift {
+  0% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(12vmax, 8vmax) scale(1.08); }
+  100% { transform: translate(-6vmax, 14vmax) scale(0.96); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .bg-glow { animation: none; }
 }
