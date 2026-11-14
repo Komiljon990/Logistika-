@@ -16,6 +16,7 @@ export default async function TeamPage() {
   });
   return (
     <div className="grid gap-6">
+      <Link href="/settings" className="text-sm text-accent hover:underline">← {t("settings.title")}</Link>
       <h1 className="text-2xl font-bold">{t("team.title")}</h1>
       <div className="card overflow-x-auto">
         <table className="w-full text-sm">

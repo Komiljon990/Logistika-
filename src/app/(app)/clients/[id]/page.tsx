@@ -14,7 +14,9 @@ import { ensureRates, rateMap } from "@/lib/rates";
 import { balancesByClient, loadLedger } from "@/lib/settlement";
 import { StatusPill } from "@/components/StatusPill";
 import { ClientForm } from "../../trips/forms";
-import { AdvanceForm, CancelPaymentButton, HandOverButton, PaymentForm, type OpenRow } from "../../settlements/forms";
+import { AdvanceForm, CancelPaymentButton, HandOverButton, PaymentAccountForm, PaymentForm, type OpenRow, type PayAccounts } from "../../settlements/forms";
+import { paymentAccounts } from "@/lib/cash";
+import { accountKindFor } from "@/lib/cash-core";
 import { setClientStatus } from "../actions";
 
 const PAY_STYLE = { UNPAID: "bg-bad-soft text-bad", PARTIAL: "bg-warn-soft text-warn", PAID: "bg-accent-soft text-accent" } as const;
@@ -33,6 +35,7 @@ export default async function ClientPage({ params }: { params: Promise<{ id: str
     where: { clientId: c.id, orgId: c.orgId, OR: [{ status: { not: "ACTIVE" } }, { trip: { status: "CANCELLED" } }] },
     include: { trip: { select: { id: true, number: true, routeFrom: true, routeTo: true, tractor: { select: { plate: true } } } } },
   });
+  const accounts: PayAccounts = editor ? await paymentAccounts(c.orgId) : { options: [], required: false };
   let formData: { currencies: string[]; drivers: { id: string; label: string }[]; rates: Record<string, number> } | null = null;
   if (editor && c.status === "ACTIVE") {
     await ensureRates([today], today);
@@ -131,6 +134,12 @@ export default async function ClientPage({ params }: { params: Promise<{ id: str
                     <span className={`text-base font-bold tabular-nums ${p.active ? "" : "line-through"}`}>{formatNumber(p.amount)} {p.currency}</span>
                   </div>
                   {p.note && <div className="text-muted">{p.note}</div>}
+                  {p.active && (p.receivedBy !== "DRIVER" || p.handedOverAt) && (
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                      <span>{t("pay.account")}: {p.accountLabel ? <strong>{p.accountLabel}</strong> : <span className="text-muted">{t("pay.accountNone")}</span>}</span>
+                      {editor && <PaymentAccountForm d={d} paymentId={p.id} kind={p.receivedBy === "DRIVER" ? "CASH" : accountKindFor(p.method, p.receivedBy)!} currency={p.currency} current={p.accountId} accounts={accounts} />}
+                    </div>
+                  )}
                   {p.allocations.length > 0 && (
                     <ul className="grid gap-0.5 text-muted">
                       {p.allocations.map((a, i) => (
@@ -149,7 +158,7 @@ export default async function ClientPage({ params }: { params: Promise<{ id: str
                     <div className="flex flex-wrap items-center gap-3">
                       {p.advance > 0.005 && <span className="font-semibold text-accent">{t("settle.advance")}: {formatNumber(p.advance)} {p.currency}</span>}
                       <span className="flex-1" />
-                      {editor && p.receivedBy === "DRIVER" && !p.handedOverAt && <HandOverButton d={d} paymentId={p.id} />}
+                      {editor && p.receivedBy === "DRIVER" && !p.handedOverAt && <HandOverButton d={d} paymentId={p.id} currency={p.currency} accounts={accounts} />}
                       {editor && <CancelPaymentButton d={d} paymentId={p.id} />}
                     </div>
                   )}
@@ -166,7 +175,7 @@ export default async function ClientPage({ params }: { params: Promise<{ id: str
         {formData && (
           <aside className="card grid min-w-0 flex-[1_1_340px] gap-3 border-2 border-accent p-5">
             <h2 className="text-lg font-semibold">{t("pay.receive")}</h2>
-            <PaymentForm d={d} clientId={c.id} open={open} currencies={formData.currencies} drivers={formData.drivers} rates={formData.rates} today={today} />
+            <PaymentForm d={d} clientId={c.id} open={open} currencies={formData.currencies} drivers={formData.drivers} rates={formData.rates} today={today} accounts={accounts} />
           </aside>
         )}
       </div>

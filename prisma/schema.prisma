@@ -31,6 +31,8 @@ model Organization {
   phone     String?
   address   String?
   status    Status   @default(ACTIVE)
+  // Kassa bo'limi yoqilganmi (rahbar sozlamalardan o'chirib-yoqadi).
+  cashEnabled Boolean @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -412,6 +414,9 @@ model Payment {
   driverId     String?
   driver       Driver?        @relation(fields: [driverId], references: [id])
   handedOverAt DateTime? // haydovchi kassaga topshirgan vaqt
+  // Tushum qaysi hisobga tushdi (bank hisob raqami, naqd kassa yoki karta). Haydovchidagi naqd — topshirilganda.
+  accountId    String?
+  account      CashAccount?   @relation(fields: [accountId], references: [id])
   note         String?
   status       Status         @default(ACTIVE) // ARCHIVED = bekor qilingan
   createdById  String
@@ -421,6 +426,99 @@ model Payment {
 
   @@index([orgId, clientId])
   @@index([orgId, receivedBy, handedOverAt])
+  @@index([accountId])
+}
+
+// ---------- Kassa: hisoblar, xarajatlar, o'tkazmalar ----------
+
+enum AccountKind {
+  BANK // bank hisob raqami
+  CASH // naqd kassa
+  CARD // plastik karta
+}
+
+/// Pul turadigan joy. Qoldiq = boshlang'ich qoldiq + kirimlar − chiqimlar ± o'tkazmalar (saqlanmaydi, hisoblanadi).
+model CashAccount {
+  id             String      @id @default(cuid())
+  orgId          String
+  kind           AccountKind
+  name           String // bank nomi / kassa nomi / karta nomi
+  mfo            String? // bank MFO
+  accountNumber  String? // 20 xonali hisob raqami
+  cardNumber     String?
+  cardHolder     String? // karta kimniki
+  currency       String
+  openingBalance Decimal     @default(0) @db.Decimal(18, 2)
+  note           String?
+  status         Status      @default(ACTIVE)
+  createdById    String
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  payments     Payment[]
+  expenses     Expense[]
+  transfersOut CashTransfer[] @relation("TransferFrom")
+  transfersIn  CashTransfer[] @relation("TransferTo")
+
+  @@index([orgId, status])
+}
+
+/// Xarajat turkumi (parentId bo'sh) va turkum ichidagi bo'lim (parentId — turkum). Har tashkilot o'zi sozlaydi.
+model ExpenseCategory {
+  id        String            @id @default(cuid())
+  orgId     String
+  name      String
+  parentId  String?
+  parent    ExpenseCategory?  @relation("Sub", fields: [parentId], references: [id])
+  children  ExpenseCategory[] @relation("Sub")
+  status    Status            @default(ACTIVE)
+  createdAt DateTime          @default(now())
+
+  expenses Expense[]
+
+  @@index([orgId, parentId])
+}
+
+model Expense {
+  id          String          @id @default(cuid())
+  orgId       String
+  date        DateTime        @db.Date
+  accountId   String
+  account     CashAccount     @relation(fields: [accountId], references: [id])
+  amount      Decimal         @db.Decimal(18, 2) // hisob valyutasida
+  categoryId  String // eng aniq tanlangan: bo'lim yoki (bo'limi yo'q) turkum
+  category    ExpenseCategory @relation(fields: [categoryId], references: [id])
+  note        String?
+  status      Status          @default(ACTIVE) // ARCHIVED = o'chirilgan (bekor qilingan)
+  createdById String
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  @@index([orgId, date])
+  @@index([accountId])
+}
+
+/// Hisoblar orasida o'tkazma (kassadan bankka, kartadan naqdga, valyuta ayirboshlash).
+/// rate: 1 rateBase = rate boshqa valyuta (qimmatroq valyuta asos qilinadi: 1 USD = 12 650 UZS).
+model CashTransfer {
+  id            String      @id @default(cuid())
+  orgId         String
+  date          DateTime    @db.Date
+  fromAccountId String
+  fromAccount   CashAccount @relation("TransferFrom", fields: [fromAccountId], references: [id])
+  toAccountId   String
+  toAccount     CashAccount @relation("TransferTo", fields: [toAccountId], references: [id])
+  amount        Decimal     @db.Decimal(18, 2) // chiqqan summa (fromAccount valyutasida)
+  toAmount      Decimal     @db.Decimal(18, 2) // tushgan summa (toAccount valyutasida)
+  rate          Decimal?    @db.Decimal(20, 8)
+  rateBase      String?
+  rateManual    Boolean     @default(false)
+  note          String?
+  status        Status      @default(ACTIVE)
+  createdById   String
+  createdAt     DateTime    @default(now())
+
+  @@index([orgId, date])
 }
 
 /// To'lovning yuk qismiga taqsimlangan qismi. Valyutalar har xil bo'lishi mumkin:

@@ -114,17 +114,11 @@
   :root:not([data-theme="light"]) .bg-photo-veil { display: none; }
 }
 /* Qorong'i rejimda kartadan tashqaridagi sarlavha va matn rasmdagi yorug' joylar ustida ham o'qilsin. */
-:root[data-theme="dark"] main > div > h1,
-:root[data-theme="dark"] main > div > div > h1,
-:root[data-theme="dark"] main > div > p,
-:root[data-theme="dark"] main > div > div > p {
-  text-shadow: 0 1px 2px rgb(0 0 0 / 0.85), 0 0 12px rgb(0 0 0 / 0.6);
+:root[data-theme="dark"] main :is(h1, h2, p, a, span):not(.card *):not(.card) {
+  text-shadow: 0 1px 2px rgb(0 0 0 / 0.9), 0 0 12px rgb(0 0 0 / 0.7);
 }
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) main > div > h1,
-  :root:not([data-theme="light"]) main > div > div > h1,
-  :root:not([data-theme="light"]) main > div > p,
-  :root:not([data-theme="light"]) main > div > div > p {
-    text-shadow: 0 1px 2px rgb(0 0 0 / 0.85), 0 0 12px rgb(0 0 0 / 0.6);
+  :root:not([data-theme="light"]) main :is(h1, h2, p, a, span):not(.card *):not(.card) {
+    text-shadow: 0 1px 2px rgb(0 0 0 / 0.9), 0 0 12px rgb(0 0 0 / 0.7);
   }
 }

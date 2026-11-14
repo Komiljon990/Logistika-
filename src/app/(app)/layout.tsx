@@ -11,6 +11,8 @@ import { countAlerts } from "@/lib/alerts";
 import { tashkentToday } from "@/lib/docs";
 import { logout } from "@/app/actions";
 import { LangSwitch } from "@/components/LangSwitch";
+import { HeaderLinks } from "@/components/HeaderLinks";
+import { cashEnabled } from "@/lib/cash";
 import { Nav } from "./Nav";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
@@ -18,17 +20,17 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const t = await getT();
   const themeCookie = (await cookies()).get("theme")?.value;
   const themePref: ThemePref = themeCookie === "light" || themeCookie === "dark" ? themeCookie : "system";
-  const alertCount =can(user.role, "alerts.badge") ? await countAlerts(user, tashkentToday()) : 0;
+  const alertCount = can(user.role, "alerts.badge") ? await countAlerts(user, tashkentToday()) : 0;
+  // Kassa bo'limi tashkilot sozlamasiga qarab ko'rinadi; barcha tashkilotlar foydalanuvchisi uchun doim (tashkilot tanlaydi).
+  const showCash = user.orgId ? await cashEnabled(user.orgId) : true;
   const items = [
     { href: "/", label: t("nav.home") },
-    { href: "/alerts", label: t("nav.alerts"), badge: alertCount },
     { href: "/trips", label: t("nav.trips") },
     { href: "/clients", label: t("nav.clients") },
     { href: "/settlements", label: t("nav.settlements") },
+    ...(showCash ? [{ href: "/cash", label: t("nav.cash") }] : []),
     { href: "/vehicles", label: t("nav.vehicles") },
     { href: "/drivers", label: t("nav.drivers") },
-    { href: "/org-docs", label: t("nav.orgDocs") },
-    { href: "/currencies", label: t("nav.currencies") },
     ...(["nav.tir", "nav.reports"] as const).map((k) => ({
       label: t(k),
       soon: t("nav.soon"),
@@ -39,7 +41,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           { href: "/admin/users", label: t("nav.users") },
         ]
       : []),
-    ...(can(user.role, "team.view") ? [{ href: "/team", label: t("nav.team") }] : []),
+  ];
+  const headerLinks = [
+    { href: "/alerts", label: t("nav.alerts"), icon: "bell" as const, badge: alertCount },
+    { href: "/activity", label: t("act.title"), icon: "history" as const },
+    { href: "/settings", label: t("settings.title"), icon: "gear" as const, match: ["/org-docs", "/team", "/currencies"] },
   ];
   return (
     <div className="min-h-dvh">
@@ -47,6 +53,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         <Link href="/" aria-label={t("appName")}><Logo name={t("appName")} /></Link>
         <span className="text-sm text-muted">{user.orgName ?? t("home.allOrgs")}</span>
         <span className="flex-1" />
+        <HeaderLinks items={headerLinks} />
         <ThemeToggle initial={themePref} labels={{ system: t("theme.system"), light: t("theme.light"), dark: t("theme.dark") }} />
         <LangSwitch />
         <span className="text-sm text-muted">{t(`role.${user.role}`)} · {user.fullName}</span>

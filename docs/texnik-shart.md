@@ -303,6 +303,12 @@ Sinov serveri: Windows noutbuk, PostgreSQL 16, ma'lumotlar `D:\logistika-data`
 - **Demo (reklama):** rahbar, menejer, buxgalter demo hisoblari; login sahifasida
   ko'rinadi; faqat demo tashkilotni ko'radi; server tomonida hech narsa saqlanmaydi.
 
+- **14.11.2026:** yuqori panel (sozlamalar, ogohlantirishlar, oxirgi amallar),
+  sozlamalar sahifasi, kassa (hisoblar, aylanma va davr hisoboti, xarajatlar
+  turkum › bo'lim bilan, o'tkazmalar kurs bilan), to'lovlarda tushum hisobi,
+  oxirgi amallar (ko'rish, ochish, o'chirish). Sinov: 95 ta unit test, kassa e2e
+  (~100 tekshiruv) va oldingi e2e to'plamlari — hammasi o'tdi.
+
 **Hali qurilmagan:** Telegram bot (token kutilmoqda), TIR/Dazvol registri (TIR
 jadvalining maydonlari kerak), safar kunlari va tariflar hisobi, haydovchi
 to'lovlari va ish haqi, hisobotlar.
@@ -483,7 +489,39 @@ vaqtda, telefon va kompyuter ko'rinishi, ma'lumot yaxlitligi, arxiv
   bo'yicha xabarlar ko'zga ko'rinadigan bo'lishi kerak (2-bosqichda
   hujjatlar faqat kartochka ichida, xabarlar faqat bosh sahifada edi).
 
+### Yangi talablar va qarorlar (14.11.2026)
+
+- **Yuqori panel:** sozlamalar (tishli g'ildirak belgisi), ogohlantirishlar
+  (qo'ng'iroq, soni bilan) va "Oxirgi amallar" (soat belgisi) — alohida tugmalar.
+- **Sozlamalar:** tashkilot hujjatlari, xodimlar, valyutalar va kassa
+  sozlamalari asosiy menyudan sozlamalarga ko'chirildi.
+- **Oxirgi amallar:** ko'rish, ochish (tahrirlash) va o'chirish. Qaror: har kim
+  o'z amallarini ko'radi, rahbar — butun tashkilotniki ("faqat meniki" filtri bor).
+  O'chirish = yaratilgan yozuvni bekor qilish (tarix saqlanadi) va faqat o'sha
+  yozuvga huquqi bo'lsa.
+- **Kassa (asosiy menyu):** bank hisob raqamlari (bank nomi, MFO, 20 xonali
+  hisob raqami, valyuta), naqd kassalar, plastik kartalar (raqami va kimniki);
+  har birida boshlang'ich qoldiq. Aylanma: kirim, chiqim, qoldiq; oy yoki
+  ixtiyoriy davr bo'yicha hisobot, hisob bo'yicha filtr. Bo'limni rahbar
+  sozlamalardan o'chirib-yoqadi (ma'lumot o'chmaydi).
+- **Huquqlar (qaror):** hisob, xarajat, o'tkazmani hisobchi va menejer kiritadi;
+  rahbar hammasini ko'radi va kassani yoqadi/o'chiradi, xarajat turkumlarini
+  sozlaydi; ishonchli vakil faqat ko'radi.
+- **Xarajatlar:** turkum › bo'lim (har tashkilot o'zi sozlaydi, namuna ro'yxat
+  beriladi), summa, qaysi hisobdan kamayadi. Nofaol turkum yangi xarajatda
+  chiqmaydi, eskilarida saqlanadi.
+- **O'tkazmalar (qaror):** hisoblar orasida, valyutalar har xil bo'lsa kurs bilan
+  (MB kursi avtomatik, katakda qo'lda o'zgartiriladi; asos — qimmatroq valyuta).
+- **To'lovlar:** har to'lovda tushum qaysi hisobga tushgani ko'rsatiladi
+  (bank → bank hisobi, karta → karta, naqd ofis → kassa, valyuta mos bo'lishi
+  shart). Kassa yoqilgan va kamida bitta hisob ochilgan tashkilotda majburiy.
+  Haydovchidagi naqd — qaror: kassaga topshirilganda kassa tanlanadi, kirim
+  topshirilgan kuni. Eski to'lovlarga hisobni keyin ko'rsatish mumkin.
+
 ### Takliflar (talab emas, tasdiqlash kerak)
+
+- Xarajatni tashish yoki transportga bog'lash (masalan, yoqilg'i — qaysi
+  mashina yoki reys uchun), keyin reys foydaliligi hisobotida ishlatish.
 
 - Mintaqani (SNG yoki Yevropa) qo'lda belgilash o'rniga yo'nalishdagi
   yakuniy mamlakatni ro'yxatdan tanlash, mamlakat mintaqasi sozlamada

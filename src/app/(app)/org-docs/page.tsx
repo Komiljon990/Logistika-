@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { getT } from "@/i18n";
 import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/session";
@@ -22,6 +23,7 @@ export default async function OrgDocsPage({ searchParams }: { searchParams: Prom
 
   return (
     <div className="grid gap-6">
+      <Link href="/settings" className="text-sm text-accent hover:underline">← {t("settings.title")}</Link>
       <div className="flex flex-wrap items-center gap-3">
         <h1 className="text-2xl font-bold">{t("orgdoc.title")}</h1>
         {user.orgId && org && <span className="text-muted">{org.name}</span>}

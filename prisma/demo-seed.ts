@@ -24,8 +24,14 @@ const day = (n: number) => new Date(today().getTime() + n * 86_400_000);
 const at = (n: number, hour: number) => new Date(day(n).getTime() + (hour - 5) * 3_600_000);
 
 async function wipe(orgId: string) {
+  await db.auditLog.deleteMany({ where: { orgId } });
+  await db.expense.deleteMany({ where: { orgId } });
+  await db.cashTransfer.deleteMany({ where: { orgId } });
   await db.paymentAllocation.deleteMany({ where: { payment: { orgId } } });
   await db.payment.deleteMany({ where: { orgId } });
+  await db.cashAccount.deleteMany({ where: { orgId } });
+  await db.expenseCategory.deleteMany({ where: { orgId, NOT: { parentId: null } } });
+  await db.expenseCategory.deleteMany({ where: { orgId } });
   await db.shipmentCharge.deleteMany({ where: { orgId } });
   await db.document.updateMany({ where: { orgId }, data: { prevId: null } });
   await db.document.deleteMany({ where: { orgId } });
@@ -164,13 +170,22 @@ async function main() {
   const tF = await trip({ tractor: t2, trailer: tr2, driver: d2, from: "Samarqand", to: "Istanbul", load: -5, cargo: "Tekstil", status: "CANCELLED" });
   await ship(tF, { client: c2, contact: "Jasur Toshmatov", phone: "+998912223344", terms: "CONTRACT", price: 3200, currency: "USD" });
 
+  // Kassa: hisoblar (bank, naqd kassa, karta)
+  const acct = async (data: Omit<Prisma.CashAccountUncheckedCreateInput, "orgId" | "createdById">) => (await db.cashAccount.create({ data: { orgId, createdById: ids.ACCOUNTANT, ...data } })).id;
+  const bankUzs = await acct({ kind: "BANK", name: "Kapitalbank", mfo: "01018", accountNumber: "20208000900123456001", currency: "UZS", openingBalance: 45_000_000 });
+  const bankUsd = await acct({ kind: "BANK", name: "Kapitalbank", mfo: "01018", accountNumber: "20208840900123456002", currency: "USD", openingBalance: 2_000 });
+  const cashUzs = await acct({ kind: "CASH", name: "Asosiy kassa", currency: "UZS", openingBalance: 8_000_000 });
+  const cashUsd = await acct({ kind: "CASH", name: "Valyuta kassa", currency: "USD", openingBalance: 1_500 });
+  await acct({ kind: "CASH", name: "Valyuta kassa", currency: "EUR", openingBalance: 0, note: "Yevroda naqd tushumlar" });
+  const card = await acct({ kind: "CARD", name: "Humo", cardNumber: "9860120123456789", cardHolder: "Rahbar — A. Karimov", currency: "UZS", openingBalance: 3_000_000 });
+
   // To'lovlar
-  const pay = async (data: { client: string; d: number; amount: number; currency: string; method: "BANK" | "CASH" | "CARD"; receivedBy?: "OFFICE" | "DRIVER"; driver?: string; handed?: boolean; note?: string },
+  const pay = async (data: { client: string; d: number; amount: number; currency: string; method: "BANK" | "CASH" | "CARD"; receivedBy?: "OFFICE" | "DRIVER"; driver?: string; handed?: boolean; note?: string; account?: string },
     alloc: { shipment: string; applied: number; rate: number; manual?: boolean }[]) => {
     const p = await db.payment.create({
       data: {
         orgId, clientId: data.client, date: day(data.d), amount: data.amount, currency: data.currency, method: data.method,
-        receivedBy: data.receivedBy ?? null, driverId: data.driver ?? null, handedOverAt: data.handed ? at(data.d + 1, 10) : null, note: data.note ?? null, createdById: by,
+        receivedBy: data.receivedBy ?? null, driverId: data.driver ?? null, handedOverAt: data.handed ? at(data.d + 1, 10) : null, note: data.note ?? null, accountId: data.account ?? null, createdById: by,
       },
     });
     if (alloc.length) {
@@ -178,16 +193,57 @@ async function main() {
         data: alloc.map((a) => ({ paymentId: p.id, shipmentId: a.shipment, applied: a.applied, rate: a.rate, rateManual: !!a.manual, consumed: Math.round(a.applied * a.rate * 100) / 100 })),
       });
     }
+    return p.id;
   };
-  await pay({ client: c1, d: -15, amount: 3000, currency: "USD", method: "BANK" }, [{ shipment: sA, applied: 3000, rate: 1 }]);
+  const p1 = await pay({ client: c1, d: -15, amount: 3000, currency: "USD", method: "BANK", account: bankUsd }, [{ shipment: sA, applied: 3000, rate: 1 }]);
   // Narx dollarda, to'lov so'mda — kelishilgan kurs bilan
-  await pay({ client: c1, d: -3, amount: 25_600_000, currency: "UZS", method: "BANK", note: "Kelishilgan kurs 12 800" }, [{ shipment: sB1, applied: 2000, rate: 12800, manual: true }]);
+  const p2 = await pay({ client: c1, d: -3, amount: 25_600_000, currency: "UZS", method: "BANK", note: "Kelishilgan kurs 12 800", account: bankUzs }, [{ shipment: sB1, applied: 2000, rate: 12800, manual: true }]);
   // Naqd kelishuv: haydovchi oldi, kassaga hali topshirmagan
   await pay({ client: c3, d: -2, amount: 1200, currency: "EUR", method: "CASH", receivedBy: "DRIVER", driver: d1 }, [{ shipment: sB2, applied: 1200, rate: 1 }]);
   // Qisman to'lov + avans
-  await pay({ client: c4, d: -17, amount: 15_000_000, currency: "UZS", method: "BANK" }, [{ shipment: sD, applied: 15_000_000, rate: 1 }]);
-  await pay({ client: c2, d: -1, amount: 500, currency: "USD", method: "BANK", note: "Avans" }, []);
+  await pay({ client: c4, d: -17, amount: 15_000_000, currency: "UZS", method: "BANK", account: bankUzs }, [{ shipment: sD, applied: 15_000_000, rate: 1 }]);
+  const p5 = await pay({ client: c2, d: -1, amount: 500, currency: "USD", method: "BANK", note: "Avans", account: bankUsd }, []);
   void sC;
+
+  // Xarajat turkumlari (turkum › bo'lim) va xarajatlar
+  const cats: Record<string, string> = {};
+  for (const [name, subs] of [
+    ["Yoqilg'i", ["Dizel", "Gaz", "AdBlue"]],
+    ["Ta'mirlash va xizmat", ["Ehtiyot qismlar", "Shina", "Moy almashtirish", "Usta xizmati"]],
+    ["Yo'l xarajatlari", ["Bojxona", "Yo'l haqi", "Jarima", "To'xtash joyi"]],
+    ["Ish haqi", ["Haydovchilar", "Ofis xodimlari"]],
+    ["Ofis", ["Ijara", "Kommunal", "Aloqa va internet"]],
+    ["Soliq va bank", ["Soliqlar", "Bank xizmati"]],
+  ] as const) {
+    const parent = await db.expenseCategory.create({ data: { orgId, name } });
+    for (const s of subs) cats[s] = (await db.expenseCategory.create({ data: { orgId, name: s, parentId: parent.id } })).id;
+  }
+  const exp = async (sub: string, account: string, amount: number, d: number, note?: string) =>
+    (await db.expense.create({ data: { orgId, categoryId: cats[sub], accountId: account, amount, date: day(d), note: note ?? null, createdById: ids.ACCOUNTANT } })).id;
+  await exp("Ijara", bankUzs, 5_000_000, -35, "Ofis ijarasi");
+  const e1 = await exp("Dizel", bankUzs, 4_200_000, -12, "01D001DM, Toshkent AYOQSH");
+  await exp("Bojxona", cashUsd, 350, -10, "Yallama posti, 01D001DM");
+  await exp("Shina", bankUzs, 6_800_000, -8, "01D002DM, 2 dona");
+  await exp("Haydovchilar", bankUzs, 12_000_000, -5, "Oktabr oyi");
+  await exp("Aloqa va internet", card, 450_000, -4);
+  const e2 = await exp("Jarima", cashUzs, 300_000, -3, "Tezlik oshirilgani uchun");
+  const tr = async (from: string, to: string, amount: number, toAmount: number, d: number, rate?: number, note?: string) =>
+    (await db.cashTransfer.create({ data: { orgId, fromAccountId: from, toAccountId: to, amount, toAmount, date: day(d), rate: rate ?? null, rateBase: rate ? "USD" : null, note: note ?? null, createdById: ids.ACCOUNTANT } })).id;
+  await tr(bankUzs, cashUzs, 10_000_000, 10_000_000, -6, undefined, "Kassaga naqd olish");
+  const x1 = await tr(cashUsd, cashUzs, 500, 6_325_000, -2, 12_650, "Valyuta ayirboshlash");
+
+  // "Oxirgi amallar" uchun namunaviy jurnal (menejer va buxgalter amallari)
+  const log = (actorId: string, action: string, entity: string, entityId: string, hoursAgo: number) =>
+    db.auditLog.create({ data: { orgId, actorId, action, entity, entityId, at: new Date(Date.now() - hoursAgo * 3_600_000) } });
+  await log(by, "trip.create", "Trip", tE, 2);
+  await log(by, "payment.create", "Payment", p5, 20);
+  await log(by, "trip.create", "Trip", tC, 30);
+  await log(by, "payment.create", "Payment", p2, 70);
+  await log(by, "trip.create", "Trip", tB, 270);
+  await log(by, "payment.create", "Payment", p1, 360);
+  await log(ids.ACCOUNTANT, "transfer.create", "CashTransfer", x1, 40);
+  await log(ids.ACCOUNTANT, "expense.create", "Expense", e2, 68);
+  await log(ids.ACCOUNTANT, "expense.create", "Expense", e1, 285);
 
   console.log(`Demo tashkilot tayyor: ${ORG_NAME}. Hisoblar: ${USERS.map((u) => u.phone).join(", ")}`);
 }

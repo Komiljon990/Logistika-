@@ -1,6 +1,7 @@
 import "server-only";
 import type { CashHolder, PaymentMethod, PaymentTerms, ChargeKind, Prisma } from "@prisma/client";
 import { db } from "./db";
+import { accountLabel } from "./cash-core";
 import { clientBalance, payStatus, round2, shipmentTotals, type CurrencyBalance, type PayStatus } from "./settlement-core";
 
 export type LedgerShipment = {
@@ -11,8 +12,9 @@ export type LedgerShipment = {
 };
 
 export type LedgerPayment = {
-  id: string; clientId: string; date: Date; amount: number; currency: string; method: PaymentMethod;
+  id: string; orgId: string; clientId: string; date: Date; amount: number; currency: string; method: PaymentMethod;
   receivedBy: CashHolder | null; driverName: string | null; handedOverAt: Date | null; note: string | null; active: boolean;
+  accountId: string | null; accountLabel: string | null;
   allocations: { shipmentId: string; tripNumber: number; applied: number; consumed: number; rate: number; rateManual: boolean; currency: string }[];
   advance: number;
 };
@@ -38,6 +40,7 @@ export async function loadLedger(where: { orgId?: string; clientId?: string }) {
       orderBy: { date: "desc" },
       include: {
         driver: { select: { fullName: true } },
+        account: true,
         allocations: { include: { shipment: { select: { currency: true, trip: { select: { number: true } } } } } },
       },
     }),
@@ -63,9 +66,9 @@ export async function loadLedger(where: { orgId?: string; clientId?: string }) {
     }));
     const used = allocations.reduce((s, a) => s + a.consumed, 0);
     return {
-      id: p.id, clientId: p.clientId, date: p.date, amount: Number(p.amount), currency: p.currency, method: p.method,
+      id: p.id, orgId: p.orgId, clientId: p.clientId, date: p.date, amount: Number(p.amount), currency: p.currency, method: p.method,
       receivedBy: p.receivedBy, driverName: p.driver?.fullName ?? null, handedOverAt: p.handedOverAt, note: p.note,
-      active: p.status === "ACTIVE", allocations, advance: p.status === "ACTIVE" ? round2(Number(p.amount) - used) : 0,
+      active: p.status === "ACTIVE", accountId: p.accountId, accountLabel: p.account ? accountLabel(p.account) : null, allocations, advance: p.status === "ACTIVE" ? round2(Number(p.amount) - used) : 0,
     };
   });
   return { shipments, payments };

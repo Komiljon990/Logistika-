@@ -5,7 +5,11 @@ import type { Dict } from "@/i18n";
 import type { FormState } from "@/lib/form";
 import { crossRate, formatNumber, parseAmount, rateDigits, type RateMap } from "@/lib/currency-core";
 import { autoAllocate, consumedFor, demurrage, methodAllowed, round2, type Method, type Terms } from "@/lib/settlement-core";
-import { addCharge, allocateAdvance, cancelCharge, cancelPayment, createPayment, handOverCash, ratesForDay } from "./actions";
+import { accountKindFor, type AccountKind } from "@/lib/cash-core";
+import { addCharge, allocateAdvance, cancelCharge, cancelPayment, createPayment, handOverCash, ratesForDay, setPaymentAccount } from "./actions";
+
+export type AccountOpt = { id: string; kind: AccountKind; currency: string; label: string };
+export type PayAccounts = { options: AccountOpt[]; required: boolean };
 
 export type OpenRow = { id: string; label: string; sub: string; currency: string; remaining: number; terms: Terms; order: number };
 
@@ -126,8 +130,8 @@ function Allocator({ d, open, method, payCurrency, rates, amount }: {
   );
 }
 
-export function PaymentForm({ d, clientId, open, currencies, drivers, rates: initialRates, today }: {
-  d: Dict; clientId: string; open: OpenRow[]; currencies: string[]; drivers: { id: string; label: string }[]; rates: RateMap; today: string;
+export function PaymentForm({ d, clientId, open, currencies, drivers, rates: initialRates, today, accounts }: {
+  d: Dict; clientId: string; open: OpenRow[]; currencies: string[]; drivers: { id: string; label: string }[]; rates: RateMap; today: string; accounts: PayAccounts;
 }) {
   const [rates, setRates] = useState<RateMap>(initialRates);
   const [date, setDate] = useState(today);
@@ -193,6 +197,7 @@ export function PaymentForm({ d, clientId, open, currencies, drivers, rates: ini
           )}
         </div>
       )}
+      <AccountSelect d={d} accounts={accounts} kind={accountKindFor(method, method === "CASH" ? (receivedBy as "OFFICE" | "DRIVER") : null)} currency={currency} />
       <Allocator key={resetKey} d={d} open={open} method={method} payCurrency={currency} rates={rates} amount={amount} />
       <div>
         <label htmlFor="p-note" className="label">{d["common.note"]}</label>
@@ -298,6 +303,76 @@ export function CancelChargeButton({ d, chargeId }: { d: Dict; chargeId: string 
   return <ConfirmButton label={d["pay.cancel"]} confirm={d["pay.cancelChargeConfirm"]} run={() => cancelCharge(chargeId)} />;
 }
 
-export function HandOverButton({ d, paymentId }: { d: Dict; paymentId: string }) {
-  return <ConfirmButton label={d["pay.handOver"]} className="btn-ghost" run={() => handOverCash(paymentId)} />;
+/**
+ * Tushum qaysi hisobga tushdi: faqat to'lov turiga (bank/kassa/karta) va valyutasiga mos hisoblar ko'rsatiladi.
+ * Haydovchidagi naqd uchun (kind = null) hisob tanlanmaydi — topshirilganda tanlanadi.
+ */
+function AccountSelect({ d, accounts, kind, currency, id = "p-acc" }: { d: Dict; accounts: PayAccounts; kind: AccountKind | null; currency: string; id?: string }) {
+  if (!kind || (!accounts.required && accounts.options.length === 0)) return null;
+  const fit = accounts.options.filter((a) => a.kind === kind && a.currency === currency);
+  return (
+    <div>
+      <label htmlFor={id} className="label">{d["pay.account"]}</label>
+      {fit.length === 0 ? (
+        <p className="rounded-lg bg-warn-soft px-3 py-2 text-sm text-warn">{d["pay.noAccount"]}</p>
+      ) : (
+        <select key={`${kind}|${currency}`} id={id} name="accountId" required={accounts.required} defaultValue={fit.length === 1 ? fit[0].id : ""} className="input">
+          {(fit.length > 1 || !accounts.required) && <option value="">{accounts.required ? d["pay.pickAccount"] : d["pay.accountNone"]}</option>}
+          {fit.map((a) => <option key={a.id} value={a.id}>{a.label}</option>)}
+        </select>
+      )}
+    </div>
+  );
+}
+
+/** Haydovchi naqd pulni kassaga topshirdi: qaysi naqd kassaga kirim qilinadi. */
+export function HandOverButton({ d, paymentId, currency, accounts }: { d: Dict; paymentId: string; currency: string; accounts: PayAccounts }) {
+  const [open, setOpen] = useState(false);
+  const [state, action, pending] = useActionState(handOverCash.bind(null, paymentId), {});
+  const needsPick = accounts.options.some((a) => a.kind === "CASH" && a.currency === currency) || accounts.required;
+  if (!needsPick) {
+    return (
+      <form action={action} className="inline">
+        <button className="btn-ghost" disabled={pending}>{d["pay.handOver"]}</button>
+        <Msg state={state} d={d} />
+      </form>
+    );
+  }
+  if (!open) return <button type="button" className="btn-ghost" onClick={() => setOpen(true)}>{d["pay.handOver"]}</button>;
+  return (
+    <form action={action} className="grid w-full max-w-sm gap-2 rounded-lg bg-ground p-3">
+      <AccountSelect d={d} accounts={accounts} kind="CASH" currency={currency} id={`ho-${paymentId}`} />
+      <div className="flex gap-2">
+        <button className="btn" disabled={pending}>{d["pay.handOver"]}</button>
+        <button type="button" className="btn-ghost" onClick={() => setOpen(false)}>{d["common.cancel"]}</button>
+      </div>
+      <Msg state={state} d={d} />
+    </form>
+  );
+}
+
+/** Mavjud to'lovning tushum hisobini ko'rsatish yoki tuzatish. */
+export function PaymentAccountForm({ d, paymentId, kind, currency, current, accounts }: {
+  d: Dict; paymentId: string; kind: AccountKind; currency: string; current: string | null; accounts: PayAccounts;
+}) {
+  const [open, setOpen] = useState(false);
+  const [state, action, pending] = useActionState(async (prev: FormState, fd: FormData) => {
+    const r = await setPaymentAccount(paymentId, prev, fd);
+    if (r.ok) setOpen(false);
+    return r;
+  }, {});
+  const fit = accounts.options.filter((a) => a.kind === kind && a.currency === currency);
+  if (fit.length === 0) return null;
+  if (!open) return <button type="button" className="text-sm text-accent hover:underline" onClick={() => setOpen(true)}>{current ? d["pay.changeAccount"] : d["pay.setAccount"]}</button>;
+  return (
+    <form action={action} className="flex w-full flex-wrap items-center gap-2 rounded-lg bg-ground p-2">
+      <select name="accountId" aria-label={d["pay.account"]} defaultValue={current ?? ""} className="input w-auto min-w-0 flex-1">
+        {!accounts.required && <option value="">{d["pay.accountNone"]}</option>}
+        {fit.map((a) => <option key={a.id} value={a.id}>{a.label}</option>)}
+      </select>
+      <button className="btn" disabled={pending}>{d["common.save"]}</button>
+      <button type="button" className="btn-ghost" onClick={() => setOpen(false)}>{d["common.cancel"]}</button>
+      <Msg state={state} d={d} />
+    </form>
+  );
 }

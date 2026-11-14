@@ -28,6 +28,10 @@ export const PERMISSIONS = {
   "currency.manage": ["DIRECTOR"],
   // Transportni o'chirish: faqat xato kiritilgan, hech narsaga bog'lanmagan transport (aks holda nofaol qilinadi).
   "vehicle.delete": ["MANAGER", "SUPER_ADMIN"],
+  // Kassa (14.11.2026): hisob raqamlar, xarajat, o'tkazmalarni hisobchi va menejer kiritadi; hamma ko'radi.
+  "cash.edit": ["ACCOUNTANT", "MANAGER"],
+  // Kassa bo'limini yoqish/o'chirish va xarajat turkumlarini sozlash — rahbar.
+  "cash.settings": ["DIRECTOR"],
   "salary.official.edit": ["ACCOUNTANT"],
   "hard.delete": ["SUPER_ADMIN"],
 } as const satisfies Record<string, readonly Role[]>;

@@ -28,6 +28,7 @@ export type CurrentUser = {
 /** Ma'lumotni o'zgartiradigan huquqlar: demo hisobga hech qachon berilmaydi. */
 const WRITE_PERMISSIONS: ReadonlySet<Permission> = new Set<Permission>([
   "data.edit", "orgdoc.edit", "currency.manage", "vehicle.delete", "user.manage", "org.manage", "hard.delete",
+  "cash.edit", "cash.settings",
 ]);
 
 /**

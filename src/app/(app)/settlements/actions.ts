@@ -9,6 +9,8 @@ import { orgForWrite, ForbiddenError } from "@/lib/scope";
 import { parseDate } from "@/lib/dates";
 import { addDays, parseAmount, parseDay, type RateMap } from "@/lib/currency-core";
 import { activeCurrencies } from "@/lib/org-currency";
+import { paymentAccounts } from "@/lib/cash";
+import { accountKindFor, type AccountKind } from "@/lib/cash-core";
 import { ensureRates, rateMap } from "@/lib/rates";
 import { tashkentToday } from "@/lib/docs";
 import { lockOrg } from "@/lib/trips";
@@ -43,6 +45,19 @@ export async function ratesForDay(day: string): Promise<RateMap> {
   if (!d || d > today || d < addDays(today, -730)) return {};
   await ensureRates([d], today);
   return rateMap(d);
+}
+
+/**
+ * Tushum qaysi hisobga tushadi. Hisob turi to'lov turiga, valyutasi to'lov valyutasiga mos bo'lishi shart.
+ * Kassa yoqilgan va hisob ochilgan tashkilotda hisob majburiy; aks holda ixtiyoriy (bo'sh — "ko'rsatilmagan").
+ */
+async function pickAccount(orgId: string, kind: AccountKind | null, currency: string, raw: string): Promise<{ id: string | null } | { error: keyof Dict }> {
+  if (!kind) return { id: null };
+  const { options, required } = await paymentAccounts(orgId);
+  if (!raw) return required ? { error: "pay.error.account" } : { id: null };
+  const a = options.find((o) => o.id === raw);
+  if (!a || a.kind !== kind || a.currency !== currency) return { error: "pay.error.accountMismatch" };
+  return { id: a.id };
 }
 
 // ---------- Qo'shimcha xarajat va prostoy ----------
@@ -141,6 +156,9 @@ export async function createPayment(clientId: string, _prev: FormState, formData
   }
   const alloc = parseAlloc(str(formData, "alloc"));
   if (!alloc) return fail("common.required", formData);
+  const acc = await pickAccount(orgId, accountKindFor(method, receivedBy), currency, str(formData, "accountId"));
+  if ("error" in acc) return fail(acc.error, formData);
+  const accountId = acc.id;
 
   let paymentId: string;
   try {
@@ -150,7 +168,7 @@ export async function createPayment(clientId: string, _prev: FormState, formData
       const check = checkAllocations(amount, method, alloc, open);
       if (!check.ok) throw new FormError(check.error);
       const p = await tx.payment.create({
-        data: { orgId, clientId, date, amount, currency, method, receivedBy, driverId, note: optStr(formData, "note", 300), createdById: user.id },
+        data: { orgId, clientId, date, amount, currency, method, receivedBy, driverId, accountId, note: optStr(formData, "note", 300), createdById: user.id },
       });
       if (alloc.length) {
         await tx.paymentAllocation.createMany({
@@ -165,7 +183,7 @@ export async function createPayment(clientId: string, _prev: FormState, formData
   }
   await audit({
     actorId: user.id, orgId, action: "payment.create", entity: "Payment", entityId: paymentId,
-    details: { clientId, amount, currency, method, receivedBy, driverId, allocations: alloc },
+    details: { clientId, amount, currency, method, receivedBy, driverId, accountId, allocations: alloc },
   });
   revalidate(clientId);
   for (const a of alloc) {
@@ -215,13 +233,33 @@ export async function cancelPayment(paymentId: string): Promise<FormState> {
   return { ok: true };
 }
 
-/** Haydovchi naqd pulni kassaga topshirdi. */
-export async function handOverCash(paymentId: string): Promise<FormState> {
+/** Haydovchi naqd pulni kassaga topshirdi: qaysi naqd kassaga kirim qilingani tanlanadi. */
+export async function handOverCash(paymentId: string, _prev: FormState, formData: FormData): Promise<FormState> {
   const { user, orgId } = await editor();
   const p = await db.payment.findFirst({ where: { id: paymentId, orgId, status: "ACTIVE", receivedBy: "DRIVER", handedOverAt: null } });
   if (!p) throw new ForbiddenError();
-  await db.payment.update({ where: { id: paymentId }, data: { handedOverAt: new Date() } });
-  await audit({ actorId: user.id, orgId, action: "payment.handover", entity: "Payment", entityId: paymentId });
+  const acc = await pickAccount(orgId, "CASH", p.currency, str(formData, "accountId"));
+  if ("error" in acc) return fail(acc.error, formData);
+  await db.payment.update({ where: { id: paymentId }, data: { handedOverAt: new Date(), accountId: acc.id } });
+  await audit({ actorId: user.id, orgId, action: "payment.handover", entity: "Payment", entityId: paymentId, details: { accountId: acc.id } });
   revalidate(p.clientId);
+  revalidatePath("/cash", "layout");
+  return { ok: true };
+}
+
+/** Tushum hisobini keyin ko'rsatish yoki tuzatish (masalan, kassa ochilishidan oldingi to'lovlar uchun). */
+export async function setPaymentAccount(paymentId: string, _prev: FormState, formData: FormData): Promise<FormState> {
+  const { user, orgId } = await editor();
+  const p = await db.payment.findFirst({ where: { id: paymentId, orgId, status: "ACTIVE" } });
+  if (!p) throw new ForbiddenError();
+  // Haydovchidagi (hali topshirilmagan) naqd hech qaysi hisobda emas.
+  if (p.receivedBy === "DRIVER" && !p.handedOverAt) return fail("pay.atDriver", formData);
+  const kind = p.receivedBy === "DRIVER" ? "CASH" : accountKindFor(p.method, p.receivedBy);
+  const acc = await pickAccount(orgId, kind, p.currency, str(formData, "accountId"));
+  if ("error" in acc) return fail(acc.error, formData);
+  await db.payment.update({ where: { id: paymentId }, data: { accountId: acc.id } });
+  await audit({ actorId: user.id, orgId, action: "payment.account", entity: "Payment", entityId: paymentId, details: { from: p.accountId, to: acc.id } });
+  revalidate(p.clientId);
+  revalidatePath("/cash", "layout");
   return { ok: true };
 }

@@ -9,7 +9,8 @@ import { tashkentToday } from "@/lib/docs";
 import { crossRate, formatNumber } from "@/lib/currency-core";
 import { ensureRates, rateMap } from "@/lib/rates";
 import { balancesByClient, loadLedger } from "@/lib/settlement";
-import { HandOverButton } from "./forms";
+import { paymentAccounts } from "@/lib/cash";
+import { HandOverButton, type PayAccounts } from "./forms";
 
 function sumBy(rows: { currency: string; value: number }[]) {
   const out: Record<string, number> = {};
@@ -38,6 +39,10 @@ export default async function SettlementsPage({ searchParams }: { searchParams: 
   const advances = sumBy(all.map((x) => ({ currency: x.currency, value: x.advance })));
   const toUsd = (pairs: [string, number][]) => pairs.reduce((s, [c, v]) => s + v * (crossRate(rates, c, "USD") ?? 0), 0);
   const driverCash = payments.filter((p) => p.active && p.receivedBy === "DRIVER" && !p.handedOverAt);
+  const accountsByOrg = new Map<string, PayAccounts>();
+  if (can(user.role, "data.edit")) {
+    for (const o of new Set(driverCash.map((p) => p.orgId))) accountsByOrg.set(o, await paymentAccounts(o));
+  }
   const month = today.slice(0, 7);
   const monthPays = payments.filter((p) => p.active && p.date.toISOString().slice(0, 7) === month);
   const monthTotals = sumBy(monthPays.map((p) => ({ currency: p.currency, value: p.amount })));
@@ -140,7 +145,7 @@ export default async function SettlementsPage({ searchParams }: { searchParams: 
                     <td className="px-4 py-2.5"><Link href={`/clients/${p.clientId}`} className="text-accent hover:underline">{clientName.get(p.clientId)?.name}</Link></td>
                     <td className="whitespace-nowrap px-4 py-2.5 tabular-nums">{formatDate(p.date)}</td>
                     <td className="whitespace-nowrap px-4 py-2.5 text-right font-semibold tabular-nums">{formatNumber(p.amount)} {p.currency}</td>
-                    <td className="px-4 py-2.5 text-right">{can(user.role, "data.edit") && <HandOverButton d={d} paymentId={p.id} />}</td>
+                    <td className="px-4 py-2.5 text-right">{can(user.role, "data.edit") && <HandOverButton d={d} paymentId={p.id} currency={p.currency} accounts={accountsByOrg.get(p.orgId) ?? { options: [], required: false }} />}</td>
                   </tr>
                 ))}
               </tbody>

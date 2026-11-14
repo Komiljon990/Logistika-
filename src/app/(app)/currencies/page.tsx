@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { getDict, getT } from "@/i18n";
 import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/session";
@@ -27,6 +28,7 @@ export default async function CurrenciesPage({ searchParams }: { searchParams: P
 
   return (
     <div className="grid gap-6">
+      <Link href="/settings" className="text-sm text-accent hover:underline">← {t("settings.title")}</Link>
       <div className="flex flex-wrap items-center gap-3">
         <h1 className="text-2xl font-bold">{t("currency.title")}</h1>
         <span className="flex-1" />
