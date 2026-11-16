@@ -31,10 +31,13 @@ export async function tripsReport(orgId: string, from: string, to: string) {
   const total: Money = {};
   const routes = new Map<string, TripGroup>();
   let completed = 0;
+  let listOnly = 0;
   for (const tr of trips) {
     if (tr.status === "COMPLETED") completed++;
+    if (tr.listOnly) listOnly++;
     const rev: Money = {};
-    for (const s of tr.shipments) {
+    // "Faqat ro'yxat" tashishi soniga kiradi, daromadga — yo'q.
+    for (const s of tr.listOnly ? [] : tr.shipments) {
       const v = Number(s.price) + s.charges.reduce((a, c) => a + Number(c.amount), 0);
       add(rev, s.currency, v);
       const g = byClient.get(s.client.id) ?? { key: s.client.id, label: s.client.name, trips: 0, revenue: {} };
@@ -55,7 +58,7 @@ export async function tripsReport(orgId: string, from: string, to: string) {
   }
   const sort = (m: Map<string, TripGroup>) => [...m.values()].sort((a, b) => b.trips - a.trips || a.label.localeCompare(b.label));
   return {
-    count: trips.length, completed, total,
+    count: trips.length, completed, listOnly, total,
     byTractor: sort(byTractor), byDriver: sort(byDriver), byClient: sort(byClient), routes: sort(routes).slice(0, 15),
   };
 }
@@ -89,7 +92,7 @@ export async function financeReport(orgId: string, from: string, to: string) {
     const v = Math.abs(m.amount);
     if (m.kind === "payment") add(r.payments, m.currency, v);
     else if (m.kind === "entryIn" || (m.kind === "transferIn" && fromUntrackedIds.has(m.id))) add(r.otherIn, m.currency, v);
-    else if (m.kind === "expense") add(r.expenses, m.currency, v);
+    else if (m.kind === "expense" || m.kind === "lessorPay") add(r.expenses, m.currency, v);
     else if (m.kind === "entryOut") add(r.otherOut, m.currency, v);
     else if (m.kind === "transferOut" && toUntrackedIds.has(m.id)) add(r.toUntracked, m.currency, v);
     else continue; // ichki o'tkazma

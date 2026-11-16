@@ -56,6 +56,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     { href: "/trips", label: t("nav.trips"), section: "trips" },
     { href: "/clients", label: t("nav.clients"), section: "clients" },
     { href: "/settlements", label: t("nav.settlements"), section: "settlements" },
+    { href: "/lessors", label: t("nav.lessors"), section: "lessors" },
     ...(showCash ? [{ href: "/cash", label: t("nav.cash"), section: "cash" as const }] : []),
     { href: "/vehicles", label: t("nav.vehicles"), section: "vehicles" },
     { href: "/drivers", label: t("nav.drivers"), section: "drivers" },

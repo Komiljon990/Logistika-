@@ -10,7 +10,7 @@ import { formatNumber } from "@/lib/currency-core";
 import { activeCurrencies } from "@/lib/org-currency";
 import { EVENT_ORDER, formatTashkent, nextEvents, tashkentNowInput, tripNumber } from "@/lib/trips-core";
 import { Documents } from "../../Documents";
-import { AddShipmentPanel, CancelTripButton, EventForm } from "../forms";
+import { AddShipmentPanel, CancelTripButton, EventForm, ShipmentEditPanel, TripEditPanel } from "../forms";
 import { CancelChargeButton, ChargeForm } from "../../settlements/forms";
 import { payStatus, shipmentTotals } from "@/lib/settlement-core";
 import { tashkentToday } from "@/lib/docs";
@@ -48,12 +48,17 @@ export default async function TripPage({ params, searchParams }: { params: Promi
   const userIds = [...new Set(trip.events.map((e) => e.userId).filter((x): x is string => !!x))];
   const users = userIds.length ? await db.user.findMany({ where: { id: { in: userIds } }, select: { id: true, fullName: true } }) : [];
   const userName = new Map(users.map((u) => [u.id, u.fullName]));
-  const [clients, currencies] = editor && loaded
+  const canChange = editor && trip.status !== "CANCELLED";
+  // Tahrirlash uchun ro'yxatlar (joriy transport/haydovchi arxivlangan bo'lsa ham ro'yxatda qoladi).
+  const [clients, currencies, tractors, trailers, drivers] = canChange
     ? await Promise.all([
-        db.client.findMany({ where: { orgId: trip.orgId, status: "ACTIVE" }, orderBy: { name: "asc" }, select: { id: true, name: true } }),
+        db.client.findMany({ where: { orgId: trip.orgId, OR: [{ status: "ACTIVE" }, { id: { in: trip.shipments.map((s) => s.clientId) } }] }, orderBy: { name: "asc" }, select: { id: true, name: true } }),
         activeCurrencies(trip.orgId),
+        db.vehicle.findMany({ where: { orgId: trip.orgId, type: "TRACTOR", OR: [{ status: "ACTIVE" }, { id: trip.tractorId }] }, orderBy: { plate: "asc" }, select: { id: true, plate: true } }),
+        db.vehicle.findMany({ where: { orgId: trip.orgId, type: "TRAILER", OR: [{ status: "ACTIVE" }, ...(trip.trailerId ? [{ id: trip.trailerId }] : [])] }, orderBy: { plate: "asc" }, select: { id: true, plate: true } }),
+        db.driver.findMany({ where: { orgId: trip.orgId, OR: [{ status: "ACTIVE" }, { id: trip.driverId }] }, orderBy: { fullName: "asc" }, select: { id: true, fullName: true } }),
       ])
-    : [[], []];
+    : [[], [], [], [], []];
   // Ichki tashishda chegara bosqichlari ko'rsatilmaydi (chiqish belgilanmagan va yuk tushirilgan bo'lsa).
   const steps = EVENT_ORDER.filter((s) => !(s === "ENTERED_UZ" && done.UNLOADED && !done.EXITED_UZ) && !(s === "EXITED_UZ" && done.UNLOADED && !done.EXITED_UZ));
 
@@ -69,8 +74,17 @@ export default async function TripPage({ params, searchParams }: { params: Promi
         </span>
         {!user.orgId && <span className="text-sm text-muted">· {trip.org.name}</span>}
         <span className="flex-1" />
+        {trip.listOnly && <span className="rounded-full border border-line px-3 py-1 text-sm text-muted">{t("trip.listOnlyShort")}</span>}
+        {canChange && (
+          <TripEditPanel
+            d={d} tripId={trip.id}
+            tractors={tractors.map((x) => ({ id: x.id, label: x.plate }))} trailers={trailers.map((x) => ({ id: x.id, label: x.plate }))} drivers={drivers.map((x) => ({ id: x.id, label: x.fullName }))}
+            trip={{ routeFrom: trip.routeFrom, routeTo: trip.routeTo, loadDate: trip.loadDate.toISOString().slice(0, 10), cargo: trip.cargo ?? "", note: trip.note ?? "", tractorId: trip.tractorId, trailerId: trip.trailerId ?? "", driverId: trip.driverId, listOnly: trip.listOnly }}
+          />
+        )}
         {editor && trip.status === "ACTIVE" && <CancelTripButton d={d} tripId={trip.id} />}
       </div>
+      {trip.note && <p className="text-sm text-muted">{t("common.note")}: {trip.note}</p>}
 
       <section className="card grid gap-4 p-5">
         <div className="flex flex-wrap items-center gap-3">
@@ -111,7 +125,7 @@ export default async function TripPage({ params, searchParams }: { params: Promi
         <h2 className="text-lg font-semibold">{t("trip.shipments")}</h2>
         <span className="flex-1" />
       </div>
-      {editor && loaded && <AddShipmentPanel d={d} tripId={trip.id} clients={clients.map((c) => ({ id: c.id, label: c.name }))} currencies={currencies} />}
+      {editor && loaded && <AddShipmentPanel d={d} tripId={trip.id} clients={clients.map((c) => ({ id: c.id, label: c.name }))} currencies={currencies} listOnly={trip.listOnly} />}
       <div className="grid grid-cols-[repeat(auto-fit,minmax(300px,1fr))] gap-4">
         {trip.shipments.map((s, i) => (
           <section key={s.id} className={`card grid gap-3 p-5 ${s.status !== "ACTIVE" ? "opacity-60" : ""}`}>
@@ -119,13 +133,13 @@ export default async function TripPage({ params, searchParams }: { params: Promi
               <span className="text-xs text-muted">#{i + 1}</span>
               <Link href={`/clients/${s.client.id}`} className="text-base font-semibold text-accent hover:underline">{s.client.name}</Link>
             </div>
-            <div className="text-sm">{t("trip.contact")}: <span className="font-medium">{s.contactName}</span> · <a href={`tel:${s.contactPhone}`} className="tabular-nums text-accent">{s.contactPhone}</a></div>
+            {(s.contactName || s.contactPhone) && <div className="text-sm">{t("trip.contact")}: <span className="font-medium">{s.contactName}</span>{s.contactPhone && <> · <a href={`tel:${s.contactPhone}`} className="tabular-nums text-accent">{s.contactPhone}</a></>}</div>}
             <div className="flex flex-wrap gap-2 text-sm">
-              <span className={`rounded-md px-2 py-1 font-medium ${s.terms === "CONTRACT" ? "bg-accent-soft text-accent" : "bg-warn-soft text-warn"}`}>{t(`trip.terms.${s.terms}`)}</span>
+              {!trip.listOnly && <span className={`rounded-md px-2 py-1 font-medium ${s.terms === "CONTRACT" ? "bg-accent-soft text-accent" : "bg-warn-soft text-warn"}`}>{t(`trip.terms.${s.terms}`)}</span>}
               {s.smrNumber && <span className="rounded-md bg-ground px-2 py-1">CMR {s.smrNumber}</span>}
             </div>
             {s.cargo && <div className="text-sm text-muted">{s.cargo}</div>}
-            {(() => {
+            {!trip.listOnly && (() => {
               const tot = shipmentTotals(Number(s.price), s.charges.map((c) => Number(c.amount)), s.allocations.map((a) => Number(a.applied)));
               const st = payStatus(tot.charged, tot.paid);
               return (
@@ -149,13 +163,24 @@ export default async function TripPage({ params, searchParams }: { params: Promi
                 </div>
               );
             })()}
-            {editor && s.status === "ACTIVE" && trip.status !== "CANCELLED" && (
+            {canChange && s.status === "ACTIVE" && (
+              <ShipmentEditPanel
+                d={d} shipmentId={s.id} listOnly={trip.listOnly} paid={s.allocations.length > 0} currencies={currencies}
+                clients={clients.map((c) => ({ id: c.id, label: c.name }))}
+                values={{
+                  clientId: s.clientId, contactName: s.contactName, contactPhone: s.contactPhone, cargo: s.cargo ?? "", smrNumber: s.smrNumber ?? "",
+                  terms: s.terms, price: String(Number(s.price)), currency: s.currency,
+                  accountingPrice: s.accountingPrice != null ? String(Number(s.accountingPrice)) : "", accountingCurrency: s.accountingCurrency ?? "",
+                }}
+              />
+            )}
+            {editor && !trip.listOnly && s.status === "ACTIVE" && trip.status !== "CANCELLED" && (
               <div className="flex flex-wrap gap-2">
                 <Link href={`/clients/${s.client.id}`} className="btn">+ {t("pay.receiveShort")}</Link>
                 <ChargeForm d={d} shipmentId={s.id} currency={s.currency} today={today} />
               </div>
             )}
-            {s.accountingPrice != null && (
+            {!trip.listOnly && s.accountingPrice != null && (
               <div className="rounded-md bg-ground px-3 py-2 text-xs text-muted">
                 {t("trip.accountingPrice")}: <span className="font-semibold text-ink tabular-nums">{formatNumber(Number(s.accountingPrice))} {s.accountingCurrency}</span> — {t("trip.accountingShort")}
               </div>

@@ -25,7 +25,7 @@ function Message({ state, d, ok }: { state: FormState; d: Dict; ok?: string }) {
  * Tahrirlashda e-mail o'zgarmaydi (u shaxsning logini).
  */
 const SECTION_LABEL: Record<Section, keyof Dict> = {
-  trips: "nav.trips", clients: "nav.clients", settlements: "nav.settlements", cash: "nav.cash", vehicles: "nav.vehicles",
+  trips: "nav.trips", clients: "nav.clients", settlements: "nav.settlements", lessors: "nav.lessors", cash: "nav.cash", vehicles: "nav.vehicles",
   drivers: "nav.drivers", tir: "nav.tirOnly", dazvol: "nav.dazvol", orgdocs: "nav.orgDocs", reports: "nav.reports",
 };
 

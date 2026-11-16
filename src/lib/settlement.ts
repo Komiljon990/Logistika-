@@ -24,7 +24,8 @@ export type LedgerPayment = {
  * `where` — markaziy tashkilot filtri (orgScope) va ixtiyoriy mijoz.
  */
 export async function loadLedger(where: { orgId?: string; clientId?: string }) {
-  const shipWhere: Prisma.ShipmentWhereInput = { ...where, status: "ACTIVE", trip: { status: { not: "CANCELLED" } } };
+  // "Faqat ro'yxat" tashishlari hisob-kitobga kirmaydi (17.11.2026).
+  const shipWhere: Prisma.ShipmentWhereInput = { ...where, status: "ACTIVE", trip: { status: { not: "CANCELLED" }, listOnly: false } };
   const [ships, pays] = await Promise.all([
     db.shipment.findMany({
       where: shipWhere,

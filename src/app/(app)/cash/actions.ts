@@ -85,13 +85,14 @@ async function accountInput(orgId: string, formData: FormData): Promise<AccountI
 }
 
 async function hasMovements(accountId: string): Promise<boolean> {
-  const [p, e, t, x] = await Promise.all([
+  const [p, e, t, x, l] = await Promise.all([
     db.payment.count({ where: { accountId } }),
     db.expense.count({ where: { accountId } }),
     db.cashTransfer.count({ where: { OR: [{ fromAccountId: accountId }, { toAccountId: accountId }] } }),
     db.cashEntry.count({ where: { accountId } }),
+    db.lessorEntry.count({ where: { accountId } }),
   ]);
-  return p + e + t + x > 0;
+  return p + e + t + x + l > 0;
 }
 
 export async function createAccount(_prev: FormState, formData: FormData): Promise<FormState> {

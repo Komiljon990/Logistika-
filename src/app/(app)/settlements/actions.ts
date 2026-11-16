@@ -64,7 +64,7 @@ async function pickAccount(orgId: string, kind: AccountKind | null, currency: st
 
 export async function addCharge(shipmentId: string, _prev: FormState, formData: FormData): Promise<FormState> {
   const { user, orgId } = await editor();
-  const s = await db.shipment.findFirst({ where: { id: shipmentId, orgId, status: "ACTIVE", trip: { status: { not: "CANCELLED" } } } });
+  const s = await db.shipment.findFirst({ where: { id: shipmentId, orgId, status: "ACTIVE", trip: { status: { not: "CANCELLED" }, listOnly: false } } });
   if (!s) throw new ForbiddenError();
   const kind = str(formData, "kind");
   const date = parseDate(formData.get("date"));
@@ -121,7 +121,7 @@ function parseAlloc(raw: string): (AllocationInput & { manual: boolean })[] | nu
 /** Mijozning ochiq (qoldig'i bor) yuk qismlari — tranzaksiya ichida, qulf ostida hisoblanadi. */
 async function openShipments(tx: Tx, orgId: string, clientId: string): Promise<Map<string, OpenShipment & { tripId: string }>> {
   const ships = await tx.shipment.findMany({
-    where: { orgId, clientId, status: "ACTIVE", trip: { status: { not: "CANCELLED" } } },
+    where: { orgId, clientId, status: "ACTIVE", trip: { status: { not: "CANCELLED" }, listOnly: false } },
     include: {
       charges: { where: { status: "ACTIVE" }, select: { amount: true } },
       allocations: { where: { payment: { status: "ACTIVE" } }, select: { applied: true } },

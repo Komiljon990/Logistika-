@@ -397,6 +397,9 @@ model Trip {
   loadDate    DateTime     @db.Date
   cargo       String?
   note        String?
+  // Faqat ro'yxat uchun (17.11.2026): narx, xarajat va hisob-kitob yuritilmaydi — mijoz qarzlari, to'lovlar va
+  // daromad hisobotiga kirmaydi.
+  listOnly    Boolean      @default(false)
   status      TripStatus   @default(ACTIVE)
   createdById String
   createdAt   DateTime     @default(now())
@@ -550,6 +553,7 @@ model CashAccount {
   updatedAt      DateTime    @updatedAt
 
   entries      CashEntry[]
+  lessorEntries LessorEntry[]
   payments     Payment[]
   expenses     Expense[]
   transfersOut CashTransfer[] @relation("TransferFrom")
@@ -616,6 +620,51 @@ model CashEntry {
   updatedAt   DateTime       @updatedAt
 
   @@index([orgId, date])
+  @@index([accountId])
+}
+
+/// Ijarachi (17.11.2026): transport ijarasi bo'yicha hisob-kitob yuritiladigan tomon.
+model Lessor {
+  id          String        @id @default(cuid())
+  orgId       String
+  name        String
+  phone       String?
+  inn         String?
+  note        String?
+  status      Status        @default(ACTIVE)
+  createdById String
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  entries LessorEntry[]
+
+  @@index([orgId, status])
+}
+
+enum LessorEntryKind {
+  CHARGE // hisob (ijara haqi hisoblandi — qarz oshadi)
+  PAYMENT // to'lov (qarz kamayadi; kassadagi hisobdan chiqim)
+}
+
+model LessorEntry {
+  id          String          @id @default(cuid())
+  orgId       String
+  lessorId    String
+  lessor      Lessor          @relation(fields: [lessorId], references: [id])
+  kind        LessorEntryKind
+  date        DateTime        @db.Date
+  amount      Decimal         @db.Decimal(18, 2)
+  currency    String
+  vehicleId   String? // qaysi transport uchun (ixtiyoriy)
+  plate       String?
+  accountId   String? // to'lov qaysi hisobdan (kassa yoqilgan bo'lsa)
+  account     CashAccount?    @relation(fields: [accountId], references: [id])
+  note        String?
+  status      Status          @default(ACTIVE) // ARCHIVED = bekor qilingan
+  createdById String
+  createdAt   DateTime        @default(now())
+
+  @@index([orgId, lessorId])
   @@index([accountId])
 }
 

@@ -693,6 +693,29 @@ vaqtda, telefon va kompyuter ko'rinishi, ma'lumot yaxlitligi, arxiv
   qiladi. Sozlamalar, ogohlantirishlar, xodimlar, valyutalar unga yopiq.
 - Boshqa rollarning huquqlari o'zgarmagan.
 - Model: `User.specialistNo`, `User.access` (JSON: bo'lim → VIEW/EDIT).
+- TIR va Dazvol — alohida menyu, alohida huquq bo'limi va alohida hisobot.
+  Holatlar: Yangi, Haydovchida, Ishlatilgan, Qaytarilgan (ishlatilmay
+  qaytgan — qayta beriladi), Topshirilgan, Yo'qolgan, Brak.
+
+### Tashishni tahrirlash, "faqat ro'yxat", ijarachilar (16.11.2026)
+
+- Tashishni tahrirlash: yo'nalish, sana, yuk, izoh, tyagach/prisep/
+  haydovchi (band transportga almashtirilmaydi), "faqat ro'yxat" belgisi.
+  Yuk qismini tahrirlash: mijoz, mas'ul shaxs, yuk, CMR, shartnoma turi,
+  narx, valyuta. To'lov taqsimlangan yuk qismida mijoz, valyuta va
+  shartnoma turi o'zgarmaydi; narx to'langan summadan kam bo'lmaydi.
+- "Faqat ro'yxat uchun" tashish: narx, xarajat, to'lov yuritilmaydi
+  (narx 0), mas'ul shaxs ixtiyoriy. Mijoz qarzlari, hisob-kitob va daromad
+  hisobotiga kirmaydi (hisobotda soni ko'rsatiladi). To'lov/xarajati bor
+  tashishni bu rejimga o'tkazib bo'lmaydi; aksincha — barcha yuk
+  qismlariga narx kiritilgach.
+- Ijarachilar bilan hisob-kitob (alohida bo'lim): ijarachi (nomi,
+  telefon, STIR); "Hisob qo'shish" — ijara haqi hisoblandi (qarz oshadi),
+  "To'lov" — qarz kamayadi va tanlangan kassa hisobidan chiqim bo'ladi.
+  Ixtiyoriy transport bog'lanadi. Qarz valyuta bo'yicha, ko'chirmada har
+  yozuvdan keyingi qarz. Yozuv bekor qilinadi (o'chirilmaydi). Hisobchi
+  va menejer yuritadi. Pul oqimi hisobotida to'lovlar xarajatga kiradi.
+  Modellar: `Lessor`, `LessorEntry`; `Trip.listOnly`.
 
 ## 12. Loyihada ishlash qoidalari (Claude uchun)
 

@@ -103,7 +103,7 @@ async function TripsTab({ t, orgId, from, to }: { t: T; orgId: string; from: str
   return (
     <>
       <section className="grid grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-3">
-        <div className="card p-4"><div className="text-xs text-muted">{t("rep.trips")}</div><div className="text-2xl font-bold tabular-nums">{r.count}</div><div className="text-xs text-muted">{t("rep.completed")}: {r.completed}</div></div>
+        <div className="card p-4"><div className="text-xs text-muted">{t("rep.trips")}</div><div className="text-2xl font-bold tabular-nums">{r.count}</div><div className="text-xs text-muted">{t("rep.completed")}: {r.completed}{r.listOnly ? ` · ${t("trip.listOnlyShort")}: ${r.listOnly}` : ""}</div></div>
         <div className="card p-4"><div className="text-xs text-muted">{t("rep.revenue")}</div><div className="text-xl font-bold"><M m={r.total} /></div></div>
       </section>
       <p className="text-xs text-muted">{t("rep.tripsHint")}</p>

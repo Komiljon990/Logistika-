@@ -25,8 +25,25 @@ type Tx = Prisma.TransactionClient;
 
 type ShipmentData = Omit<Prisma.ShipmentUncheckedCreateInput, "tripId" | "orgId" | "createdById" | "clientId">;
 
-/** Yuk qismi maydonlari (yangi tashish va qo'shimcha yuk uchun bir xil). */
-async function shipmentInput(formData: FormData, orgId: string): Promise<{ data: ShipmentData } | { error: keyof Dict }> {
+/**
+ * Yuk qismi maydonlari (yangi tashish, qo'shimcha yuk va tahrirlash uchun bir xil).
+ * "Faqat ro'yxat" tashishida narx, kelishuv va mas'ul shaxs majburiy emas (narx 0 deb saqlanadi).
+ */
+async function shipmentInput(formData: FormData, orgId: string, listOnly = false): Promise<{ data: ShipmentData } | { error: keyof Dict }> {
+  if (listOnly) {
+    const currencies = await activeCurrencies(orgId);
+    const rawPhone = str(formData, "contactPhone");
+    const phone = rawPhone ? normalizeContactPhone(rawPhone) : "";
+    if (phone === null) return { error: "trip.error.contactPhone" };
+    return {
+      data: {
+        contactName: str(formData, "contactName").slice(0, 200), contactPhone: phone, terms: "CONTRACT", price: 0,
+        currency: currencies.includes(str(formData, "currency")) ? str(formData, "currency") : (currencies[0] ?? "UZS"),
+        accountingPrice: null, accountingCurrency: null,
+        cargo: optStr(formData, "cargo", 300), smrNumber: optStr(formData, "smrNumber", 50),
+      },
+    };
+  }
   const contactName = str(formData, "contactName").slice(0, 200);
   const contactPhone = normalizeContactPhone(str(formData, "contactPhone"));
   const terms = str(formData, "terms");
@@ -74,7 +91,8 @@ export async function createTrip(_prev: FormState, formData: FormData): Promise<
   const routeTo = str(formData, "routeTo").slice(0, 200);
   const loadDate = parseDate(formData.get("loadDate"));
   if (!routeFrom || !routeTo || !loadDate) return fail("common.required", formData);
-  const ship = await shipmentInput(formData, orgId);
+  const listOnly = formData.get("listOnly") === "on";
+  const ship = await shipmentInput(formData, orgId, listOnly);
   if ("error" in ship) return fail(ship.error, formData);
 
   let tripId: string;
@@ -103,7 +121,7 @@ export async function createTrip(_prev: FormState, formData: FormData): Promise<
         data: {
           orgId, number: (last._max.number ?? 0) + 1, routeFrom, routeTo, loadDate,
           tractorId: tractor.id, trailerId: trailerId || null, driverId: driver.id,
-          cargo: optStr(formData, "cargo", 300), createdById: user.id,
+          cargo: optStr(formData, "cargo", 300), listOnly, createdById: user.id,
         },
       });
       await tx.shipment.create({ data: { ...ship.data, orgId, tripId: trip.id, clientId, createdById: user.id } });
@@ -124,7 +142,9 @@ export async function createTrip(_prev: FormState, formData: FormData): Promise<
 /** Qo'shimcha yuk: mavjud (yuki hali tushirilmagan) tashishga yangi mijoz va yuk qismi. */
 export async function addShipment(tripId: string, _prev: FormState, formData: FormData): Promise<FormState> {
   const { user, orgId } = await editor();
-  const ship = await shipmentInput(formData, orgId);
+  const tripRow = await db.trip.findFirst({ where: { id: tripId, orgId }, select: { listOnly: true } });
+  if (!tripRow) throw new ForbiddenError();
+  const ship = await shipmentInput(formData, orgId, tripRow.listOnly);
   if ("error" in ship) return fail(ship.error, formData);
   let created: { shipmentId: string; newClient: string | null };
   try {
@@ -148,6 +168,103 @@ export async function addShipment(tripId: string, _prev: FormState, formData: Fo
     details: { tripId, price: String(ship.data.price), currency: ship.data.currency },
   });
   revalidatePath(`/trips/${tripId}`);
+  return { ok: true };
+}
+
+/**
+ * Tashishni tahrirlash (17.11.2026): yo'nalish, sana, izoh, transport va haydovchi, "faqat ro'yxat" belgisi.
+ * Transport almashtirilsa — u boshqa yukli tashishda band bo'lmasligi kerak. Hisob-kitobli tashishni
+ * "faqat ro'yxat"ga o'tkazish uchun unda to'lov va qo'shimcha xarajat bo'lmasligi kerak.
+ */
+export async function updateTrip(tripId: string, _prev: FormState, formData: FormData): Promise<FormState> {
+  const { user, orgId } = await editor();
+  const routeFrom = str(formData, "routeFrom").slice(0, 200);
+  const routeTo = str(formData, "routeTo").slice(0, 200);
+  const loadDate = parseDate(formData.get("loadDate"));
+  if (!routeFrom || !routeTo || !loadDate) return fail("common.required", formData);
+  const listOnly = formData.get("listOnly") === "on";
+  let before: Record<string, unknown> = {};
+  try {
+    await db.$transaction(async (tx) => {
+      await lockOrg(tx, orgId);
+      const trip = await tx.trip.findFirst({
+        where: { id: tripId, orgId },
+        include: { shipments: { where: { status: "ACTIVE" }, include: { _count: { select: { allocations: true, charges: { where: { status: "ACTIVE" } } } } } } },
+      });
+      if (!trip) throw new ForbiddenError();
+      if (trip.status === "CANCELLED") throw new FormError("trip.error.closed");
+      before = { routeFrom: trip.routeFrom, routeTo: trip.routeTo, loadDate: trip.loadDate.toISOString().slice(0, 10), tractorId: trip.tractorId, trailerId: trip.trailerId, driverId: trip.driverId, listOnly: trip.listOnly };
+      if (listOnly && !trip.listOnly && trip.shipments.some((s) => s._count.allocations + s._count.charges > 0)) throw new FormError("trip.error.listOnlyHasMoney");
+      if (!listOnly && trip.listOnly && trip.shipments.some((s) => Number(s.price) <= 0)) throw new FormError("trip.error.needPrices");
+      const tractorId = str(formData, "tractorId") || trip.tractorId;
+      const trailerId = str(formData, "trailerId") || null;
+      const driverId = str(formData, "driverId") || trip.driverId;
+      const busy = trip.status === "ACTIVE" ? await loadedVehicleIds(orgId, tx) : new Set<string>();
+      if (tractorId !== trip.tractorId) {
+        const tr = await tx.vehicle.findFirst({ where: { id: tractorId, orgId, type: "TRACTOR", status: "ACTIVE" } });
+        if (!tr) throw new FormError("trip.error.tractor");
+        if (busy.has(tr.id)) throw new FormError("trip.error.busy");
+      }
+      if (trailerId && trailerId !== trip.trailerId) {
+        const tl = await tx.vehicle.findFirst({ where: { id: trailerId, orgId, type: "TRAILER", status: "ACTIVE" } });
+        if (!tl) throw new ForbiddenError();
+        if (busy.has(tl.id)) throw new FormError("trip.error.busy");
+      }
+      if (driverId !== trip.driverId && !(await tx.driver.findFirst({ where: { id: driverId, orgId, status: "ACTIVE" } }))) throw new FormError("trip.error.driver");
+      await tx.trip.update({
+        where: { id: tripId },
+        data: { routeFrom, routeTo, loadDate, tractorId, trailerId, driverId, listOnly, cargo: optStr(formData, "cargo", 300), note: optStr(formData, "note", 500) },
+      });
+    });
+  } catch (e) {
+    if (e instanceof FormError) return fail(e.key, formData);
+    throw e;
+  }
+  await audit({
+    actorId: user.id, orgId, action: "trip.update", entity: "Trip", entityId: tripId,
+    details: { from: before as Prisma.InputJsonValue, to: { routeFrom, routeTo, loadDate: loadDate.toISOString().slice(0, 10), listOnly } },
+  });
+  revalidatePath(`/trips/${tripId}`);
+  revalidatePath("/trips");
+  return { ok: true };
+}
+
+/**
+ * Yuk qismini tahrirlash: mijoz, mas'ul shaxs, yuk, CMR, shartnoma turi, narx, valyuta.
+ * To'lov taqsimlangan yuk qismida mijoz, valyuta va shartnoma turi o'zgarmaydi (hisob buzilmasligi uchun);
+ * narx esa to'langan summadan kam bo'lishi mumkin emas.
+ */
+export async function updateShipment(shipmentId: string, _prev: FormState, formData: FormData): Promise<FormState> {
+  const { user, orgId } = await editor();
+  const s = await db.shipment.findFirst({
+    where: { id: shipmentId, orgId, status: "ACTIVE" },
+    include: {
+      trip: { select: { id: true, status: true, listOnly: true } },
+      charges: { where: { status: "ACTIVE" }, select: { amount: true } },
+      allocations: { where: { payment: { status: "ACTIVE" } }, select: { applied: true } },
+    },
+  });
+  if (!s) throw new ForbiddenError();
+  if (s.trip.status === "CANCELLED") return fail("trip.error.closed", formData);
+  const ship = await shipmentInput(formData, orgId, s.trip.listOnly);
+  if ("error" in ship) return fail(ship.error, formData);
+  const clientId = str(formData, "clientId");
+  const client = clientId ? await db.client.findFirst({ where: { id: clientId, orgId, status: "ACTIVE" } }) : null;
+  if (!client) return fail("trip.error.client", formData);
+  const paid = s.allocations.reduce((a, x) => a + Number(x.applied), 0);
+  if (paid > 0 && (client.id !== s.clientId || ship.data.currency !== s.currency || ship.data.terms !== s.terms)) return fail("trip.error.lockedPaid", formData);
+  const charges = s.charges.reduce((a, x) => a + Number(x.amount), 0);
+  if (Number(ship.data.price) + charges + 0.005 < paid) return fail("trip.error.priceBelowPaid", formData);
+  await db.shipment.update({ where: { id: shipmentId }, data: { ...ship.data, clientId: client.id } });
+  await audit({
+    actorId: user.id, orgId, action: "shipment.update", entity: "Shipment", entityId: shipmentId,
+    details: {
+      tripId: s.trip.id,
+      from: { clientId: s.clientId, terms: s.terms, price: String(s.price), currency: s.currency },
+      to: { clientId: client.id, terms: ship.data.terms, price: String(ship.data.price), currency: ship.data.currency },
+    },
+  });
+  revalidatePath(`/trips/${s.trip.id}`);
   return { ok: true };
 }
 

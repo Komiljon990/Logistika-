@@ -99,7 +99,7 @@ export default async function TripsPage({ searchParams }: { searchParams: Promis
                     <Link href={`/trips/${x.id}`} className="font-semibold text-accent hover:underline">{tripNumber(x.number)}</Link>
                     <div className="text-xs text-muted tabular-nums">{formatDate(x.loadDate)}</div>
                   </td>
-                  <td className="px-4 py-2.5">{x.routeFrom} → {x.routeTo}</td>
+                  <td className="px-4 py-2.5">{x.routeFrom} → {x.routeTo}{x.listOnly && <span className="ml-2 rounded-full border border-line px-2 py-0.5 text-xs text-muted">{t("trip.listOnlyShort")}</span>}</td>
                   <td className="whitespace-nowrap px-4 py-2.5 tabular-nums">{x.tractor.plate}</td>
                   <td className="px-4 py-2.5">{x.driver.fullName}</td>
                   <td className="px-4 py-2.5">{x.shipments.map((s) => s.client.name).join(", ") || "—"}</td>

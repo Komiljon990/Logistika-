@@ -8,7 +8,7 @@
 import type { Role } from "@prisma/client";
 import { can, type Permission } from "./roles";
 
-export const SECTIONS = ["trips", "clients", "settlements", "cash", "vehicles", "drivers", "tir", "dazvol", "orgdocs", "reports"] as const;
+export const SECTIONS = ["trips", "clients", "settlements", "lessors", "cash", "vehicles", "drivers", "tir", "dazvol", "orgdocs", "reports"] as const;
 export type Section = (typeof SECTIONS)[number];
 export type Level = "VIEW" | "EDIT";
 export type Access = Partial<Record<Section, Level>>;
@@ -18,6 +18,8 @@ const ROLE_EDIT: Record<Section, Permission | null> = {
   trips: "data.edit",
   clients: "data.edit",
   settlements: "data.edit",
+  // Ijarachilar bilan hisob-kitob (17.11.2026): to'lov kassadan chiqadi — hisobchi va menejer.
+  lessors: "cash.edit",
   cash: "cash.edit",
   vehicles: "data.edit",
   drivers: "data.edit",
@@ -29,7 +31,7 @@ const ROLE_EDIT: Record<Section, Permission | null> = {
 
 /** Bo'lim qaysi sahifada (menyu va yo'naltirish uchun). */
 export const SECTION_HREF: Record<Section, string> = {
-  trips: "/trips", clients: "/clients", settlements: "/settlements", cash: "/cash", vehicles: "/vehicles",
+  trips: "/trips", clients: "/clients", settlements: "/settlements", lessors: "/lessors", cash: "/cash", vehicles: "/vehicles",
   drivers: "/drivers", tir: "/tir", dazvol: "/dazvol", orgdocs: "/org-docs", reports: "/reports",
 };
 

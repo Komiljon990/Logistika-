@@ -47,7 +47,7 @@ export function tashkentDay(d: Date): string {
 }
 
 export type MovementRow = Movement & {
-  id: string; kind: "payment" | "expense" | "transferIn" | "transferOut" | "entryIn" | "entryOut"; currency: string;
+  id: string; kind: "payment" | "expense" | "transferIn" | "transferOut" | "entryIn" | "entryOut" | "lessorPay"; currency: string;
   title: string; sub: string | null; href: string | null; createdById: string;
   /** Bir kun ichida tartib (ko'chirmada qoldiq ketma-ket hisoblanadi). */
   at: number;
@@ -60,7 +60,7 @@ export type MovementRow = Movement & {
  */
 export async function loadMovements(orgId: string, opts: { to?: string; accountId?: string } = {}): Promise<MovementRow[]> {
   const acc = opts.accountId;
-  const [payments, expenses, transfers, entries] = await Promise.all([
+  const [payments, expenses, transfers, entries, lessorPays] = await Promise.all([
     db.payment.findMany({
       where: { orgId, status: "ACTIVE", accountId: acc ?? { not: null } },
       include: { client: { select: { name: true } }, driver: { select: { fullName: true } } },
@@ -76,6 +76,11 @@ export async function loadMovements(orgId: string, opts: { to?: string; accountI
     db.cashEntry.findMany({
       where: { orgId, status: "ACTIVE", ...(acc ? { accountId: acc } : {}) },
       include: { account: { select: { currency: true } } },
+    }),
+    // Ijarachiga to'lov (17.11.2026) — tanlangan hisobdan chiqim.
+    db.lessorEntry.findMany({
+      where: { orgId, status: "ACTIVE", kind: "PAYMENT", accountId: acc ?? { not: null } },
+      include: { lessor: { select: { id: true, name: true } } },
     }),
   ]);
   const out: MovementRow[] = [];
@@ -114,6 +119,13 @@ export async function loadMovements(orgId: string, opts: { to?: string; accountI
     out.push({
       id: x.id, kind: x.direction === "IN" ? "entryIn" : "entryOut", accountId: x.accountId, day: x.date.toISOString().slice(0, 10),
       amount: x.direction === "IN" ? v : -v, currency: x.account.currency, title: x.party, sub: x.note, href: null,
+      createdById: x.createdById, at: x.createdAt.getTime(),
+    });
+  }
+  for (const x of lessorPays) {
+    out.push({
+      id: x.id, kind: "lessorPay", accountId: x.accountId!, day: x.date.toISOString().slice(0, 10), amount: -Number(x.amount), currency: x.currency,
+      title: x.lessor.name, sub: [x.plate, x.note].filter(Boolean).join(" · ") || null, href: `/lessors/${x.lessor.id}`,
       createdById: x.createdById, at: x.createdAt.getTime(),
     });
   }
