@@ -948,6 +948,9 @@ export const uz = {
   "tg.botIs": "Bot:",
   "alerts.kind.permit": "TIR / dazvol",
   "act.permit.cancel_issue": "TIR/dazvol berish bekor qilindi",
+
+  // TIR: kim kiritadi
+  "tir.managerOnly": "TIR va dazvolni kirim qilish, haydovchiga berish va qaytarib olishni menejer bajaradi. Siz ro'yxat va tarixni ko'rasiz.",
 };
 
 export type Dict = Record<keyof typeof uz, string>;

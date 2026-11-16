@@ -945,4 +945,7 @@ export const uzCyrl: Dict = {
   "tg.botIs": "Бот:",
   "alerts.kind.permit": "ТИР / дазвол",
   "act.permit.cancel_issue": "ТИР/дазвол бериш бекор қилинди",
+
+  // TIR: kim kiritadi
+  "tir.managerOnly": "ТИР ва дазволни кирим қилиш, ҳайдовчига бериш ва қайтариб олишни менежер бажаради. Сиз рўйхат ва тарихни кўрасиз.",
 };

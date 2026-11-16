@@ -945,4 +945,7 @@ export const ru: Dict = {
   "tg.botIs": "Бот:",
   "alerts.kind.permit": "TIR / дозвол",
   "act.permit.cancel_issue": "Выдача TIR/дозвола отменена",
+
+  // TIR: kim kiritadi
+  "tir.managerOnly": "Приход, выдачу и возврат TIR и дозволов ведёт менеджер. Вы видите список и историю.",
 };
