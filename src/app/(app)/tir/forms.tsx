@@ -18,23 +18,28 @@ function Msg({ state, d, ok }: { state: FormState; d: Dict; ok?: string }) {
 }
 
 /** Kirim oynasi: odatda yopiq; "+ Kirim qilish" ochadi, "Yopish" yopadi. */
-export function ReceivePanel({ d, today, title }: { d: Dict; today: string; title: string }) {
+export function ReceivePanel({ d, today, title, heading, journal }: {
+  d: Dict; today: string; title: string; heading: React.ReactNode; journal: React.ReactNode;
+}) {
   const [open, setOpen] = useState(false);
-  if (!open) {
-    return (
-      <div>
-        <button type="button" className="btn" onClick={() => setOpen(true)}>+ {d["tir.receive"]}</button>
-      </div>
-    );
-  }
   return (
-    <section className="card grid gap-3 border-2 border-accent p-5">
-      <div className="flex items-start gap-3">
-        <h2 className="flex-1 text-lg font-semibold">+ {title}</h2>
-        <button type="button" className="btn-ghost" onClick={() => setOpen(false)} aria-label={d["common.close"]}>✕ {d["common.close"]}</button>
+    <div className="grid gap-4">
+      <div className="flex flex-wrap items-center gap-3">
+        {heading}
+        <span className="flex-1" />
+        <button type="button" className="btn" aria-expanded={open} onClick={() => setOpen((v) => !v)}>+ {d["tir.receive"]}</button>
+        {journal}
       </div>
-      <ReceiveForm d={d} today={today} />
-    </section>
+      {open && (
+        <section className="card grid gap-3 border-2 border-accent p-5">
+          <div className="flex items-start gap-3">
+            <h2 className="flex-1 text-lg font-semibold">+ {title}</h2>
+            <button type="button" className="btn-ghost" onClick={() => setOpen(false)} aria-label={d["common.close"]}>✕ {d["common.close"]}</button>
+          </div>
+          <ReceiveForm d={d} today={today} />
+        </section>
+      )}
+    </div>
   );
 }
 

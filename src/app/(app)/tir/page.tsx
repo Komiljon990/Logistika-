@@ -69,12 +69,22 @@ export default async function TirPage({ searchParams }: { searchParams: Promise<
 
   return (
     <div className="grid gap-6">
-      <div className="flex flex-wrap items-center gap-3">
-        <h1 className="text-2xl font-bold">{t("nav.tir")}</h1>
-        <span className="flex-1" />
-        <Link href="/tir/journal" className="btn-ghost">{t("tir.journal")}</Link>
-      </div>
-      {!canEdit && <p className="text-sm text-muted">{t("tir.managerOnly")}</p>}
+      {canEdit ? (
+        <ReceivePanel
+          d={d} today={today} title={t("tir.receiveTitle")}
+          heading={<h1 className="text-2xl font-bold">{t("nav.tir")}</h1>}
+          journal={<Link href="/tir/journal" className="btn-ghost">{t("tir.journal")}</Link>}
+        />
+      ) : (
+        <>
+          <div className="flex flex-wrap items-center gap-3">
+            <h1 className="text-2xl font-bold">{t("nav.tir")}</h1>
+            <span className="flex-1" />
+            <Link href="/tir/journal" className="btn-ghost">{t("tir.journal")}</Link>
+          </div>
+          <p className="text-sm text-muted">{t("tir.managerOnly")}</p>
+        </>
+      )}
 
       {rejected.length > 0 && (
         <section className="card grid gap-1 border-bad bg-bad-soft p-4 text-sm">
@@ -102,10 +112,6 @@ export default async function TirPage({ searchParams }: { searchParams: Promise<
           </div>
         ))}
       </section>
-
-      {canEdit && (
-        <ReceivePanel d={d} today={today} title={t("tir.receiveTitle")} />
-      )}
 
       <div className="grid gap-3">
         <nav className="flex flex-wrap gap-2 text-sm">
