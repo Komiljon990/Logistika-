@@ -892,7 +892,7 @@ export const uz = {
   "tir.error.state": "Holat o'zgargan — sahifani yangilang.",
   "tir.error.date": "Sana bugundan keyin yoki oldingi harakatdan oldin bo'lmasin.",
   "tir.error.holder": "Tyagach va haydovchini tanlang.",
-  "tir.error.deleteUsed": "Harakati bor blanka o'chirilmaydi — «Brak» yoki «Yo'qolgan» deb belgilang.",
+  "tir.error.deleteUsed": "Harakati bor blanka o'chirilmaydi — «Yaroqsiz» yoki «Yo'qolgan» deb belgilang.",
   "rep.tab.trips": "Reyslar",
   "rep.tab.finance": "Pul oqimi",
   "rep.tab.expenses": "Xarajatlar",
@@ -996,13 +996,13 @@ export const uz = {
 
   // TIR holatlari: Yangi, Qaytarilgan, Brak
   "tir.tab.RETURNED": "Qaytarilgan",
-  "tir.tab.DEFECT": "Brak",
+  "tir.tab.DEFECT": "Yaroqsiz",
   "tir.s.RETURNED": "Qaytarilgan (tashkilotda)",
-  "tir.s.DEFECT": "Brak",
-  "tir.m.DEFECT": "Brak deb belgilandi",
-  "tir.defect": "Brak deb belgilash",
-  "tir.defectShort": "Brak",
-  "act.permit.defect": "TIR/dazvol brak deb belgilandi",
+  "tir.s.DEFECT": "Yaroqsiz",
+  "tir.m.DEFECT": "Yaroqsiz deb belgilandi",
+  "tir.defect": "Yaroqsiz deb belgilash",
+  "tir.defectShort": "Yaroqsiz",
+  "act.permit.defect": "TIR/dazvol yaroqsiz deb belgilandi",
 
   // Tashish tahriri, faqat ro'yxat, ijarachilar (17.11.2026)
   "common.optional": "ixtiyoriy",

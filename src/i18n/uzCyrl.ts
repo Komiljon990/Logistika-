@@ -889,7 +889,7 @@ export const uzCyrl: Dict = {
   "tir.error.state": "Ҳолат ўзгарган — саҳифани янгиланг.",
   "tir.error.date": "Сана бугундан кейин ёки олдинги ҳаракатдан олдин бўлмасин.",
   "tir.error.holder": "Тягач ва ҳайдовчини танланг.",
-  "tir.error.deleteUsed": "Ҳаракати бор бланка ўчирилмайди — «Брак» ёки «Йўқолган» деб белгиланг.",
+  "tir.error.deleteUsed": "Ҳаракати бор бланка ўчирилмайди — «Яроқсиз» ёки «Йўқолган» деб белгиланг.",
   "rep.tab.trips": "Рейслар",
   "rep.tab.finance": "Пул оқими",
   "rep.tab.expenses": "Харажатлар",
@@ -993,13 +993,13 @@ export const uzCyrl: Dict = {
 
   // TIR holatlari: Yangi, Qaytarilgan, Brak
   "tir.tab.RETURNED": "Қайтарилган",
-  "tir.tab.DEFECT": "Брак",
+  "tir.tab.DEFECT": "Яроқсиз",
   "tir.s.RETURNED": "Қайтарилган (ташкилотда)",
-  "tir.s.DEFECT": "Брак",
-  "tir.m.DEFECT": "Брак деб белгиланди",
-  "tir.defect": "Брак деб белгилаш",
-  "tir.defectShort": "Брак",
-  "act.permit.defect": "ТИР/дазвол брак деб белгиланди",
+  "tir.s.DEFECT": "Яроқсиз",
+  "tir.m.DEFECT": "Яроқсиз деб белгиланди",
+  "tir.defect": "Яроқсиз деб белгилаш",
+  "tir.defectShort": "Яроқсиз",
+  "act.permit.defect": "ТИР/дазвол яроқсиз деб белгиланди",
 
   // Tashish tahriri, faqat ro'yxat, ijarachilar (17.11.2026)
   "common.optional": "ихтиёрий",
