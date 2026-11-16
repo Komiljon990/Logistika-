@@ -926,6 +926,28 @@ export const uz = {
   "act.permit.surrender": "TIR/dazvol topshirildi",
   "act.permit.lost": "TIR/dazvol bekor qilindi",
   "act.permit.delete": "TIR/dazvol o'chirildi",
+
+  // Telegram bot: haydovchi tasdiqlashi (17.11.2026)
+  "tir.error.validUntil": "Amal qilish muddatini kiriting.",
+  "tir.ack.PENDING": "⏳ haydovchi javobi kutilmoqda",
+  "tir.ack.CONFIRMED": "✓ haydovchi tasdiqladi",
+  "tir.ack.REJECTED": "✗ haydovchi rad etdi",
+  "tir.ack.noBot": "haydovchi botga ulanmagan",
+  "tir.ack.notSent": "xabar yuborilmadi",
+  "tir.rejectedTitle": "Haydovchi bot orqali rad etgan blankalar — tekshiring:",
+  "tir.rejectedIssue": "«olmadim» dedi",
+  "tir.rejectedReturn": "«topshirmadim» dedi",
+  "tir.rejectedHint": "Haydovchi bot orqali bu blankani olmaganini bildirdi. Xato berilgan bo'lsa — berishni bekor qiling (blanka yana tashkilotda bo'ladi).",
+  "tir.cancelIssue": "Berishni bekor qilish",
+  "tir.cancelIssueConfirm": "Berish bekor qilinsinmi? Blanka yana tashkilotda bo'ladi.",
+  "drv.telegram": "Telegram bot",
+  "drv.telegramLinked": "Botga ulangan — TIR/dazvol berilganda va topshirilganda xabar boradi",
+  "drv.telegramHow": "Botga ulanmagan. Haydovchi Telegram'da {bot} ni ochib /start bosadi va «Telefon raqamni yuborish» tugmasini bosadi. Raqam shu yerda kiritilgani bilan bir xil bo'lishi kerak.",
+  "drv.telegramBotName": "ReysPro botini",
+  "drv.telegramNoPhone": "Avval haydovchining telefon raqamini kiriting.",
+  "tg.botIs": "Bot:",
+  "alerts.kind.permit": "TIR / dazvol",
+  "act.permit.cancel_issue": "TIR/dazvol berish bekor qilindi",
 };
 
 export type Dict = Record<keyof typeof uz, string>;

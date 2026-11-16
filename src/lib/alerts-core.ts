@@ -6,7 +6,7 @@ export const ALERT_DAYS = 30;
 
 export type AlertItem = {
   key: string;
-  kind: "vehicle" | "driver" | "org" | "lease";
+  kind: "vehicle" | "driver" | "org" | "lease" | "permit";
   href: string;
   owner: string;
   orgName: string;

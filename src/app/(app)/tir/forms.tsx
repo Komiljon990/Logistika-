@@ -3,7 +3,7 @@
 import { useActionState, useState } from "react";
 import type { Dict } from "@/i18n";
 import type { FormState } from "@/lib/form";
-import { deletePermit, issuePermit, lostPermit, receivePermits, returnPermit, surrenderPermit } from "./actions";
+import { cancelRejectedIssue, deletePermit, issuePermit, lostPermit, receivePermits, returnPermit, surrenderPermit } from "./actions";
 
 function Msg({ state, d, ok }: { state: FormState; d: Dict; ok?: string }) {
   if (state.error) {
@@ -64,7 +64,7 @@ export function ReceiveForm({ d, today }: { d: Dict; today: string }) {
         </div>
         <div>
           <label htmlFor="p-valid" className="label">{d["tir.validUntil"]}</label>
-          <input id="p-valid" name="validUntil" type="date" defaultValue={v.validUntil} className="input" />
+          <input id="p-valid" name="validUntil" type="date" required defaultValue={v.validUntil} className="input" />
         </div>
         <div className="sm:col-span-2">
           <label htmlFor="p-note" className="label">{d["common.note"]}</label>
@@ -161,6 +161,28 @@ function SimpleForm({ d, today, action: act, submit, used, danger }: {
       <Msg state={state} d={d} />
     </form>
   );
+}
+
+/** Haydovchi bot orqali "olmadim" degan berishni bekor qilish. */
+export function CancelIssueButton({ d, id }: { d: Dict; id: string }) {
+  const [state, action, pending] = useActionState(async () => cancelRejectedIssue(id), {} as FormState);
+  return (
+    <form action={action} onSubmit={(e) => { if (!window.confirm(d["tir.cancelIssueConfirm"])) e.preventDefault(); }} className="flex flex-wrap items-center gap-2">
+      <button className="btn-danger" disabled={pending}>{d["tir.cancelIssue"]}</button>
+      <Msg state={state} d={d} />
+    </form>
+  );
+}
+
+/** Haydovchining bot orqali javobi. */
+export function AckBadge({ d, ack, linked }: { d: Dict; ack: string | null; linked: boolean }) {
+  const map: Record<string, [string, string]> = {
+    PENDING: ["border-warn text-warn", d["tir.ack.PENDING"]],
+    CONFIRMED: ["border-accent text-accent", d["tir.ack.CONFIRMED"]],
+    REJECTED: ["border-bad bg-bad-soft text-bad font-semibold", d["tir.ack.REJECTED"]],
+  };
+  const [cls, label] = ack ? map[ack] : ["border-line text-muted", linked ? d["tir.ack.notSent"] : d["tir.ack.noBot"]];
+  return <span className={`rounded-full border px-2 py-0.5 text-xs ${cls}`}>{label}</span>;
 }
 
 export function DeletePermitButton({ d, id }: { d: Dict; id: string }) {

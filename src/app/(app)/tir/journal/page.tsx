@@ -82,7 +82,10 @@ export default async function PermitJournalPage({ searchParams }: { searchParams
                   <Link href={`/tir/${m.permit.id}`} className="font-mono text-accent hover:underline">{m.permit.number}</Link>
                   <div className="text-xs text-muted">{t(`tir.t.${m.permit.type}`)}{m.permit.country ? ` · ${m.permit.country}` : ""}</div>
                 </td>
-                <td className="px-3 py-2">{t(`tir.m.${m.kind}`)}{m.used !== null ? <span className="text-xs text-muted"> · {m.used ? t("tir.usedYes") : t("tir.usedNo")}</span> : null}</td>
+                <td className="px-3 py-2">
+                  {t(`tir.m.${m.kind}`)}{m.used !== null ? <span className="text-xs text-muted"> · {m.used ? t("tir.usedYes") : t("tir.usedNo")}</span> : null}
+                  {m.ack && <div className={`text-xs ${m.ack === "REJECTED" ? "font-semibold text-bad" : m.ack === "CONFIRMED" ? "text-accent" : "text-warn"}`}>{t(`tir.ack.${m.ack}`)}</div>}
+                </td>
                 <td className="px-3 py-2 tabular-nums">{m.plate ?? ""}</td>
                 <td className="px-3 py-2">{m.driverName ?? ""}</td>
                 <td className="px-3 py-2 text-muted">{m.note ?? ""}</td>

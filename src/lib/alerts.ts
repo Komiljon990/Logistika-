@@ -24,6 +24,11 @@ function leaseWhere(user: ScopeUser, until: Date) {
   return { ...orgScope(user), status: "ACTIVE" as const, ownership: "LEASED" as const, leaseEnd: { not: null, lte: until } };
 }
 
+/** TIR / dazvol: tashkilotda yoki haydovchida turgan, muddati yaqin yoki o'tgan (17.11.2026). */
+function permitWhere(user: ScopeUser, until: Date) {
+  return { ...orgScope(user), status: { in: ["STOCK" as const, "ISSUED" as const] }, validUntil: { not: null, lte: until } };
+}
+
 function until(today: Date) {
   return new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate() + ALERT_DAYS));
 }
@@ -31,16 +36,17 @@ function until(today: Date) {
 /** Menyudagi son: muddati o'tgan va 30 kun ichida tugaydigan hujjatlar va ijaralar. */
 export async function countAlerts(user: ScopeUser, today: Date): Promise<number> {
   const u = until(today);
-  const [docs, leases] = await Promise.all([
+  const [docs, leases, permits] = await Promise.all([
     db.document.count({ where: docWhere(user, u) }),
     db.vehicle.count({ where: leaseWhere(user, u) }),
+    db.permit.count({ where: permitWhere(user, u) }),
   ]);
-  return docs + leases;
+  return docs + leases + permits;
 }
 
 export async function loadAlerts(user: ScopeUser, today: Date): Promise<AlertItem[]> {
   const u = until(today);
-  const [docs, leases] = await Promise.all([
+  const [docs, leases, permits] = await Promise.all([
     db.document.findMany({
       where: docWhere(user, u),
       orderBy: { expiresAt: "asc" },
@@ -55,7 +61,15 @@ export async function loadAlerts(user: ScopeUser, today: Date): Promise<AlertIte
       orderBy: { leaseEnd: "asc" },
       select: { id: true, plate: true, leaseEnd: true, leaseOwner: true, org: { select: { name: true } } },
     }),
+    db.permit.findMany({
+      where: permitWhere(user, u),
+      orderBy: { validUntil: "asc" },
+      select: { id: true, type: true, number: true, validUntil: true, vehicle: { select: { plate: true } }, driver: { select: { fullName: true } } },
+    }),
   ]);
+  const orgName = permits.length && user.orgId
+    ? (await db.organization.findUnique({ where: { id: user.orgId }, select: { name: true } }))?.name ?? ""
+    : "";
   const items: AlertItem[] = docs.map((x) => ({
     key: `doc:${x.id}`,
     kind: x.vehicle ? "vehicle" : x.driver ? "driver" : "org",
@@ -77,6 +91,18 @@ export async function loadAlerts(user: ScopeUser, today: Date): Promise<AlertIte
       docType: null,
       number: v.leaseOwner,
       expiresAt: v.leaseEnd!,
+    });
+  }
+  for (const p of permits) {
+    items.push({
+      key: `permit:${p.id}`,
+      kind: "permit",
+      href: `/tir/${p.id}`,
+      owner: p.vehicle && p.driver ? `${p.vehicle.plate} · ${p.driver.fullName}` : p.type === "TIR" ? "TIR" : "Dazvol",
+      orgName,
+      docType: p.type === "TIR" ? "TIR_CARNET" : "DAZVOL",
+      number: p.number,
+      expiresAt: p.validUntil!,
     });
   }
   return items.sort((a, b) => a.expiresAt.getTime() - b.expiresAt.getTime());

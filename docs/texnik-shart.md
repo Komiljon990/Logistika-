@@ -656,6 +656,26 @@ vaqtda, telefon va kompyuter ko'rinishi, ma'lumot yaxlitligi, arxiv
   sof oqim), xarajatlar turkum bo'yicha, TIR/dazvol. Har valyuta alohida
   (so'mga aylantirilmaydi). Chop etish / PDF.
 
+### Telegram bot: haydovchi tasdiqlashi (16.11.2026)
+
+- TIR/dazvol amal qilish muddati kirimda majburiy; 30 kun qolganda TIR
+  sahifasida va "Ogohlantirishlar"da ko'rinadi (tashkilotda yoki
+  haydovchida turganlari).
+- Haydovchi botga ulanadi: /start → "Telefon raqamni yuborish". Faqat
+  o'z raqamini yuborgani qabul qilinadi va u ReysPro'dagi faol haydovchi
+  telefoniga mos bo'lishi kerak. Haydovchi telefoni o'zgartirilsa,
+  bog'lanish uziladi.
+- Blanka haydovchiga berilganda ("Sizga ... berildi. Oldingizmi?") va
+  qaytarilganda ("Siz ... topshirdingiz. To'g'rimi?") bot xabar yuboradi:
+  "Tasdiqlash" / "Rad etish" tugmalari. Javob faqat xabar yuborilgan
+  chatdan, bir marta qabul qilinadi. Holat TIR ro'yxati, blanka tarixi va
+  jurnalda: javob kutilmoqda / tasdiqladi / rad etdi / botga ulanmagan.
+- Rad etilgan blankalar TIR sahifasi tepasida ko'rsatiladi; "olmadim"
+  deb rad etilgan berishni menejer bekor qila oladi (blanka yana
+  tashkilotda, jurnalda izoh bilan).
+- Bot serverning o'zida getUpdates (long polling) orqali ishlaydi —
+  ochiq HTTPS manzil kerak emas. .env: TELEGRAM_BOT_TOKEN.
+
 ## 12. Loyihada ishlash qoidalari (Claude uchun)
 
 Bu bo'lim Project ko'rsatmasiga ko'chirilishi uchun yozilgan.

@@ -247,6 +247,9 @@ model Driver {
   category  DriverCategory
   status    Status         @default(ACTIVE)
   note      String?
+  // Telegram bot (17.11.2026): haydovchi botga o'z telefon raqamini yuborib ulanadi (raqam shu yozuvdagiga mos).
+  telegramChatId   String?
+  telegramLinkedAt DateTime?
   createdAt DateTime       @default(now())
   updatedAt DateTime       @updatedAt
 
@@ -257,6 +260,7 @@ model Driver {
   payments       Payment[]
 
   @@index([orgId, status])
+  @@index([telegramChatId])
 }
 
 enum DocType {
@@ -716,11 +720,22 @@ model PermitMove {
   driverName  String?
   used        Boolean?
   note        String?
+  // Haydovchining bot orqali javobi (berildi / topshirdi xabariga). null — xabar yuborilmagan (bot ulanmagan).
+  ack         DriverAck?
+  ackAt       DateTime?
+  botChatId   String?
+  botMessageId Int?
   createdById String
   createdAt   DateTime       @default(now())
 
   @@index([orgId, date])
   @@index([permitId])
+}
+
+enum DriverAck {
+  PENDING // javob kutilmoqda
+  CONFIRMED // tasdiqladi
+  REJECTED // rad etdi
 }
 
 // ---------- Ro'yxatdan o'tish, obuna va to'lovlar (17.11.2026) ----------

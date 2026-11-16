@@ -8,7 +8,7 @@ import { orgScope } from "@/lib/scope";
 import { formatDate } from "@/lib/dates";
 import { tashkentToday } from "@/lib/docs";
 import { daysTo, PERMIT_STATUSES } from "@/lib/permits-core";
-import { PermitActions, ReceiveForm } from "./forms";
+import { AckBadge, PermitActions, ReceiveForm } from "./forms";
 
 type SP = { s?: string; t?: string; q?: string };
 
@@ -40,7 +40,10 @@ export default async function TirPage({ searchParams }: { searchParams: Promise<
   const [permits, counts, vehicles, drivers] = await Promise.all([
     db.permit.findMany({
       where, orderBy: [{ status: "asc" }, { type: "asc" }, { number: "asc" }], take: 500,
-      include: { vehicle: { select: { plate: true } }, driver: { select: { fullName: true } } },
+      include: {
+        vehicle: { select: { plate: true } }, driver: { select: { fullName: true, telegramChatId: true } },
+        moves: { orderBy: { createdAt: "desc" }, take: 1, select: { kind: true, ack: true, driverId: true } },
+      },
     }),
     db.permit.groupBy({ by: ["type", "status"], where: scope, _count: true }),
     canEdit ? db.vehicle.findMany({ where: { ...scope, status: "ACTIVE", type: "TRACTOR" }, orderBy: { plate: "asc" }, select: { id: true, plate: true, pairDriverId: true } }) : [],
@@ -53,6 +56,14 @@ export default async function TirPage({ searchParams }: { searchParams: Promise<
     for (const [k, v] of Object.entries(merged)) if (v) p.set(k, v);
     return `/tir${p.size ? `?${p}` : ""}`;
   };
+  // Haydovchi bot orqali rad etgan (oxirgi harakat) blankalar — menejer e'tiboriga.
+  const rejected = await db.permit.findMany({
+    where: { ...scope, status: { in: ["STOCK", "ISSUED", "USED"] }, moves: { some: { ack: "REJECTED" } } },
+    select: { id: true, number: true, moves: { orderBy: { createdAt: "desc" }, take: 1, select: { ack: true, kind: true, driverName: true } } },
+  }).then((list) => list.filter((p) => p.moves[0]?.ack === "REJECTED"));
+  const linkedDrivers = new Set(
+    (await db.driver.findMany({ where: { ...scope, id: { in: permits.flatMap((p) => p.moves.map((m) => m.driverId ?? "")).filter(Boolean) }, telegramChatId: { not: null } }, select: { id: true } })).map((x) => x.id),
+  );
   const pair = Object.fromEntries(vehicles.filter((v) => v.pairDriverId).map((v) => [v.id, v.pairDriverId!]));
 
   return (
@@ -62,6 +73,17 @@ export default async function TirPage({ searchParams }: { searchParams: Promise<
         <span className="flex-1" />
         <Link href="/tir/journal" className="btn-ghost">{t("tir.journal")}</Link>
       </div>
+
+      {rejected.length > 0 && (
+        <section className="card grid gap-1 border-bad bg-bad-soft p-4 text-sm">
+          <span className="font-semibold text-bad">{t("tir.rejectedTitle")}</span>
+          {rejected.map((p) => (
+            <Link key={p.id} href={`/tir/${p.id}`} className="text-accent hover:underline">
+              {p.number} — {p.moves[0].driverName ?? ""}: {t(p.moves[0].kind === "ISSUED" ? "tir.rejectedIssue" : "tir.rejectedReturn")}
+            </Link>
+          ))}
+        </section>
+      )}
 
       <section className="grid gap-3 sm:grid-cols-2">
         {(["TIR", "DAZVOL"] as const).map((ty) => (
@@ -113,6 +135,9 @@ export default async function TirPage({ searchParams }: { searchParams: Promise<
                   <Link href={`/tir/${p.id}`} className="font-mono font-semibold text-accent hover:underline">{p.number}</Link>
                   <span className="text-xs text-muted">{t(`tir.t.${p.type}`)}{p.country ? ` · ${p.country}` : ""}{p.kind ? ` · ${p.kind}` : ""}</span>
                   <span className={`rounded-full border px-2 py-0.5 text-xs ${TONE[p.status]}`}>{t(`tir.s.${p.status}`)}</span>
+                  {p.moves[0] && (p.moves[0].kind === "ISSUED" || p.moves[0].kind === "RETURNED") && (
+                    <AckBadge d={d} ack={p.moves[0].ack} linked={!!p.moves[0].driverId && linkedDrivers.has(p.moves[0].driverId)} />
+                  )}
                   {left !== null && left <= 30 && <span className={`text-xs font-semibold ${left < 0 ? "text-bad" : "text-warn"}`}>{left < 0 ? t("tir.expired") : t("tir.daysLeft").replace("{n}", String(left))}</span>}
                 </div>
                 <div className="text-xs text-muted">

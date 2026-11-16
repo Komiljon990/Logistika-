@@ -10,6 +10,7 @@ import { parseDate } from "@/lib/dates";
 import { tashkentToday } from "@/lib/docs";
 import { canDo, nextStatus, parseNumbers, type PermitAction } from "@/lib/permits-core";
 import { fail, optStr, str, type FormState } from "@/lib/form";
+import { notifyDriverMove } from "@/lib/telegram-bot";
 
 const TYPES: PermitType[] = ["TIR", "DAZVOL"];
 
@@ -34,8 +35,9 @@ export async function receivePermits(_prev: FormState, formData: FormData): Prom
   if (!numbers) return fail("tir.error.numbers", formData);
   const receivedAt = parseDate(formData.get("receivedAt"));
   if (!receivedAt || receivedAt.toISOString().slice(0, 10) > today()) return fail("pay.error.date", formData);
+  // Amal qilish muddati majburiy (17.11.2026): muddati yaqinlashsa ogohlantirish chiqadi.
   const validUntil = parseDate(formData.get("validUntil"));
-  if (formData.get("validUntil") && !validUntil) return fail("pay.error.date", formData);
+  if (!validUntil) return fail("tir.error.validUntil", formData);
   const issuer = optStr(formData, "issuer", 200);
   const country = type === "DAZVOL" ? optStr(formData, "country", 100) : null;
   if (type === "DAZVOL" && !country) return fail("tir.error.country", formData);
@@ -101,10 +103,35 @@ async function move(id: string, action: PermitAction, formData: FormData): Promi
   if (done.count !== 1) return fail("tir.error.state", formData);
   const v = vehicle ?? holder?.vehicle ?? null;
   const dr = driver ?? holder?.driver ?? null;
-  await db.permitMove.create({
+  const mv = await db.permitMove.create({
     data: { permitId: id, orgId, kind, date, vehicleId: v?.id ?? null, plate: v?.plate ?? null, driverId: dr?.id ?? null, driverName: dr?.fullName ?? null, used, note, createdById: user.id },
   });
   await audit({ actorId: user.id, orgId, action: `permit.${action.toLowerCase()}`, entity: "Permit", entityId: id, details: { number: p.number, status, used } });
+  // Berildi / qaytarildi — haydovchiga bot orqali tasdiqlash so'rovi.
+  if (kind === "ISSUED" || kind === "RETURNED") await notifyDriverMove(mv.id);
+  refresh();
+  return { ok: true };
+}
+
+/**
+ * Haydovchi "olmadim" deb rad etgan berishni bekor qilish: blanka yana tashkilotda, jurnalda izoh bilan qoladi.
+ * Faqat oxirgi harakat shu rad etilgan berish bo'lsa.
+ */
+export async function cancelRejectedIssue(id: string): Promise<FormState> {
+  const { user, orgId } = await editor();
+  const p = await db.permit.findFirst({ where: { id, orgId }, include: { moves: { orderBy: { createdAt: "desc" }, take: 1 } } });
+  if (!p) throw new ForbiddenError();
+  const last = p.moves[0];
+  if (p.status !== "ISSUED" || last?.kind !== "ISSUED" || last.ack !== "REJECTED") return { error: "tir.error.state" };
+  const done = await db.permit.updateMany({ where: { id, status: "ISSUED" }, data: { status: "STOCK", vehicleId: null, driverId: null, issuedAt: null } });
+  if (done.count !== 1) return { error: "tir.error.state" };
+  await db.permitMove.create({
+    data: {
+      permitId: id, orgId, kind: "RETURNED", date: last.date, vehicleId: last.vehicleId, plate: last.plate, driverId: last.driverId, driverName: last.driverName,
+      used: false, note: "Haydovchi olmaganini bildirdi — berish bekor qilindi", createdById: user.id,
+    },
+  });
+  await audit({ actorId: user.id, orgId, action: "permit.cancel_issue", entity: "Permit", entityId: id, details: { number: p.number } });
   refresh();
   return { ok: true };
 }

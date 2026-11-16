@@ -169,11 +169,14 @@ export async function createDriver(_prev: FormState, formData: FormData): Promis
 
 export async function updateDriver(id: string, _prev: FormState, formData: FormData): Promise<FormState> {
   const { user, orgId } = await editor();
-  if (!(await db.driver.findFirst({ where: { id, ...orgScope(user) } }))) throw new ForbiddenError();
+  const current = await db.driver.findFirst({ where: { id, ...orgScope(user) } });
+  if (!current) throw new ForbiddenError();
   const data = driverInput(formData);
   if (data === "phone") return fail("user.error.phone", formData);
   if (!data) return fail("common.required", formData);
-  await db.driver.update({ where: { id }, data });
+  // Telefon o'zgarsa Telegram bog'lanishi uziladi: yangi raqam egasi botga qaytadan ulanadi.
+  const unlink = current.phone !== data.phone ? { telegramChatId: null, telegramLinkedAt: null } : {};
+  await db.driver.update({ where: { id }, data: { ...data, ...unlink } });
   await audit({ actorId: user.id, orgId, action: "driver.update", entity: "Driver", entityId: id, details: data });
   revalidatePath(`/drivers/${id}`);
   return { ok: true };

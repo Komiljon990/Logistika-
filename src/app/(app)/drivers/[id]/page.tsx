@@ -6,6 +6,8 @@ import { requireUser } from "@/lib/session";
 import { can } from "@/lib/roles";
 import { orgScope } from "@/lib/scope";
 import { StatusPill } from "@/components/StatusPill";
+import { formatDate } from "@/lib/dates";
+import { getSetting } from "@/lib/settings";
 import { DriverForm } from "../../fleet-forms";
 import { setDriverStatus } from "../../fleet-actions";
 import { Documents } from "../../Documents";
@@ -20,6 +22,7 @@ export default async function DriverPage({ params, searchParams }: { params: Pro
   });
   if (!x) notFound();
   const editor = can(user.role, "data.edit");
+  const bot = await getSetting<string>("telegramBot");
   const canEdit = editor && x.status === "ACTIVE";
   const toggle = setDriverStatus.bind(null, x.id, x.status === "ACTIVE" ? "ARCHIVED" : "ACTIVE");
   return (
@@ -48,6 +51,18 @@ export default async function DriverPage({ params, searchParams }: { params: Pro
           ))}
         </p>
       )}
+      <section className="card grid gap-1 p-4 text-sm">
+        <span className="font-semibold">{t("drv.telegram")}</span>
+        {x.telegramChatId ? (
+          <span className="text-accent">✓ {t("drv.telegramLinked")}{x.telegramLinkedAt ? ` (${formatDate(x.telegramLinkedAt)})` : ""}</span>
+        ) : (
+          <span className="text-muted">
+            {t("drv.telegramHow").replace("{bot}", bot ? `@${bot}` : t("drv.telegramBotName"))}
+            {bot && <> <a href={`https://t.me/${bot}`} target="_blank" rel="noopener" className="text-accent hover:underline">t.me/{bot}</a></>}
+            {!x.phone && <span className="block text-bad">{t("drv.telegramNoPhone")}</span>}
+          </span>
+        )}
+      </section>
       <Documents owner={{ kind: "driver", id: x.id }} canEdit={canEdit} showArchived={sp.docs === "all"} />
       <h2 className="text-lg font-semibold">{t("common.details")}</h2>
       <section className="card p-5">

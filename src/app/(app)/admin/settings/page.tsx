@@ -2,7 +2,7 @@ import Link from "next/link";
 import { getDict, getT } from "@/i18n";
 import { requirePermission } from "@/lib/session";
 import { getProvider, getSetting, providerReady } from "@/lib/settings";
-import { adminChatId, botToken, recentChats } from "@/lib/telegram";
+import { adminChatId, botToken, botUsername, recentChats } from "@/lib/telegram";
 import { mailConfigured, senderAddress } from "@/lib/mailer";
 import { ActionButton } from "@/components/ActionButton";
 import { ProviderForm, TelegramChatForm } from "./Forms";
@@ -22,6 +22,7 @@ export default async function AdminSettingsPage({ searchParams }: { searchParams
   if (token && wantChats) {
     try { chats = await recentChats(); } catch (e) { chatsError = e instanceof Error ? e.message : String(e); }
   }
+  const username = token ? await botUsername() : null;
   return (
     <div className="grid max-w-3xl gap-6">
       <h1 className="text-2xl font-bold">{t("set.title")}</h1>
@@ -45,6 +46,7 @@ export default async function AdminSettingsPage({ searchParams }: { searchParams
           <p className="rounded-lg bg-warn-soft px-3 py-2 text-sm text-warn">{t("tg.noToken")}</p>
         ) : (
           <>
+            {username && <p className="text-sm">{t("tg.botIs")} <a href={`https://t.me/${username}`} target="_blank" rel="noopener" className="font-semibold text-accent hover:underline">@{username}</a></p>}
             <TelegramChatForm d={d} chatId={chatId} chats={chats} />
             {chats.length > 0 && (
               <ul className="grid gap-1 text-sm">

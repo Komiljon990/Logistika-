@@ -7,7 +7,7 @@ import { can } from "@/lib/roles";
 import { orgScope } from "@/lib/scope";
 import { formatDate } from "@/lib/dates";
 import { tashkentToday } from "@/lib/docs";
-import { DeletePermitButton, PermitActions } from "../forms";
+import { AckBadge, CancelIssueButton, DeletePermitButton, PermitActions } from "../forms";
 
 /** Bitta TIR / dazvol: ma'lumotlar va to'liq harakatlar tarixi. */
 export default async function PermitPage({ params }: { params: Promise<{ id: string }> }) {
@@ -20,6 +20,9 @@ export default async function PermitPage({ params }: { params: Promise<{ id: str
   });
   if (!p) notFound();
   const canEdit = can(user.role, "data.edit") && !user.readOnly;
+  const last = p.moves[p.moves.length - 1];
+  const driverIds = [...new Set(p.moves.map((m) => m.driverId).filter((x): x is string => !!x))];
+  const linked = new Set((await db.driver.findMany({ where: { id: { in: driverIds }, telegramChatId: { not: null } }, select: { id: true } })).map((x) => x.id));
   const today = tashkentToday().toISOString().slice(0, 10);
   const [vehicles, drivers] = canEdit && p.status === "STOCK"
     ? await Promise.all([
@@ -65,11 +68,21 @@ export default async function PermitPage({ params }: { params: Promise<{ id: str
               <span className="tabular-nums text-muted">{formatDate(m.date)}</span> · <span className="font-semibold">{t(`tir.m.${m.kind}`)}</span>
               {m.plate || m.driverName ? <span> · {[m.plate, m.driverName].filter(Boolean).join(" · ")}</span> : null}
               {m.used !== null && <span className="text-muted"> · {m.used ? t("tir.usedYes") : t("tir.usedNo")}</span>}
+              {(m.kind === "ISSUED" || m.kind === "RETURNED") && m.driverId && (
+                <span className="ml-2"><AckBadge d={d} ack={m.ack} linked={linked.has(m.driverId)} /></span>
+              )}
+              {m.ackAt && <span className="text-xs text-muted"> {formatDate(m.ackAt)}</span>}
               {m.note && <div className="text-xs text-muted">{m.note}</div>}
             </li>
           ))}
         </ol>
       </section>
+      {canEdit && p.status === "ISSUED" && last?.kind === "ISSUED" && last.ack === "REJECTED" && (
+        <section className="card grid gap-2 border-bad p-4 text-sm">
+          <p>{t("tir.rejectedHint")}</p>
+          <CancelIssueButton d={d} id={p.id} />
+        </section>
+      )}
       {canEdit && p.status === "STOCK" && p.moves.length === 1 && <DeletePermitButton d={d} id={p.id} />}
     </div>
   );
