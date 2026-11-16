@@ -6,12 +6,17 @@ describe("TIR / dazvol holatlari", () => {
     expect(canDo("ISSUE", "STOCK")).toBe(true);
     expect(canDo("ISSUE", "ISSUED")).toBe(false);
     expect(canDo("ISSUE", "USED")).toBe(false);
+    expect(canDo("ISSUE", "RETURNED")).toBe(true);
+    expect(canDo("ISSUE", "DEFECT")).toBe(false);
     expect(canDo("RETURN", "ISSUED")).toBe(true);
     expect(canDo("RETURN", "STOCK")).toBe(false);
   });
-  it("qaytarilganda: ishlatilgan → topshirishga, ishlatilmagan → yana tashkilotda", () => {
+  it("qaytarilganda: ishlatilgan → topshirishga, ishlatilmagan → «Qaytarilgan» (qayta berish mumkin)", () => {
     expect(nextStatus("RETURN", true)).toBe("USED");
-    expect(nextStatus("RETURN", false)).toBe("STOCK");
+    expect(nextStatus("RETURN", false)).toBe("RETURNED");
+    expect(nextStatus("DEFECT")).toBe("DEFECT");
+    expect(canDo("SURRENDER", "DEFECT")).toBe(true);
+    expect(canDo("DEFECT", "SURRENDERED")).toBe(false);
   });
   it("yuqori tashkilotga: ishlatilgan yoki ishlatilmagan, lekin haydovchidagisi emas", () => {
     expect(canDo("SURRENDER", "USED")).toBe(true);

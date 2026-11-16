@@ -196,7 +196,7 @@ async function PermitsTab({ t, orgId, from, to, type }: { t: T; orgId: string; f
       <section className="grid gap-2">
         <h2 className="text-lg font-semibold">{t("rep.permitMoves")}</h2>
         <p className="flex flex-wrap gap-x-5 text-sm">
-          {(["RECEIVED", "ISSUED", "RETURNED", "SURRENDERED", "LOST"] as const).map((k) => (
+          {(["RECEIVED", "ISSUED", "RETURNED", "SURRENDERED", "LOST", "DEFECT"] as const).map((k) => (
             <span key={k}>{t(`tir.m.${k}`)}: <b className="tabular-nums">{r.moves.find((m) => m.kind === k)?._count ?? 0}</b></span>
           ))}
         </p>
@@ -208,14 +208,14 @@ async function PermitsTab({ t, orgId, from, to, type }: { t: T; orgId: string; f
             <thead className="text-left text-xs text-muted">
               <tr>
                 <th className="px-3 py-2 font-medium">{t("tir.type")}</th>
-                {(["STOCK", "ISSUED", "USED", "SURRENDERED", "LOST"] as const).map((s) => <th key={s} className="px-3 py-2 text-right font-medium">{t(`tir.s.${s}`)}</th>)}
+                {(["STOCK", "ISSUED", "USED", "RETURNED", "SURRENDERED", "LOST", "DEFECT"] as const).map((s) => <th key={s} className="px-3 py-2 text-right font-medium">{t(`tir.s.${s}`)}</th>)}
               </tr>
             </thead>
             <tbody>
               {rows.map((row) => (
                 <tr key={row.key} className={`border-t border-line ${row.key === "ALL" ? "bg-ground font-semibold" : ""}`}>
                   <td className="px-3 py-2">{row.label}</td>
-                  {(["STOCK", "ISSUED", "USED", "SURRENDERED", "LOST"] as const).map((s) => <td key={s} className="px-3 py-2 text-right tabular-nums">{count(row.fm, s)}</td>)}
+                  {(["STOCK", "ISSUED", "USED", "RETURNED", "SURRENDERED", "LOST", "DEFECT"] as const).map((s) => <td key={s} className="px-3 py-2 text-right tabular-nums">{count(row.fm, s)}</td>)}
                 </tr>
               ))}
             </tbody>

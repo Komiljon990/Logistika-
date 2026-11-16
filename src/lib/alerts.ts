@@ -26,7 +26,7 @@ function leaseWhere(user: ScopeUser, until: Date) {
 
 /** TIR / dazvol: tashkilotda yoki haydovchida turgan, muddati yaqin yoki o'tgan (17.11.2026). */
 function permitWhere(user: ScopeUser, until: Date) {
-  return { ...orgScope(user), status: { in: ["STOCK" as const, "ISSUED" as const] }, validUntil: { not: null, lte: until } };
+  return { ...orgScope(user), status: { in: ["STOCK" as const, "ISSUED" as const, "RETURNED" as const] }, validUntil: { not: null, lte: until } };
 }
 
 function until(today: Date) {

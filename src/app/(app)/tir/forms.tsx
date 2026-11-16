@@ -3,7 +3,7 @@
 import { useActionState, useState } from "react";
 import type { Dict } from "@/i18n";
 import type { FormState } from "@/lib/form";
-import { cancelRejectedIssue, deletePermit, issuePermit, lostPermit, receivePermits, returnPermit, surrenderPermit } from "./actions";
+import { cancelRejectedIssue, defectPermit, deletePermit, issuePermit, lostPermit, receivePermits, returnPermit, surrenderPermit } from "./actions";
 
 function Msg({ state, d, ok }: { state: FormState; d: Dict; ok?: string }) {
   if (state.error) {
@@ -129,12 +129,15 @@ export function PermitActions({ d, id, status, today, vehicles, drivers, pair }:
 }) {
   return (
     <div className="flex shrink-0 flex-nowrap items-center gap-1.5">
-      {status === "STOCK" && <Pop d={d} short={d["tir.issueShort"]} label={d["tir.issue"]} primary><IssueForm d={d} id={id} today={today} vehicles={vehicles} drivers={drivers} pair={pair} /></Pop>}
+      {(status === "STOCK" || status === "RETURNED") && <Pop d={d} short={d["tir.issueShort"]} label={d["tir.issue"]} primary><IssueForm d={d} id={id} today={today} vehicles={vehicles} drivers={drivers} pair={pair} /></Pop>}
       {status === "ISSUED" && <Pop d={d} short={d["tir.returnShort"]} label={d["tir.return"]} primary><SimpleForm d={d} today={today} action={returnPermit.bind(null, id)} submit={d["tir.return"]} used /></Pop>}
-      {(status === "USED" || status === "STOCK") && (
-        <Pop d={d} short={d["tir.surrenderShort"]} label={d["tir.surrender"]} primary={status === "USED"}><SimpleForm d={d} today={today} action={surrenderPermit.bind(null, id)} submit={d["tir.surrender"]} /></Pop>
+      {(status === "USED" || status === "STOCK" || status === "RETURNED" || status === "DEFECT") && (
+        <Pop d={d} short={d["tir.surrenderShort"]} label={d["tir.surrender"]} primary={status === "USED" || status === "DEFECT"}><SimpleForm d={d} today={today} action={surrenderPermit.bind(null, id)} submit={d["tir.surrender"]} /></Pop>
       )}
-      {status !== "SURRENDERED" && status !== "LOST" && (
+      {(status === "STOCK" || status === "ISSUED" || status === "RETURNED") && (
+        <Pop d={d} short={d["tir.defectShort"]} label={d["tir.defect"]} danger><SimpleForm d={d} today={today} action={defectPermit.bind(null, id)} submit={d["tir.defect"]} danger /></Pop>
+      )}
+      {(status === "STOCK" || status === "ISSUED" || status === "USED" || status === "RETURNED") && (
         <Pop d={d} short={d["tir.lostShort"]} label={d["tir.lost"]} danger><SimpleForm d={d} today={today} action={lostPermit.bind(null, id)} submit={d["tir.lost"]} danger /></Pop>
       )}
     </div>

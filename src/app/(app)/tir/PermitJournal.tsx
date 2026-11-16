@@ -12,7 +12,7 @@ import { PeriodFilter } from "../cash/PeriodFilter";
 import { PERMIT_BASE } from "./PermitsList";
 import { permitSection } from "@/lib/permits-core";
 
-const KINDS: PermitMoveKind[] = ["RECEIVED", "ISSUED", "RETURNED", "SURRENDERED", "LOST"];
+const KINDS: PermitMoveKind[] = ["RECEIVED", "ISSUED", "RETURNED", "SURRENDERED", "LOST", "DEFECT"];
 export type JournalSP = { month?: string; from?: string; to?: string; k?: string };
 
 /** TIR yoki dazvol harakatlari jurnali: kirim, berildi, qaytarildi, topshirildi — davr bo'yicha ro'yxat. */

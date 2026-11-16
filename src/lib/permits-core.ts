@@ -3,17 +3,23 @@
  * kirim (yuqori tashkilotdan) → tashkilotda → haydovchiga beriladi (transport + haydovchi) → tashkilotga qaytariladi
  * (ishlatilgan bo'lsa — "ishlatilgan", ishlatilmagan bo'lsa — yana tashkilotda) → yuqori tashkilotga topshiriladi.
  */
-export type PermitStatus = "STOCK" | "ISSUED" | "USED" | "SURRENDERED" | "LOST";
-export type PermitAction = "ISSUE" | "RETURN" | "SURRENDER" | "LOST";
+export type PermitStatus = "STOCK" | "ISSUED" | "USED" | "RETURNED" | "SURRENDERED" | "LOST" | "DEFECT";
+export type PermitAction = "ISSUE" | "RETURN" | "SURRENDER" | "LOST" | "DEFECT";
 
-export const PERMIT_STATUSES: readonly PermitStatus[] = ["STOCK", "ISSUED", "USED", "SURRENDERED", "LOST"];
+/** Holat tugmalari tartibi (17.11.2026): Yangi, Haydovchida, Ishlatilgan, Qaytarilgan, Topshirilgan, Yo'qolgan, Brak. */
+export const PERMIT_STATUSES: readonly PermitStatus[] = ["STOCK", "ISSUED", "USED", "RETURNED", "SURRENDERED", "LOST", "DEFECT"];
+
+/** Tashkilot qo'lida turgan (yopilmagan) holatlar. */
+export const OPEN_STATUSES: readonly PermitStatus[] = ["STOCK", "ISSUED", "USED", "RETURNED", "DEFECT"];
 
 const ALLOWED: Record<PermitAction, readonly PermitStatus[]> = {
-  ISSUE: ["STOCK"],
+  // Yangi yoki ishlatilmay qaytgan blanka beriladi.
+  ISSUE: ["STOCK", "RETURNED"],
   RETURN: ["ISSUED"],
-  // Ishlatilmagan (masalan muddati o'tgan) blankani ham yuqori tashkilotga qaytarish mumkin.
-  SURRENDER: ["USED", "STOCK"],
-  LOST: ["STOCK", "ISSUED", "USED"],
+  // Ishlatilgan, ishlatilmagan (masalan muddati o'tgan) yoki brak blanka yuqori tashkilotga topshiriladi.
+  SURRENDER: ["USED", "STOCK", "RETURNED", "DEFECT"],
+  LOST: ["STOCK", "ISSUED", "USED", "RETURNED"],
+  DEFECT: ["STOCK", "ISSUED", "RETURNED"],
 };
 
 export function canDo(action: PermitAction, status: PermitStatus): boolean {
@@ -23,9 +29,10 @@ export function canDo(action: PermitAction, status: PermitStatus): boolean {
 export function nextStatus(action: PermitAction, used = false): PermitStatus {
   switch (action) {
     case "ISSUE": return "ISSUED";
-    case "RETURN": return used ? "USED" : "STOCK";
+    case "RETURN": return used ? "USED" : "RETURNED";
     case "SURRENDER": return "SURRENDERED";
     case "LOST": return "LOST";
+    case "DEFECT": return "DEFECT";
   }
 }
 

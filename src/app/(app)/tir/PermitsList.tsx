@@ -21,6 +21,8 @@ const TONE: Record<PermitStatus, string> = {
   USED: "border-bad text-bad",
   SURRENDERED: "border-line text-muted",
   LOST: "border-line text-muted line-through",
+  RETURNED: "border-accent text-accent",
+  DEFECT: "border-bad text-bad",
 };
 
 /** TIR karnetlar yoki dazvollar ro'yxati: tashkilotda, haydovchida, ishlatilgan (topshirilishi kerak), topshirilgan. */
@@ -31,7 +33,8 @@ export async function PermitsList({ type, searchParams }: { type: PermitType; se
   const [t, d] = [await getT(), await getDict()];
   // Demo va "faqat ko'rish" sessiyasi ham formani ko'radi (saqlash serverda to'xtatiladi) — boshqa bo'limlar kabi.
   const canEdit = canEditSection(user, section);
-  const status = PERMIT_STATUSES.includes(sp.s as PermitStatus) ? (sp.s as PermitStatus) : null;
+  // Sukut bo'yicha — "Yangi" (17.11.2026: "Yopilmaganlar" yorlig'i olib tashlandi).
+  const status: PermitStatus = PERMIT_STATUSES.includes(sp.s as PermitStatus) ? (sp.s as PermitStatus) : "STOCK";
   const base = PERMIT_BASE[type];
   // Dazvol: qog'oz yoki elektron (?f=PAPER / ?f=ELECTRONIC).
   const format = type === "DAZVOL" && (sp.f === "PAPER" || sp.f === "ELECTRONIC") ? (sp.f as PermitFormat) : null;
@@ -39,7 +42,7 @@ export async function PermitsList({ type, searchParams }: { type: PermitType; se
   const scope = orgScope(user);
   const where: Prisma.PermitWhereInput = {
     ...scope,
-    ...(status ? { status } : { status: { in: ["STOCK", "ISSUED", "USED"] } }),
+    status,
     type,
     ...(format ? { format } : {}),
     ...(q ? { number: { contains: q } } : {}),
@@ -61,13 +64,13 @@ export async function PermitsList({ type, searchParams }: { type: PermitType; se
     counts.filter((c) => c.type === ty && c.status === st && (!fm || c.format === fm)).reduce((a, c) => a + c._count, 0);
   const link = (extra: Record<string, string | null>) => {
     const p = new URLSearchParams();
-    const merged = { s: status, f: format, q: q || null, ...extra };
+    const merged = { s: status === "STOCK" ? null : status, f: format, q: q || null, ...extra };
     for (const [k, v] of Object.entries(merged)) if (v) p.set(k, v);
     return `${base}${p.size ? `?${p}` : ""}`;
   };
   // Haydovchi bot orqali rad etgan (oxirgi harakat) blankalar — menejer e'tiboriga.
   const rejected = await db.permit.findMany({
-    where: { ...scope, type, status: { in: ["STOCK", "ISSUED", "USED"] }, moves: { some: { ack: "REJECTED" } } },
+    where: { ...scope, type, status: { in: ["STOCK", "ISSUED", "USED", "RETURNED"] }, moves: { some: { ack: "REJECTED" } } },
     select: { id: true, number: true, moves: { orderBy: { createdAt: "desc" }, take: 1, select: { ack: true, kind: true, driverName: true } } },
   }).then((list) => list.filter((p) => p.moves[0]?.ack === "REJECTED"));
   const linkedDrivers = new Set(
@@ -105,30 +108,26 @@ export async function PermitsList({ type, searchParams }: { type: PermitType; se
         </section>
       )}
 
-      <section className="grid grid-cols-3 gap-3 text-center text-sm">
-        {(["STOCK", "ISSUED", "USED"] as const).map((st) => (
-          <Link key={st} href={link({ s: st })} className="card p-3 hover:border-accent">
-            <div className="text-2xl font-bold tabular-nums">{count(type, st, format ?? undefined)}</div>
-            <div className="text-xs text-muted">{t(`tir.s.${st}`)}</div>
-          </Link>
-        ))}
-      </section>
+      {/* Holat tugmalari (17.11.2026): har biri alohida tugma, soni bilan; tartib — Yangi … Brak. */}
+      <nav className="-mx-1 flex flex-nowrap gap-1.5 overflow-x-auto px-1 pb-1" aria-label={t("common.status")}>
+        {PERMIT_STATUSES.map((st) => {
+          const n = count(type, st, format ?? undefined);
+          return (
+            <Link
+              key={st} href={link({ s: st })} aria-current={status === st ? "page" : undefined}
+              className={`inline-flex min-h-9 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-xl border px-2.5 text-sm font-semibold shadow-sm ${status === st ? "border-accent bg-accent text-on-accent" : "border-line bg-paper text-ink hover:border-accent"}`}
+            >
+              {t(`tir.tab.${st}`)}
+              <span className={`rounded-full px-1.5 text-xs tabular-nums ${status === st ? "bg-paper/25" : "bg-ground text-muted"}`}>{n}</span>
+            </Link>
+          );
+        })}
+      </nav>
 
       <div className="flex flex-wrap items-center gap-2">
-        {/* Holat yorliqlari: qisqa nomlar, bitta qatorda (tor ekranda yonga suriladi). */}
-        <nav className="card flex min-w-0 max-w-full flex-nowrap gap-1 overflow-x-auto p-1 text-sm font-medium" aria-label={t("common.status")}>
-          {[{ st: null, label: t("tir.open") }, ...PERMIT_STATUSES.map((st) => ({ st, label: t(`tir.tab.${st}`) }))].map(({ st, label }) => (
-            <Link
-              key={st ?? "open"} href={link({ s: st })} aria-current={status === st ? "page" : undefined}
-              className={`whitespace-nowrap rounded-lg px-3 py-1.5 ${status === st ? "bg-accent-soft font-semibold text-accent" : "text-ink hover:bg-ground"}`}
-            >
-              {label}
-            </Link>
-          ))}
-        </nav>
         <span className="flex-1" />
         <form className="flex flex-nowrap items-center gap-2">
-          {status && <input type="hidden" name="s" value={status} />}
+          <input type="hidden" name="s" value={status} />
           {type === "DAZVOL" && (
             <select name="f" defaultValue={format ?? ""} aria-label={t("tir.format")} className="input w-auto py-1.5 text-sm">
               <option value="">{t("tir.f.all")}</option>
@@ -143,7 +142,7 @@ export async function PermitsList({ type, searchParams }: { type: PermitType; se
 
       <div className="card divide-y divide-line">
         {permits.map((p) => {
-          const left = p.status === "STOCK" || p.status === "ISSUED" ? daysTo(p.validUntil?.toISOString().slice(0, 10) ?? null, today) : null;
+          const left = p.status === "STOCK" || p.status === "ISSUED" || p.status === "RETURNED" ? daysTo(p.validUntil?.toISOString().slice(0, 10) ?? null, today) : null;
           return (
             <div key={p.id} className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-2.5 text-sm sm:flex-nowrap">
               <div className="min-w-0 flex-1">

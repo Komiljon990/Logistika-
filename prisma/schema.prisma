@@ -673,11 +673,13 @@ enum PermitFormat {
 }
 
 enum PermitStatus {
-  STOCK // tashkilotda (foydalanishga tayyor)
+  STOCK // yangi: kirim qilingan, hali berilmagan
   ISSUED // haydovchiga berilgan
   USED // ishlatilgan, yuqori tashkilotga topshirilishi kerak
+  RETURNED // haydovchi ishlatmasdan qaytargan — tashkilotda, qayta berish mumkin
   SURRENDERED // yuqori tashkilotga topshirilgan
-  LOST // yo'qolgan / bekor
+  LOST // yo'qolgan
+  DEFECT // brak (yaroqsiz) — topshiriladi
 }
 
 enum PermitMoveKind {
@@ -686,6 +688,7 @@ enum PermitMoveKind {
   RETURNED // haydovchi tashkilotga qaytardi
   SURRENDERED // yuqori tashkilotga topshirildi
   LOST
+  DEFECT // brak deb belgilandi
 }
 
 /// TIR karnet yoki dazvol: kirim → haydovchiga berish → qaytarish → yuqori tashkilotga topshirish.

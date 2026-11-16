@@ -841,11 +841,11 @@ export const uz = {
   "tir.journal": "Harakatlar jurnali",
   "tir.t.TIR": "TIR karnet",
   "tir.t.DAZVOL": "Dazvol",
-  "tir.s.STOCK": "Tashkilotda",
+  "tir.s.STOCK": "Yangi",
   "tir.s.ISSUED": "Haydovchida",
   "tir.s.USED": "Ishlatilgan (topshirish kerak)",
   "tir.s.SURRENDERED": "Topshirilgan",
-  "tir.s.LOST": "Yo'qolgan / bekor",
+  "tir.s.LOST": "Yo'qolgan",
   "tir.open": "Yopilmaganlar",
   "tir.type": "Turi",
   "tir.allTypes": "TIR va dazvol",
@@ -871,9 +871,9 @@ export const uz = {
   "tir.issue": "Haydovchiga berish",
   "tir.return": "Qaytarib olish",
   "tir.surrender": "Yuqori tashkilotga topshirish",
-  "tir.lost": "Yo'qolgan / bekor",
+  "tir.lost": "Yo'qolgan deb belgilash",
   "tir.used": "Ishlatilgan",
-  "tir.usedHint": "Belgilansa — yuqori tashkilotga topshirish ro'yxatiga o'tadi; belgilanmasa — yana tashkilotda (qayta berish mumkin).",
+  "tir.usedHint": "Belgilansa — «Ishlatilgan» (yuqori tashkilotga topshiriladi); belgilanmasa — «Qaytarilgan» (tashkilotda, qayta berish mumkin).",
   "tir.usedYes": "ishlatilgan",
   "tir.usedNo": "ishlatilmagan",
   "tir.holder": "Kimda",
@@ -882,7 +882,7 @@ export const uz = {
   "tir.m.ISSUED": "Haydovchiga berildi",
   "tir.m.RETURNED": "Tashkilotga qaytarildi",
   "tir.m.SURRENDERED": "Yuqori tashkilotga topshirildi",
-  "tir.m.LOST": "Yo'qolgan / bekor qilingan",
+  "tir.m.LOST": "Yo'qolgan deb belgilandi",
   "tir.moveKind": "Harakat",
   "tir.allMoves": "Barcha harakatlar",
   "tir.deleteConfirm": "Xato kiritilgan blankani o'chirasizmi?",
@@ -892,7 +892,7 @@ export const uz = {
   "tir.error.state": "Holat o'zgargan — sahifani yangilang.",
   "tir.error.date": "Sana bugundan keyin yoki oldingi harakatdan oldin bo'lmasin.",
   "tir.error.holder": "Tyagach va haydovchini tanlang.",
-  "tir.error.deleteUsed": "Harakati bor blanka o'chirilmaydi — «Yo'qolgan / bekor» deb belgilang.",
+  "tir.error.deleteUsed": "Harakati bor blanka o'chirilmaydi — «Brak» yoki «Yo'qolgan» deb belgilang.",
   "rep.tab.trips": "Reyslar",
   "rep.tab.finance": "Pul oqimi",
   "rep.tab.expenses": "Xarajatlar",
@@ -962,7 +962,7 @@ export const uz = {
   "tir.lostShort": "Yo'qolgan",
 
   // TIR: qisqa yorliqlar
-  "tir.tab.STOCK": "Tashkilotda",
+  "tir.tab.STOCK": "Yangi",
   "tir.tab.ISSUED": "Haydovchida",
   "tir.tab.USED": "Ishlatilgan",
   "tir.tab.SURRENDERED": "Topshirilgan",
@@ -993,6 +993,16 @@ export const uz = {
   // Hisobot: TIR va Dazvol alohida
   "rep.tab.tir": "TIR",
   "rep.tab.dazvol": "Dazvol",
+
+  // TIR holatlari: Yangi, Qaytarilgan, Brak
+  "tir.tab.RETURNED": "Qaytarilgan",
+  "tir.tab.DEFECT": "Brak",
+  "tir.s.RETURNED": "Qaytarilgan (tashkilotda)",
+  "tir.s.DEFECT": "Brak",
+  "tir.m.DEFECT": "Brak deb belgilandi",
+  "tir.defect": "Brak deb belgilash",
+  "tir.defectShort": "Brak",
+  "act.permit.defect": "TIR/dazvol brak deb belgilandi",
 };
 
 export type Dict = Record<keyof typeof uz, string>;

@@ -100,7 +100,7 @@ async function move(id: string, action: PermitAction, formData: FormData): Promi
   }
   const used = action === "RETURN" ? formData.get("used") === "on" : null;
   const status = nextStatus(action, !!used);
-  const kind: PermitMoveKind = action === "ISSUE" ? "ISSUED" : action === "RETURN" ? "RETURNED" : action === "SURRENDER" ? "SURRENDERED" : "LOST";
+  const kind: PermitMoveKind = action === "ISSUE" ? "ISSUED" : action === "RETURN" ? "RETURNED" : action === "SURRENDER" ? "SURRENDERED" : action === "DEFECT" ? "DEFECT" : "LOST";
   // Qaytarish/topshirishda kimda bo'lgani jurnalda qoladi.
   const holder = action === "RETURN"
     ? await db.permit.findUnique({ where: { id }, select: { vehicle: { select: { id: true, plate: true } }, driver: { select: { id: true, fullName: true } } } })
@@ -137,7 +137,10 @@ export async function cancelRejectedIssue(id: string): Promise<FormState> {
   if (!p) throw new ForbiddenError();
   const last = p.moves[0];
   if (p.status !== "ISSUED" || last?.kind !== "ISSUED" || last.ack !== "REJECTED") return { error: "tir.error.state" };
-  const done = await db.permit.updateMany({ where: { id, status: "ISSUED" }, data: { status: "STOCK", vehicleId: null, driverId: null, issuedAt: null } });
+  // Berishdan oldingi holatga qaytadi: avval ishlatilmay qaytgan bo'lsa — "Qaytarilgan", aks holda — "Yangi".
+  const before = await db.permitMove.findFirst({ where: { permitId: id, NOT: { id: last.id } }, orderBy: { createdAt: "desc" }, select: { kind: true } });
+  const restore = before?.kind === "RETURNED" ? "RETURNED" : "STOCK";
+  const done = await db.permit.updateMany({ where: { id, status: "ISSUED" }, data: { status: restore, vehicleId: null, driverId: null, issuedAt: null } });
   if (done.count !== 1) return { error: "tir.error.state" };
   await db.permitMove.create({
     data: {
@@ -154,6 +157,7 @@ export async function issuePermit(id: string, _prev: FormState, formData: FormDa
 export async function returnPermit(id: string, _prev: FormState, formData: FormData) { return move(id, "RETURN", formData); }
 export async function surrenderPermit(id: string, _prev: FormState, formData: FormData) { return move(id, "SURRENDER", formData); }
 export async function lostPermit(id: string, _prev: FormState, formData: FormData) { return move(id, "LOST", formData); }
+export async function defectPermit(id: string, _prev: FormState, formData: FormData) { return move(id, "DEFECT", formData); }
 
 /** Xato kiritilgan blankani o'chirish: faqat hali hech kimga berilmagan (faqat kirim harakati bor). */
 export async function deletePermit(id: string): Promise<FormState> {
