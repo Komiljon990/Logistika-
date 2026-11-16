@@ -668,6 +668,9 @@ export const uz = {
   "act.team.add": "Xodim qo'shildi",
   "act.team.update": "Xodim ma'lumoti o'zgardi",
   "act.team.status": "Xodim holati o'zgardi",
+
+  // 16.11.2026: spam maslahati
+  "code.spamHint": "Xat {from} manzilidan keladi. Ko'rinmasa «Spam» papkasini tekshiring, «Spam emas» deb belgilang va bu manzilni kontaktlarga qo'shing.",
 };
 
 export type Dict = Record<keyof typeof uz, string>;

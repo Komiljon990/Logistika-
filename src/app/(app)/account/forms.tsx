@@ -37,7 +37,7 @@ export function PasswordForm({ d }: { d: Dict }) {
   );
 }
 
-export function EmailForm({ d, current }: { d: Dict; current: string | null }) {
+export function EmailForm({ d, current, from }: { d: Dict; current: string | null; from: string | null }) {
   const [req, reqAction, reqPending] = useActionState(requestEmailChange, {} as EmailState);
   const [conf, confAction, confPending] = useActionState(confirmEmailChange, {} as EmailState);
   if (conf.ok) return <p className="text-sm text-accent">{d["acc.emailChanged"]}</p>;
@@ -46,7 +46,10 @@ export function EmailForm({ d, current }: { d: Dict; current: string | null }) {
   if (step === "code") {
     return (
       <div className="grid gap-3">
-        <p className="rounded-lg bg-accent-soft px-3 py-2 text-sm">{d["code.sentTo"].replace("{email}", email ?? "")}</p>
+        <p className="rounded-lg bg-accent-soft px-3 py-2 text-sm">
+          {d["code.sentTo"].replace("{email}", email ?? "")}
+          {from && ` ${d["code.spamHint"].replace("{from}", from)}`}
+        </p>
         <form action={confAction} className="flex flex-wrap items-end gap-3">
           <input type="hidden" name="email" value={email} />
           <div>

@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { getT } from "@/i18n";
 import { getCurrentUser } from "@/lib/session";
+import { senderAddress } from "@/lib/mailer";
 import { LangSwitch } from "@/components/LangSwitch";
 import { Logo } from "@/components/Logo";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -13,6 +14,7 @@ export default async function CodePage() {
   if (await getCurrentUser()) redirect("/");
   const t = await getT();
   const theme = (await cookies()).get("theme")?.value;
+  const from = senderAddress();
   return (
     <main className="grid min-h-dvh place-items-center px-4 py-10">
       <div className="card grid w-full max-w-md gap-5 p-7 shadow-lg">
@@ -30,7 +32,7 @@ export default async function CodePage() {
             hint: t("code.hint"),
             email: t("code.email"),
             send: t("code.send"),
-            sentTo: t("code.sentTo"),
+            sentTo: from ? `${t("code.sentTo")} ${t("code.spamHint").replace("{from}", from)}` : t("code.sentTo"),
             code: t("code.code"),
             newPassword: t("user.newPassword"),
             confirm: t("user.passwordConfirm"),

@@ -4,7 +4,7 @@ import { db } from "@/lib/db";
 import { requireSession } from "@/lib/session";
 import { activeMemberships } from "@/lib/login";
 import { formatPhone } from "@/lib/phone";
-import { mailConfigured } from "@/lib/mailer";
+import { mailConfigured, senderAddress } from "@/lib/mailer";
 import { switchOrg } from "@/app/actions";
 import { EmailForm, GrantForm, PasswordForm, RevokeButton } from "./forms";
 
@@ -38,7 +38,7 @@ export default async function AccountPage() {
           <dt className="text-muted">{t("user.phone")}</dt><dd className="tabular-nums">{account.phone ? formatPhone(account.phone) : "—"}</dd>
         </dl>
         {!account.email && <p className="rounded-lg bg-bad-soft px-3 py-2 text-sm">{t("acc.noEmailHint")}</p>}
-        {owner && <EmailForm d={d} current={account.email} />}
+        {owner && <EmailForm d={d} current={account.email} from={senderAddress()} />}
         {!mailConfigured() && <p className="text-xs text-muted">{t("acc.mailTestMode")}</p>}
       </section>
 

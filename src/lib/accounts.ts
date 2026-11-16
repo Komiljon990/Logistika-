@@ -1,7 +1,7 @@
 import "server-only";
 import type { Role } from "@prisma/client";
 import { db } from "./db";
-import { appUrl, sendMail } from "./mailer";
+import { appUrl, mailHtml, senderAddress, sendMail } from "./mailer";
 import { canSendCode, CODE_TTL_MINUTES, codeMatches, generateCode, hashCode, MAX_CODE_ATTEMPTS } from "./auth-core";
 
 function codeSecret(): string {
@@ -39,7 +39,32 @@ export async function sendInvite(opts: { email: string; fullName: string; orgNam
       `Kirish uchun:\n1) ${url}/login/code sahifasini oching;\n2) shu e-mail manzilini (${opts.email}) kiriting;\n` +
       `3) pochtangizga kelgan 6 xonali kodni va o'zingiz o'ylagan yangi parolni kiriting.\n\n` +
       `Keyin e-mail (yoki telefon) va shu parol bilan kirasiz. Parolingizni hech kimga aytmang.`;
-  await sendMail({ to: opts.email, subject: `ReysPro: "${opts.orgName}" tashkilotiga taklif`, text });
+  const html = opts.hasPassword
+    ? mailHtml({
+        title: `"${opts.orgName}" tashkilotiga taklif`,
+        paragraphs: [
+          `Assalomu alaykum, ${opts.fullName}!`,
+          `Siz "${opts.orgName}" tashkilotiga ${opts.roleLabel} sifatida qo'shildingiz.`,
+          `Avvalgi login va parolingiz bilan kiring, so'ng yuqoridagi tashkilot tanlovidan "${opts.orgName}"ni tanlang.`,
+        ],
+        link: { href: `${url}/login`, label: "Tizimga kirish" },
+      })
+    : mailHtml({
+        title: `"${opts.orgName}" tashkilotiga taklif`,
+        paragraphs: [
+          `Assalomu alaykum, ${opts.fullName}!`,
+          `Siz "${opts.orgName}" tashkilotiga ${opts.roleLabel} sifatida qo'shildingiz.`,
+          `Kirish uchun quyidagi tugmani bosing, shu e-mail manzilini (${opts.email}) kiriting. Pochtangizga 6 xonali kod keladi — uni va o'zingiz o'ylagan yangi parolni kiriting.`,
+          `Keyin e-mail (yoki telefon) va shu parol bilan kirasiz. Parolingizni hech kimga aytmang.`,
+        ],
+        link: { href: `${url}/login/code`, label: "Parol o'rnatish" },
+      });
+  await sendMail({ to: opts.email, subject: `ReysPro: "${opts.orgName}" tashkilotiga taklif`, text: text + spamTip(), html });
+}
+
+function spamTip(): string {
+  const from = senderAddress();
+  return from ? `\n\n---\nXatlarimiz «Spam»ga tushmasligi uchun ${from} manzilini kontaktlaringizga qo'shing.` : "";
 }
 
 export type CodePurpose = "RESET" | "EMAIL";
@@ -58,11 +83,13 @@ export async function issueCode(accountId: string, email: string, purpose: CodeP
     data: { accountId, purpose, email, codeHash: hashCode(code, codeSecret()), expiresAt: new Date(now.getTime() + CODE_TTL_MINUTES * 60_000) },
   });
   const what = purpose === "RESET" ? "tizimga kirish (parol o'rnatish)" : "yangi e-mail manzilini tasdiqlash";
+  const warn = `Kod ${CODE_TTL_MINUTES} daqiqa amal qiladi. Kodni hech kimga aytmang — ReysPro xodimlari, rahbaringiz yoki administrator uni hech qachon so'ramaydi.`;
+  const ignore = "Agar siz so'ramagan bo'lsangiz, bu xatni e'tiborsiz qoldiring.";
   await sendMail({
     to: email,
     subject: `ReysPro kodi: ${code}`,
-    text: `Sizning ${what} kodingiz: ${code}\n\nKod ${CODE_TTL_MINUTES} daqiqa amal qiladi. Kodni hech kimga aytmang — ` +
-      `ReysPro xodimlari, rahbaringiz yoki administrator uni hech qachon so'ramaydi.\n\nAgar siz so'ramagan bo'lsangiz, bu xatni e'tiborsiz qoldiring.`,
+    text: `Sizning ${what} kodingiz: ${code}\n\n${warn}\n\n${ignore}${spamTip()}`,
+    html: mailHtml({ title: `Sizning ${what} kodingiz`, paragraphs: [warn, ignore], code }),
   });
   return true;
 }
