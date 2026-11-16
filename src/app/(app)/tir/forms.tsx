@@ -112,23 +112,28 @@ export function PermitActions({ d, id, status, today, vehicles, drivers, pair }:
   pair: Record<string, string>;
 }) {
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      {status === "STOCK" && <Pop d={d} label={d["tir.issue"]} primary><IssueForm d={d} id={id} today={today} vehicles={vehicles} drivers={drivers} pair={pair} /></Pop>}
-      {status === "ISSUED" && <Pop d={d} label={d["tir.return"]} primary><SimpleForm d={d} today={today} action={returnPermit.bind(null, id)} submit={d["tir.return"]} used /></Pop>}
+    <div className="flex shrink-0 flex-nowrap items-center gap-1.5">
+      {status === "STOCK" && <Pop d={d} short={d["tir.issueShort"]} label={d["tir.issue"]} primary><IssueForm d={d} id={id} today={today} vehicles={vehicles} drivers={drivers} pair={pair} /></Pop>}
+      {status === "ISSUED" && <Pop d={d} short={d["tir.returnShort"]} label={d["tir.return"]} primary><SimpleForm d={d} today={today} action={returnPermit.bind(null, id)} submit={d["tir.return"]} used /></Pop>}
       {(status === "USED" || status === "STOCK") && (
-        <Pop d={d} label={d["tir.surrender"]} primary={status === "USED"}><SimpleForm d={d} today={today} action={surrenderPermit.bind(null, id)} submit={d["tir.surrender"]} /></Pop>
+        <Pop d={d} short={d["tir.surrenderShort"]} label={d["tir.surrender"]} primary={status === "USED"}><SimpleForm d={d} today={today} action={surrenderPermit.bind(null, id)} submit={d["tir.surrender"]} /></Pop>
       )}
       {status !== "SURRENDERED" && status !== "LOST" && (
-        <Pop d={d} label={d["tir.lost"]}><SimpleForm d={d} today={today} action={lostPermit.bind(null, id)} submit={d["tir.lost"]} danger /></Pop>
+        <Pop d={d} short={d["tir.lostShort"]} label={d["tir.lost"]} danger><SimpleForm d={d} today={today} action={lostPermit.bind(null, id)} submit={d["tir.lost"]} danger /></Pop>
       )}
     </div>
   );
 }
 
-function Pop({ d, label, primary, children }: { d: Dict; label: string; primary?: boolean; children: React.ReactNode }) {
+const CHIP = "inline-flex min-h-8 cursor-pointer list-none items-center whitespace-nowrap rounded-lg border px-2.5 text-xs font-semibold";
+
+function Pop({ d, label, short, primary, danger, children }: {
+  d: Dict; label: string; short: string; primary?: boolean; danger?: boolean; children: React.ReactNode;
+}) {
+  const tone = primary ? "border-accent bg-accent text-on-accent" : danger ? "border-line text-bad hover:border-bad" : "border-line text-ink hover:border-accent";
   return (
     <details className="relative">
-      <summary className={`${primary ? "btn" : "btn-ghost"} cursor-pointer list-none`}>{label}</summary>
+      <summary title={label} className={`${CHIP} ${tone}`}>{short}</summary>
       <div className="card absolute right-0 z-20 mt-2 grid w-80 max-w-[85vw] gap-2 p-4 shadow-lg">
         <div className="flex items-center gap-2">
           <span className="flex-1 text-sm font-semibold">{label}</span>

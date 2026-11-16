@@ -951,4 +951,10 @@ export const uzCyrl: Dict = {
 
   // Umumiy: yopish
   "common.close": "Ёпиш",
+
+  // TIR: qisqa tugmalar
+  "tir.issueShort": "Бериш",
+  "tir.returnShort": "Қайтариш",
+  "tir.surrenderShort": "Топшириш",
+  "tir.lostShort": "Ёъқолган",
 };

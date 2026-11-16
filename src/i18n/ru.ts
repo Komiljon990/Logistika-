@@ -951,4 +951,10 @@ export const ru: Dict = {
 
   // Umumiy: yopish
   "common.close": "Закрыть",
+
+  // TIR: qisqa tugmalar
+  "tir.issueShort": "Выдать",
+  "tir.returnShort": "Принять",
+  "tir.surrenderShort": "Сдать",
+  "tir.lostShort": "Утерян",
 };

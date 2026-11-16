@@ -954,6 +954,12 @@ export const uz = {
 
   // Umumiy: yopish
   "common.close": "Yopish",
+
+  // TIR: qisqa tugmalar
+  "tir.issueShort": "Berish",
+  "tir.returnShort": "Qaytarish",
+  "tir.surrenderShort": "Topshirish",
+  "tir.lostShort": "Yo'qolgan",
 };
 
 export type Dict = Record<keyof typeof uz, string>;

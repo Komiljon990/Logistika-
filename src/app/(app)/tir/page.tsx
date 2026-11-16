@@ -134,7 +134,7 @@ export default async function TirPage({ searchParams }: { searchParams: Promise<
         {permits.map((p) => {
           const left = p.status === "STOCK" || p.status === "ISSUED" ? daysTo(p.validUntil?.toISOString().slice(0, 10) ?? null, today) : null;
           return (
-            <div key={p.id} className="flex flex-wrap items-center gap-3 px-4 py-3 text-sm">
+            <div key={p.id} className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-2.5 text-sm sm:flex-nowrap">
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
                   <Link href={`/tir/${p.id}`} className="font-mono font-semibold text-accent hover:underline">{p.number}</Link>
