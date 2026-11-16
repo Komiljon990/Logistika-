@@ -32,7 +32,7 @@ export function LoginForm({ labels, demo, demoLabels }: {
       <form ref={formRef} action={action} className="grid gap-4">
         <div>
           <label htmlFor="phone" className="label">{labels.phone}</label>
-          <input ref={phoneRef} id="phone" name="phone" type="tel" inputMode="tel" autoComplete="username" required placeholder="+998 90 123 45 67" className="input" />
+          <input ref={phoneRef} id="phone" name="login" type="text" inputMode="email" autoComplete="username" autoCapitalize="none" spellCheck={false} required placeholder="email@misol.uz / +998 90 123 45 67" className="input" />
         </div>
         <div>
           <label htmlFor="password" className="label">{labels.password}</label>

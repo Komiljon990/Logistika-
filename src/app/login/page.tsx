@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { getT } from "@/i18n";
@@ -16,7 +17,7 @@ export default async function LoginPage() {
   // Demo hisoblar (reklama uchun): parol ochiq, hisoblar hech narsani saqlay olmaydi.
   const demoPassword = process.env.DEMO_PASSWORD;
   const demoUsers = demoPassword
-    ? await db.user.findMany({ where: { isDemo: true, status: "ACTIVE" }, orderBy: { phone: "asc" }, select: { phone: true, role: true } })
+    ? await db.user.findMany({ where: { isDemo: true, status: "ACTIVE", org: { isDemo: true, status: "ACTIVE" } }, orderBy: { phone: "asc" }, select: { phone: true, role: true } })
     : [];
   const demo = demoUsers.map((u) => ({ role: t(`role.${u.role}`), phone: formatPhone(u.phone), password: demoPassword! }));
   return (
@@ -46,7 +47,10 @@ export default async function LoginPage() {
             },
           }}
         />
-        <p className="text-xs text-muted">{t("login.forgot")}</p>
+        <Link href="/login/code" className="rounded-lg border border-line px-3 py-2.5 text-sm hover:border-accent">
+          <span className="font-semibold text-accent">{t("login.codeLink")}</span>
+          <span className="block text-xs text-muted">{t("login.codeLinkHint")}</span>
+        </Link>
         <div className="justify-self-center"><LangSwitch /></div>
       </div>
     </main>

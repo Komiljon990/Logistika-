@@ -15,6 +15,7 @@ export default async function SettingsPage() {
     ...(can(user.role, "team.view") ? [{ href: "/team", title: t("nav.team"), hint: t("settings.teamHint") }] : []),
     { href: "/currencies", title: t("nav.currencies"), hint: t("settings.currenciesHint") },
     { href: "/settings/cash", title: t("settings.cash"), hint: t("settings.cashHint") },
+    { href: "/account", title: t("acc.title"), hint: t("settings.accountHint") },
   ];
   return (
     <div className="grid gap-6">

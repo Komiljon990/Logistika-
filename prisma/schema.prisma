@@ -29,8 +29,11 @@ model Organization {
   name      String
   inn       String? // STIR
   phone     String?
+  email     String?
   address   String?
   status    Status   @default(ACTIVE)
+  // Demo (reklama) tashkiloti: haqiqiy foydalanuvchilar ro'yxatlarida ko'rinmaydi.
+  isDemo    Boolean  @default(false)
   // Kassa bo'limi yoqilganmi (rahbar sozlamalardan o'chirib-yoqadi).
   cashEnabled Boolean @default(true)
   createdAt DateTime @default(now())
@@ -71,26 +74,92 @@ model OrgCurrency {
   @@unique([orgId, code])
 }
 
+/// Kirish hisobi (shaxs): bitta e-mail/telefon + parol. Shaxs bir nechta tashkilotda ishlashi mumkin —
+/// har tashkilotdagi roli alohida `User` (a'zolik) yozuvi; ma'lumotlar tashkilot bo'yicha ajratilgan (16.11.2026).
+model Account {
+  id             String    @id @default(cuid())
+  email          String?   @unique // kichik harflarda; kod (ilk kirish, parol tiklash) shu manzilga yuboriladi
+  phone          String?   @unique // +998901234567; login va Telegram bot uchun
+  passwordHash   String? // null — hali parol o'rnatilmagan (e-mail kodi orqali o'rnatadi)
+  // Parol o'zgarsa eski sessiyalar bekor bo'ladi
+  sessionVersion Int       @default(0)
+  failedLogins   Int       @default(0)
+  lockedUntil    DateTime?
+  lastLoginAt    DateTime?
+  // Oxirgi tanlangan tashkilot (a'zolik), keyingi kirishda shu ochiladi
+  lastUserId     String?
+  isDemo         Boolean   @default(false)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  users  User[]
+  codes  LoginCode[]
+  grants AccessGrant[]
+}
+
+/// E-mailga yuborilgan bir martalik kod: ilk kirish / parolni tiklash (RESET) yoki e-mailni tasdiqlash (EMAIL).
+model LoginCode {
+  id        String    @id @default(cuid())
+  accountId String
+  account   Account   @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  purpose   String // RESET | EMAIL
+  email     String // kod yuborilgan manzil
+  codeHash  String
+  attempts  Int       @default(0)
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([accountId, createdAt])
+}
+
+enum AccessMode {
+  VIEW // faqat ko'rish
+  EDIT // ko'rish va tahrirlash
+}
+
+/// Vaqtincha parol: foydalanuvchining o'zi yaratadi va yordam beruvchiga (rahbar, Super Admin) beradi.
+/// Muddati tugasa yoki "To'xtatish" bosilsa, shu parol bilan ochilgan sessiyalar darhol ishlamay qoladi.
+model AccessGrant {
+  id           String     @id @default(cuid())
+  accountId    String
+  account      Account    @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  passwordHash String
+  mode         AccessMode
+  expiresAt    DateTime
+  revokedAt    DateTime?
+  lastUsedAt   DateTime?
+  createdAt    DateTime   @default(now())
+
+  @@index([accountId])
+}
+
+/// Tashkilotdagi a'zolik (rol). Super Admin — tashkilotsiz.
 model User {
   id             String        @id @default(cuid())
-  phone          String        @unique // +998901234567 ko'rinishida
-  passwordHash   String
+  accountId      String
+  account        Account       @relation(fields: [accountId], references: [id])
+  // Rahbar kiritgan aloqa ma'lumotlari (kirish hisobi e-mail bo'yicha topiladi)
+  phone          String // +998901234567 ko'rinishida yoki bo'sh
+  email          String?
+  passwordHash   String? // ESKIRGAN: parol endi Account'da (16.11.2026 ko'chirilgan)
   fullName       String
   role           Role
-  // SUPER_ADMIN va ACCOUNTANT uchun bo'sh, qolganlar uchun majburiy
+  // Faqat SUPER_ADMIN uchun bo'sh
   orgId          String?
   org            Organization? @relation(fields: [orgId], references: [id])
   status         Status        @default(ACTIVE)
-  // Parol o'zgarsa yoki bloklansa eski sessiyalar bekor bo'ladi
+  // Rol o'zgarsa yoki bloklansa shu a'zolikdagi sessiyalar bekor bo'ladi
   sessionVersion Int           @default(0)
   // Demo (reklama) hisobi: hamma narsani ko'radi, hech narsani saqlay olmaydi; faqat demo tashkilotda.
   isDemo         Boolean       @default(false)
-  failedLogins   Int           @default(0)
-  lockedUntil    DateTime?
+  failedLogins   Int           @default(0) // ESKIRGAN
+  lockedUntil    DateTime? // ESKIRGAN
   lastLoginAt    DateTime?
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
 
+  @@unique([accountId, orgId])
   @@index([orgId])
 }
 

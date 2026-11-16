@@ -50,19 +50,26 @@ async function main() {
   const password = process.env.DEMO_PASSWORD ?? "";
   if (password.length < 8) throw new Error("DEMO_PASSWORD (kamida 8 belgi) berilishi kerak");
 
-  let org = await db.organization.findFirst({ where: { name: ORG_NAME } });
+  let org = await db.organization.findFirst({ where: { OR: [{ isDemo: true }, { name: ORG_NAME }] } });
   if (org) await wipe(org.id);
   else org = await db.organization.create({ data: { name: ORG_NAME, inn: "309999999", phone: "+998 71 200 00 00", address: "Toshkent sh., Yashnobod tumani" } });
   const orgId = org.id;
+  // Demo tashkilot haqiqiy foydalanuvchilar (Super Admin ham) ro'yxatlarida ko'rinmaydi.
+  await db.organization.update({ where: { id: orgId }, data: { isDemo: true, status: "ACTIVE" } });
 
   const hash = await hashPassword(password);
   const ids: Record<string, string> = {};
   for (const u of USERS) {
-    const row = await db.user.upsert({
+    const account = await db.account.upsert({
       where: { phone: u.phone },
-      update: { fullName: u.fullName, role: u.role, orgId, isDemo: true, status: "ACTIVE", passwordHash: hash, failedLogins: 0, lockedUntil: null },
-      create: { ...u, orgId, isDemo: true, passwordHash: hash },
+      update: { isDemo: true, passwordHash: hash, failedLogins: 0, lockedUntil: null },
+      create: { phone: u.phone, isDemo: true, passwordHash: hash },
     });
+    const existing = await db.user.findFirst({ where: { accountId: account.id, orgId } });
+    const data = { fullName: u.fullName, role: u.role, phone: u.phone, isDemo: true, status: "ACTIVE" as const };
+    const row = existing
+      ? await db.user.update({ where: { id: existing.id }, data })
+      : await db.user.create({ data: { ...data, accountId: account.id, orgId } });
     ids[u.role] = row.id;
   }
   const by = ids.MANAGER;

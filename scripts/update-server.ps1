@@ -17,6 +17,8 @@ Start-Sleep -Seconds 2
 
 Write-Output "2/3 Yig'ilmoqda (1-2 daqiqa)..."
 $ErrorActionPreference = 'Continue'
+# Eski versiyaning tur fayllari (o'chirilgan sahifalarga havolalar) tekshiruvni buzmasligi uchun.
+Remove-Item '.next\types' -Recurse -Force -ErrorAction SilentlyContinue
 cmd.exe /c "npm run build"
 if ($LASTEXITCODE -ne 0) { Write-Output "XATO: yig'ish muvaffaqiyatsiz. Eski versiya qayta yoqiladi."; }
 $ErrorActionPreference = 'Stop'

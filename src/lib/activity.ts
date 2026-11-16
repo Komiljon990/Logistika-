@@ -78,7 +78,7 @@ export async function loadActivity(user: CurrentUser, mineOnly: boolean, docLabe
     return {
       id: l.id, at: l.at, action: l.action, actorName: l.actorId ? actorName.get(l.actorId) ?? null : null,
       text: i?.text ?? fallback, href: i?.href ?? (l.entity === "OrgCurrency" ? "/currencies" : null), active: i?.active ?? null,
-      canUndo: !!perm && i?.active === true && l.actorId !== null && can(user.role, perm) && !user.isDemo,
+      canUndo: !!perm && i?.active === true && l.actorId !== null && can(user.role, perm) && !user.readOnly,
     };
   });
 }

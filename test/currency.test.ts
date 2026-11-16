@@ -80,9 +80,9 @@ describe("currency rules", () => {
     expect(can("DIRECTOR", "currency.manage")).toBe(true);
     for (const r of ["MANAGER", "ACCOUNTANT", "DEPUTY", "SUPER_ADMIN"] as const) expect(can(r, "currency.manage")).toBe(false);
   });
-  it("vehicle delete: manager and super admin", () => {
+  it("vehicle delete: manager only (super admin sees no org data since 16.11.2026)", () => {
     expect(can("MANAGER", "vehicle.delete")).toBe(true);
-    expect(can("SUPER_ADMIN", "vehicle.delete")).toBe(true);
+    expect(can("SUPER_ADMIN", "vehicle.delete")).toBe(false);
     expect(can("DIRECTOR", "vehicle.delete")).toBe(false);
   });
 });

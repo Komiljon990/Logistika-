@@ -534,6 +534,46 @@ vaqtda, telefon va kompyuter ko'rinishi, ma'lumot yaxlitligi, arxiv
 - Bildirishnomalarni dastlab dashboardda va ro'yxatlarda ko'rsatish,
   keyin Telegram yoki SMS.
 
+### Kirish tizimi va rollar (16.11.2026)
+
+- Demo tashkilot ("ReysPro Demo Logistics") haqiqiy foydalanuvchilarning
+  hech qaysi ro'yxatida ko'rinmaydi (Super Admin'da ham). Demo hisoblar
+  faqat o'z demo tashkilotini ko'radi.
+- Super Admin faqat tashkilot va uning rahbarini kiritadi: tashkilot nomi,
+  STIR, e-mail, telefon, rahbar F.I.O.si. Rahbar e-maili uning logini
+  bo'ladi. Super Admin tashkilot ma'lumotlarini (reyslar, kassa, mijozlar)
+  ko'rmaydi.
+- Menejer, buxgalter va ishonchli vakilni rahbar kiritadi: rol, F.I.O.,
+  e-mail, telefon. "Barcha tashkilotlar buxgalteri" roli yo'q: buxgalter
+  ham tashkilotga a'zo bo'ladi.
+- Parol: foydalanuvchi e-mailiga kelgan 6 xonali kod orqali o'zi o'rnatadi
+  va o'zi tiklaydi. Kod 15 daqiqa amal qiladi, 5 marta noto'g'ri
+  kiritilsa bekor bo'ladi, 60 soniyada bir martadan va soatiga 5 tadan
+  ko'p yuborilmaydi. Kod faqat e-mailga boradi (bepul). Telefon login
+  sifatida va Telegram bot uchun ishlatiladi.
+- Super Admin ham, rahbar ham boshqa birovning parolini tiklay olmaydi
+  va uning hisobiga kira olmaydi.
+- Vaqtincha parol: foydalanuvchi "Mening hisobim" sahifasida o'zi yaratadi.
+  - Ruxsat turini (ko'rish yoki tahrirlash) va muddatini (1 soat, 8 soat,
+    1 kun yoki 3 kun) tanlaydi, keyin parolni yordamchiga beradi.
+  - "To'xtatish" bosilsa yoki muddat tugasa, shu parol bilan ochilgan
+    sessiyalar darhol yopiladi.
+  - Vaqtincha parol bilan kirgan kishi parol, e-mail va vaqtincha
+    parollarni o'zgartira olmaydi. Banner har doim ko'rinib turadi.
+- Bir e-mail bir nechta tashkilotda kiritilsa, bitta login bilan kiriladi
+  va tashkilot tanlanadi. Ma'lumotlar jamlanmaydi: har tashkilot alohida
+  sessiya a'zoligi orqali ochiladi.
+- Ma'lumotlar modeli:
+  - `Account`: shaxs (e-mail, telefon, parol);
+  - `User`: tashkilotdagi a'zolik va rol;
+  - `LoginCode`: bir martalik kodlar;
+  - `AccessGrant`: vaqtincha parollar.
+- E-mail Gmail SMTP orqali yuboriladi (.env: SMTP_*). Sozlanmaguncha xatlar
+  D:\logistika-data\logs\email-outbox.log fayliga yoziladi (sinov rejimi).
+- Foydalanuvchi qarori bilan demodan boshqa barcha tashkilot va
+  foydalanuvchilar o'chirildi (zaxira:
+  logistika-2026-11-16_10-06.dump). Super Admin qoldi.
+
 ## 12. Loyihada ishlash qoidalari (Claude uchun)
 
 Bu bo'lim Project ko'rsatmasiga ko'chirilishi uchun yozilgan.
