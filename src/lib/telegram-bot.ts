@@ -133,7 +133,7 @@ export async function notifyDriverMove(moveId: string): Promise<void> {
     const driver = await db.driver.findUnique({ where: { id: move.driverId }, include: { org: { select: { name: true } } } });
     if (!driver?.telegramChatId) return;
     const p = move.permit;
-    const what = `${TYPE_UZ[p.type]} № ${p.number}${p.country ? ` (${p.country})` : ""}`;
+    const what = `${TYPE_UZ[p.type]}${p.format === "ELECTRONIC" ? " (elektron)" : p.format === "PAPER" ? " (qog'oz)" : ""} № ${p.number}${p.country ? `, ${p.country}` : ""}`;
     const text = move.kind === "ISSUED"
       ? `📄 Sizga ${what} berildi.\nTyagach: ${move.plate ?? "—"}\nSana: ${formatDate(move.date)}\nAmal qilish muddati: ${formatDate(p.validUntil)}\nTashkilot: ${driver.org.name}\n\nOldingizmi?`
       : `📥 Siz ${what} ni tashkilotga topshirdingiz.\nSana: ${formatDate(move.date)}${move.used === null ? "" : `\nHolati: ${move.used ? "ishlatilgan" : "ishlatilmagan"}`}\nTashkilot: ${driver.org.name}\n\nTo'g'rimi?`;

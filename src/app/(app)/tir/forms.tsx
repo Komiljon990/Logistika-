@@ -71,6 +71,18 @@ export function ReceiveForm({ d, today }: { d: Dict; today: string }) {
       </div>
       <div className="grid gap-3 sm:grid-cols-2">
         {type === "DAZVOL" && (
+          <fieldset className="sm:col-span-2">
+            <legend className="label">{d["tir.format"]}</legend>
+            <div className="grid grid-cols-2 gap-2">
+              {(["PAPER", "ELECTRONIC"] as const).map((f) => (
+                <label key={f} className="flex min-h-10 cursor-pointer items-center justify-center gap-2 rounded-lg border border-line text-sm has-[:checked]:border-2 has-[:checked]:border-accent has-[:checked]:font-semibold">
+                  <input type="radio" name="format" value={f} required defaultChecked={(v.format ?? "PAPER") === f} /> {d[`tir.f.${f}`]}
+                </label>
+              ))}
+            </div>
+          </fieldset>
+        )}
+        {type === "DAZVOL" && (
           <div>
             <label htmlFor="p-country" className="label">{d["tir.country"]}</label>
             <input id="p-country" name="country" required maxLength={100} defaultValue={v.country} placeholder={d["tir.countryPh"]} className="input" />

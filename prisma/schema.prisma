@@ -662,6 +662,11 @@ enum PermitType {
   DAZVOL // xalqaro tashish ruxsatnomasi
 }
 
+enum PermitFormat {
+  PAPER // qog'oz blanka
+  ELECTRONIC // elektron dazvol
+}
+
 enum PermitStatus {
   STOCK // tashkilotda (foydalanishga tayyor)
   ISSUED // haydovchiga berilgan
@@ -685,6 +690,7 @@ model Permit {
   type        PermitType
   number      String
   country     String? // dazvol: qaysi davlat
+  format      PermitFormat? // dazvol: qog'oz yoki elektron (TIR uchun bo'sh)
   kind        String? // dazvol turi (bir martalik, ikki tomonlama, tranzit...) yoki TIR varaqlari soni
   issuer      String? // yuqori turuvchi tashkilot (qayerdan olingan, qayerga topshiriladi)
   receivedAt  DateTime     @db.Date

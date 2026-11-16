@@ -960,6 +960,19 @@ export const uz = {
   "tir.returnShort": "Qaytarish",
   "tir.surrenderShort": "Topshirish",
   "tir.lostShort": "Yo'qolgan",
+
+  // TIR: qisqa yorliqlar
+  "tir.tab.STOCK": "Tashkilotda",
+  "tir.tab.ISSUED": "Haydovchida",
+  "tir.tab.USED": "Ishlatilgan",
+  "tir.tab.SURRENDERED": "Topshirilgan",
+  "tir.tab.LOST": "Yo'qolgan",
+
+  // Dazvol: qog'oz / elektron
+  "tir.format": "Dazvol ko'rinishi",
+  "tir.f.PAPER": "qog'oz",
+  "tir.f.ELECTRONIC": "elektron",
+  "tir.error.format": "Dazvol qog'oz yoki elektron ekanini tanlang.",
 };
 
 export type Dict = Record<keyof typeof uz, string>;

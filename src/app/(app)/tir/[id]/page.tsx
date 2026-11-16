@@ -31,7 +31,7 @@ export default async function PermitPage({ params }: { params: Promise<{ id: str
       ])
     : [[], []];
   const rows: [string, string][] = [
-    [t("tir.type"), t(`tir.t.${p.type}`)],
+    [t("tir.type"), `${t(`tir.t.${p.type}`)}${p.format ? ` (${t(`tir.f.${p.format}`)})` : ""}`],
     ...(p.country ? [[t("tir.country"), p.country] as [string, string]] : []),
     ...(p.kind ? [[p.type === "DAZVOL" ? t("tir.kindDazvol") : t("tir.kindTir"), p.kind] as [string, string]] : []),
     ...(p.issuer ? [[t("tir.issuer"), p.issuer] as [string, string]] : []),

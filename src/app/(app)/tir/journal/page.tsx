@@ -28,7 +28,7 @@ export default async function PermitJournalPage({ searchParams }: { searchParams
       ...(kind ? { kind } : {}), ...(type ? { permit: { type } } : {}),
     },
     orderBy: [{ date: "asc" }, { createdAt: "asc" }],
-    include: { permit: { select: { id: true, number: true, type: true, country: true } } },
+    include: { permit: { select: { id: true, number: true, type: true, country: true, format: true } } },
     take: 2000,
   });
   const totals = new Map<PermitMoveKind, number>();
@@ -80,7 +80,7 @@ export default async function PermitJournalPage({ searchParams }: { searchParams
                 <td className="whitespace-nowrap px-3 py-2 tabular-nums">{formatDate(m.date)}</td>
                 <td className="px-3 py-2">
                   <Link href={`/tir/${m.permit.id}`} className="font-mono text-accent hover:underline">{m.permit.number}</Link>
-                  <div className="text-xs text-muted">{t(`tir.t.${m.permit.type}`)}{m.permit.country ? ` · ${m.permit.country}` : ""}</div>
+                  <div className="text-xs text-muted">{t(`tir.t.${m.permit.type}`)}{m.permit.format ? ` (${t(`tir.f.${m.permit.format}`)})` : ""}{m.permit.country ? ` · ${m.permit.country}` : ""}</div>
                 </td>
                 <td className="px-3 py-2">
                   {t(`tir.m.${m.kind}`)}{m.used !== null ? <span className="text-xs text-muted"> · {m.used ? t("tir.usedYes") : t("tir.usedNo")}</span> : null}

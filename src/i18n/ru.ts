@@ -957,4 +957,17 @@ export const ru: Dict = {
   "tir.returnShort": "Принять",
   "tir.surrenderShort": "Сдать",
   "tir.lostShort": "Утерян",
+
+  // TIR: qisqa yorliqlar
+  "tir.tab.STOCK": "В организации",
+  "tir.tab.ISSUED": "У водителя",
+  "tir.tab.USED": "Использованы",
+  "tir.tab.SURRENDERED": "Сданы",
+  "tir.tab.LOST": "Утеряны",
+
+  // Dazvol: qog'oz / elektron
+  "tir.format": "Вид дозвола",
+  "tir.f.PAPER": "бумажный",
+  "tir.f.ELECTRONIC": "электронный",
+  "tir.error.format": "Выберите: бумажный или электронный дозвол.",
 };

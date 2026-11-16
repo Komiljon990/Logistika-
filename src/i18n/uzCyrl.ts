@@ -957,4 +957,17 @@ export const uzCyrl: Dict = {
   "tir.returnShort": "Қайтариш",
   "tir.surrenderShort": "Топшириш",
   "tir.lostShort": "Йўқолган",
+
+  // TIR: qisqa yorliqlar
+  "tir.tab.STOCK": "Ташкилотда",
+  "tir.tab.ISSUED": "Ҳайдовчида",
+  "tir.tab.USED": "Ишлатилган",
+  "tir.tab.SURRENDERED": "Топширилган",
+  "tir.tab.LOST": "Йўқолган",
+
+  // Dazvol: qog'oz / elektron
+  "tir.format": "Дазвол кўриниши",
+  "tir.f.PAPER": "қоғоз",
+  "tir.f.ELECTRONIC": "электрон",
+  "tir.error.format": "Дазвол қоғоз ёки электрон эканини танланг.",
 };

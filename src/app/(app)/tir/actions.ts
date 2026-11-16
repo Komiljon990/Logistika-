@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import type { PermitMoveKind, PermitType } from "@prisma/client";
+import type { PermitFormat, PermitMoveKind, PermitType } from "@prisma/client";
 import { db } from "@/lib/db";
 import { audit } from "@/lib/audit";
 import { requirePermission } from "@/lib/session";
@@ -41,13 +41,17 @@ export async function receivePermits(_prev: FormState, formData: FormData): Prom
   const issuer = optStr(formData, "issuer", 200);
   const country = type === "DAZVOL" ? optStr(formData, "country", 100) : null;
   if (type === "DAZVOL" && !country) return fail("tir.error.country", formData);
+  // Dazvol ikki xil (17.11.2026): qog'oz blanka yoki elektron.
+  const fmt = str(formData, "format");
+  const format: PermitFormat | null = type === "DAZVOL" ? (fmt === "PAPER" || fmt === "ELECTRONIC" ? fmt : null) : null;
+  if (type === "DAZVOL" && !format) return fail("tir.error.format", formData);
   // Shu raqam tashkilotda hali yopilmagan (topshirilmagan) bo'lsa — ikkinchi marta kiritilmaydi.
   const dup = await db.permit.findMany({ where: { orgId, type, number: { in: numbers }, status: { notIn: ["SURRENDERED", "LOST"] } }, select: { number: true } });
   if (dup.length) {
     const f = fail("tir.error.duplicate", formData);
     return { ...f, values: { ...f.values, dup: dup.map((x) => x.number).join(", ") } };
   }
-  const base = { orgId, type, receivedAt, validUntil, issuer, country, kind: optStr(formData, "kind", 100), note: optStr(formData, "note", 300), createdById: user.id };
+  const base = { orgId, type, format, receivedAt, validUntil, issuer, country, kind: optStr(formData, "kind", 100), note: optStr(formData, "note", 300), createdById: user.id };
   for (const number of numbers) {
     const p = await db.permit.create({ data: { ...base, number, moves: { create: { orgId, kind: "RECEIVED", date: receivedAt, note: issuer, createdById: user.id } } } });
     await audit({ actorId: user.id, orgId, action: "permit.receive", entity: "Permit", entityId: p.id, details: { type, number } });
