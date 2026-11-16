@@ -15,6 +15,7 @@ export default async function SettingsPage() {
     ...(can(user.role, "team.view") ? [{ href: "/team", title: t("nav.team"), hint: t("settings.teamHint") }] : []),
     { href: "/currencies", title: t("nav.currencies"), hint: t("settings.currenciesHint") },
     { href: "/settings/cash", title: t("settings.cash"), hint: t("settings.cashHint") },
+    ...(can(user.role, "billing.manage") ? [{ href: "/settings/subscription", title: t("sub.title"), hint: t("sub.settingsHint") }] : []),
     { href: "/account", title: t("acc.title"), hint: t("settings.accountHint") },
   ];
   return (

@@ -36,9 +36,17 @@ model Organization {
   isDemo    Boolean  @default(false)
   // Kassa bo'limi yoqilganmi (rahbar sozlamalardan o'chirib-yoqadi).
   cashEnabled Boolean @default(true)
+  // Obuna (17.11.2026): tarif (T10 | T20 | T20P), to'lov davri, ommaviy oferta bo'yicha shartnoma sanasi
+  // (ariza tasdiqlangan kun) va joriy obuna muddati. plan bo'sh — cheklovsiz (Super Admin qo'lda kiritgan).
+  plan          String?
+  period        BillingPeriod?
+  contractDate  DateTime?      @db.Date
+  subStart      DateTime?      @db.Date
+  subEnd        DateTime?      @db.Date
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  invoices  Invoice[]
   users     User[]
   vehicles  Vehicle[]
   drivers   Driver[]
@@ -89,6 +97,9 @@ model Account {
   // Oxirgi tanlangan tashkilot (a'zolik), keyingi kirishda shu ochiladi
   lastUserId     String?
   isDemo         Boolean   @default(false)
+  // Ariza tasdiqlanganda e-mailga yuborilgan vaqtincha parol: birinchi kirishda o'z parolini o'rnatishi shart.
+  mustChangePassword Boolean   @default(false)
+  tempPasswordUntil  DateTime?
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
@@ -608,6 +619,116 @@ model PaymentAllocation {
   @@index([paymentId])
 }
 
+// ---------- Ro'yxatdan o'tish, obuna va to'lovlar (17.11.2026) ----------
+
+enum BillingPeriod {
+  MONTHLY
+  YEARLY // 12 oy, narxi 10 oylik (2 oy bonus)
+}
+
+enum ApplicationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+/// Saytdagi "Ro'yxatdan o'tish" arizasi: ommaviy oferta qabul qilingach yuboriladi, Super Admin tasdiqlaydi.
+model OrgApplication {
+  id              String            @id @default(cuid())
+  orgName         String
+  inn             String
+  directorName    String
+  phone           String
+  email           String
+  plan            String
+  period          BillingPeriod
+  offerVersion    String
+  offerAcceptedAt DateTime
+  ip              String?
+  status          ApplicationStatus @default(PENDING)
+  rejectReason    String?
+  orgId           String?
+  reviewedById    String?
+  reviewedAt      DateTime?
+  createdAt       DateTime          @default(now())
+
+  @@index([status, createdAt])
+  @@index([email])
+}
+
+enum InvoiceKind {
+  NEW // birinchi obuna
+  UPGRADE // obuna orasida tarifni oshirish (qolgan davr uchun farq)
+  RENEWAL // keyingi davrga uzaytirish
+}
+
+enum InvoiceStatus {
+  UNPAID // to'lanmagan
+  REVIEW // kvitansiya yuklangan, Super Admin tekshiradi
+  PAID
+  CANCELLED
+}
+
+/// To'lov hisobi. Summa so'mda, chegirma qo'llangan holda. Kvitansiya — tashkilot fayli.
+model Invoice {
+  id              String        @id @default(cuid())
+  orgId           String
+  org             Organization  @relation(fields: [orgId], references: [id])
+  number          Int           @unique @default(autoincrement())
+  kind            InvoiceKind
+  plan            String
+  period          BillingPeriod
+  periodStart     DateTime      @db.Date
+  periodEnd       DateTime      @db.Date
+  baseAmount      Decimal       @db.Decimal(18, 2) // chegirmasiz
+  discountPercent Int           @default(0)
+  amount          Decimal       @db.Decimal(18, 2) // to'lanadigan
+  status          InvoiceStatus @default(UNPAID)
+  receiptFileId   String?       @unique
+  receiptFile     StoredFile?   @relation(fields: [receiptFileId], references: [id])
+  receiptAt       DateTime?
+  reviewedById    String?
+  reviewedAt      DateTime?
+  rejectNote      String?
+  createdById     String?
+  createdAt       DateTime      @default(now())
+
+  @@index([orgId, createdAt])
+  @@index([status])
+}
+
+/// Tizim sozlamalari (Super Admin): oferta rekvizitlari va boshqalar.
+model AppSetting {
+  key       String   @id
+  value     Json
+  updatedAt DateTime @updatedAt
+}
+
+enum PostCategory {
+  NEWS // yangiliklar
+  LAW // qonun va qarorlar
+  INFO // foydali ma'lumot
+}
+
+/// reyspro.uz sayti maqolalari (Super Admin kiritadi).
+model Post {
+  id          String       @id @default(cuid())
+  slug        String       @unique
+  category    PostCategory
+  title       String
+  summary     String?
+  body        String
+  sourceName  String?
+  sourceUrl   String?
+  published   Boolean      @default(false)
+  publishedAt DateTime?
+  createdById String?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@index([published, category, publishedAt])
+}
+
 /// Fayl hozircha bazada saqlanadi (sinov uchun eng oddiy). Keyin S3 turidagi saqlashga ko'chiriladi.
 model StoredFile {
   id           String       @id @default(cuid())
@@ -621,4 +742,5 @@ model StoredFile {
   createdAt    DateTime     @default(now())
 
   document Document?
+  invoice  Invoice?
 }

@@ -13,6 +13,8 @@ import { logout } from "@/app/actions";
 import { LangSwitch } from "@/components/LangSwitch";
 import { HeaderLinks } from "@/components/HeaderLinks";
 import { cashEnabled } from "@/lib/cash";
+import { db } from "@/lib/db";
+import { reviewCount, todayDate } from "@/lib/billing";
 import { Nav } from "./Nav";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
@@ -27,7 +29,27 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const accountLink = { href: "/account", label: t("acc.title"), icon: "user" as const };
   const fmt = new Intl.DateTimeFormat("uz-UZ", { dateStyle: "short", timeStyle: "short", timeZone: "Asia/Tashkent" });
   // Super Admin: faqat boshqaruv (tashkilotlar va rahbarlar), tashkilot ma'lumotlari menyusi yo'q.
-  const items = !member ? [{ href: "/admin/orgs", label: t("nav.orgs") }] : [
+  const [pendingApps, reviewInvoices] = member ? [0, 0] : await Promise.all([db.orgApplication.count({ where: { status: "PENDING" } }), reviewCount()]);
+  // Obuna eslatmasi (rahbar va buxgalterga): to'lanmagan hisob yoki muddat tugashiga 7 kun qolgan/tugagan.
+  let billingNote: string | null = null;
+  if (member && can(user.role, "billing.manage") && !user.isDemo) {
+    const [org, unpaid] = await Promise.all([
+      db.organization.findUnique({ where: { id: user.orgId! }, select: { subEnd: true } }),
+      db.invoice.count({ where: { orgId: user.orgId!, status: "UNPAID" } }),
+    ]);
+    const daysLeft = org?.subEnd ? Math.floor((org.subEnd.getTime() - todayDate().getTime()) / 86_400_000) : null;
+    if (daysLeft !== null && daysLeft < 0) billingNote = t("sub.bannerExpired");
+    else if (unpaid > 0) billingNote = t("sub.bannerUnpaid");
+    else if (daysLeft !== null && daysLeft <= 7) billingNote = t("sub.bannerSoon").replace("{n}", String(daysLeft));
+  }
+  const withCount =(label: string, n: number) => (n > 0 ? `${label} (${n})` : label);
+  const items = !member ? [
+    { href: "/admin/orgs", label: t("nav.orgs") },
+    { href: "/admin/applications", label: withCount(t("app.title"), pendingApps) },
+    { href: "/admin/payments", label: withCount(t("inv.title"), reviewInvoices) },
+    { href: "/admin/site", label: t("site.admin") },
+    { href: "/admin/settings", label: t("set.title") },
+  ] : [
     { href: "/", label: t("nav.home") },
     { href: "/trips", label: t("nav.trips") },
     { href: "/clients", label: t("nav.clients") },
@@ -77,6 +99,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             blocked={t("acc.viewBlocked")}
           />
         </Suspense>
+      )}
+      {billingNote && (
+        <Link href="/settings/subscription" className="block bg-warn-soft px-4 py-2 text-center text-sm text-warn hover:underline">{billingNote}</Link>
       )}
       {!user.isDemo && !user.grant && !user.email && (
         <Link href="/account" className="block bg-accent-soft px-4 py-2 text-center text-sm text-accent hover:underline">{t("acc.noEmailBanner")}</Link>

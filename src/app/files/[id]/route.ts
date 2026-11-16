@@ -8,7 +8,10 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   const user = await getCurrentUser();
   if (!user) return new Response("Unauthorized", { status: 401 });
   const { id } = await params;
-  const file = await db.storedFile.findFirst({ where: { id, ...orgScope(user) } });
+  // Super Admin tashkilot fayllarini ko'rmaydi — faqat to'lov kvitansiyalarini (17.11.2026).
+  const file = user.orgId
+    ? await db.storedFile.findFirst({ where: { id, ...orgScope(user) } })
+    : user.role === "SUPER_ADMIN" ? await db.storedFile.findFirst({ where: { id, invoice: { isNot: null } } }) : null;
   if (!file) return new Response("Not found", { status: 404 });
   return new Response(new Uint8Array(file.data), {
     headers: {

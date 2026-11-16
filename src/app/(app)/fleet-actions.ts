@@ -12,6 +12,7 @@ import { parseDate } from "@/lib/dates";
 import { checkFile, MAX_FILE_BYTES } from "@/lib/files";
 import { DOC_TYPES, FILE_REQUIRED, normalizePlate, type DocOwnerKind } from "@/lib/docs";
 import { fail, optStr, str, type FormState } from "@/lib/form";
+import { tractorCapacity } from "@/lib/billing";
 
 const VEHICLE_TYPES: VehicleType[] = ["TRACTOR", "TRAILER", "TRAIN", "OTHER"];
 const OWNERSHIPS: Ownership[] = ["OWNED", "LEASED"];
@@ -56,6 +57,7 @@ export async function createVehicle(_prev: FormState, formData: FormData): Promi
   const data = vehicleInput(formData);
   if (!data) return fail("common.required", formData);
   if (await plateTaken(orgId, data.plate)) return fail("veh.error.plate", formData);
+  if (data.type === "TRACTOR" && !(await tractorCapacity(orgId)).ok) return fail("sub.error.limit", formData);
   const v = await db.vehicle.create({ data: { ...data, orgId } });
   await audit({ actorId: user.id, orgId, action: "vehicle.create", entity: "Vehicle", entityId: v.id, details: { plate: v.plate } });
   redirect(`/vehicles/${v.id}`);
@@ -68,6 +70,10 @@ export async function updateVehicle(id: string, _prev: FormState, formData: Form
   const data = vehicleInput(formData);
   if (!data) return fail("common.required", formData);
   if (await plateTaken(orgId, data.plate, id)) return fail("veh.error.plate", formData);
+  // Faol transport tyagachga aylantirilsa, tarif chegarasi tekshiriladi.
+  if (data.type === "TRACTOR" && current.type !== "TRACTOR" && current.status === "ACTIVE" && !(await tractorCapacity(orgId)).ok) {
+    return fail("sub.error.limit", formData);
+  }
 
   // Juftlik faqat tyagach uchun va faqat o'z tashkilotidagi faol prisept/haydovchidan.
   let pairTrailerId: string | null = null;
@@ -101,6 +107,9 @@ export async function setVehicleStatus(id: string, status: Status) {
   const v = await db.vehicle.findFirst({ where: { id, ...orgScope(user) } });
   if (!v) throw new ForbiddenError();
   if (status === "ACTIVE" && (await plateTaken(orgId, v.plate, id))) return;
+  if (status === "ACTIVE" && v.status !== "ACTIVE" && v.type === "TRACTOR" && !(await tractorCapacity(orgId)).ok) {
+    redirect(`/vehicles/${id}?limit=1`);
+  }
   await db.$transaction([
     db.vehicle.update({
       where: { id },

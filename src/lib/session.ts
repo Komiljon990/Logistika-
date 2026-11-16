@@ -33,12 +33,14 @@ export type CurrentUser = {
   /** Hech narsa saqlay olmaydi: demo hisob yoki "faqat ko'rish" vaqtincha paroli. */
   readOnly: boolean;
   memberships: number;
+  /** Vaqtincha parol bilan birinchi kirish: o'z parolini o'rnatmaguncha boshqa sahifa ochilmaydi. */
+  mustChangePassword: boolean;
 };
 
 /** Ma'lumotni o'zgartiradigan huquqlar: demo va "faqat ko'rish" sessiyasiga hech qachon berilmaydi. */
 const WRITE_PERMISSIONS: ReadonlySet<Permission> = new Set<Permission>([
   "data.edit", "orgdoc.edit", "currency.manage", "vehicle.delete", "user.manage", "org.manage", "hard.delete",
-  "cash.edit", "cash.settings", "team.manage",
+  "cash.edit", "cash.settings", "team.manage", "billing.manage",
 ]);
 
 /**
@@ -167,13 +169,15 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
     grant,
     readOnly: isDemo || grant?.mode === "VIEW",
     memberships,
+    mustChangePassword: !grant && user.account.mustChangePassword,
   };
 }
 
-/** Istalgan kirgan foydalanuvchi (Super Admin ham). */
+/** Istalgan kirgan foydalanuvchi (Super Admin ham). Vaqtincha parol bilan kirgan — avval o'z parolini o'rnatadi. */
 export async function requireSession(): Promise<CurrentUser> {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
+  if (user.mustChangePassword) redirect("/set-password");
   return user;
 }
 

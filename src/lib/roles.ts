@@ -39,6 +39,8 @@ export const PERMISSIONS = {
   // Kassa bo'limini yoqish/o'chirish va xarajat turkumlarini sozlash — rahbar.
   "cash.settings": ["DIRECTOR"],
   "salary.official.edit": ["ACCOUNTANT"],
+  // Obuna (17.11.2026): tarifni oshirish, uzaytirish va to'lov kvitansiyasini yuklash.
+  "billing.manage": ["DIRECTOR", "ACCOUNTANT"],
   "hard.delete": ["SUPER_ADMIN"],
 } as const satisfies Record<string, readonly Role[]>;
 

@@ -8,6 +8,14 @@ import { StatusPill } from "@/components/StatusPill";
 import { MemberForm, ResendInviteButton } from "@/components/MemberForms";
 import { OrgForm } from "../../Forms";
 import { addDirector, resendDirectorInvite, setDirectorStatus, setOrgStatus } from "../../actions";
+import { InvoiceList } from "@/components/InvoiceList";
+import { activeTractors } from "@/lib/billing";
+import { PLANS, planLimit } from "@/lib/billing-core";
+import { planLabel } from "@/lib/offer";
+import { formatDate, toInputDate } from "@/lib/dates";
+import { InvoiceAdminActions } from "../../payments/InvoiceAdminActions";
+import { setSubscription } from "../../payments/actions";
+import { SubscriptionForm } from "./SubscriptionForm";
 
 /** Super Admin: tashkilot rekvizitlari va rahbarlari. Xodimlar ro'yxati va ma'lumotlar ko'rinmaydi (faqat soni). */
 export default async function OrgPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ created?: string }> }) {
@@ -23,6 +31,10 @@ export default async function OrgPage({ params, searchParams }: { params: Promis
     },
   });
   if (!org || org.isDemo) notFound();
+  const [invoices, tractors] = await Promise.all([
+    db.invoice.findMany({ where: { orgId: org.id }, orderBy: { createdAt: "desc" } }),
+    activeTractors(org.id),
+  ]);
   const toggle = setOrgStatus.bind(null, org.id, org.status === "ACTIVE" ? "BLOCKED" : "ACTIVE");
   return (
     <div className="grid gap-6">
@@ -67,6 +79,28 @@ export default async function OrgPage({ params, searchParams }: { params: Promis
         <details className="card p-5">
           <summary className="cursor-pointer font-semibold text-accent">{t("org.addDirector")}</summary>
           <div className="mt-4"><MemberForm d={d} action={addDirector.bind(null, org.id)} submit={t("common.add")} /></div>
+        </details>
+      </section>
+      <section className="grid gap-3">
+        <div className="grid gap-1">
+          <h2 className="text-lg font-semibold">{t("sub.title")}</h2>
+          <p className="text-sm text-muted">
+            {org.plan ? `${planLabel(org.plan)} · ${t(org.period === "YEARLY" ? "reg.yearly" : "reg.monthly")} · ${formatDate(org.subStart)} – ${formatDate(org.subEnd)}` : t("sub.noPlan")}
+            {" · "}{t("sub.tractors").replace("{n}", String(tractors)).replace("{limit}", planLimit(org.plan)?.toString() ?? "∞")}
+            {org.contractDate ? ` · ${t("sub.contractDate")}: ${formatDate(org.contractDate)}` : ""}
+          </p>
+        </div>
+        <InvoiceList t={t} invoices={invoices} actions={(inv) => <InvoiceAdminActions d={d} id={inv.id} status={inv.status} />} />
+        <details className="card p-5">
+          <summary className="cursor-pointer font-semibold text-accent">{t("sub.manual")}</summary>
+          <div className="mt-4">
+            <SubscriptionForm
+              d={d}
+              action={setSubscription.bind(null, org.id)}
+              plans={PLANS.map((p) => ({ id: p.id, label: planLabel(p.id) }))}
+              org={{ plan: org.plan, period: org.period, subStart: toInputDate(org.subStart), subEnd: toInputDate(org.subEnd), contractDate: toInputDate(org.contractDate) }}
+            />
+          </div>
         </details>
       </section>
       <p className="text-xs text-muted">{t("org.adminNoData")}</p>

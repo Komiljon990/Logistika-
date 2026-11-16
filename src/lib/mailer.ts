@@ -9,7 +9,8 @@ import nodemailer from "nodemailer";
  * Sozlanmagan bo'lsa — sinov rejimi: xat serverdagi MAIL_OUTBOX fayliga yoziladi (faqat server egasi o'qiy oladi).
  */
 export function mailConfigured(): boolean {
-  return !!(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS);
+  // SMTP_HOST="off" — sinov serveri uchun: .env'da pochta sozlangan bo'lsa ham xatlar faylga yoziladi.
+  return !!(process.env.SMTP_HOST && process.env.SMTP_HOST !== "off" && process.env.SMTP_USER && process.env.SMTP_PASS);
 }
 
 let transport: nodemailer.Transporter | null = null;

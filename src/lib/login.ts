@@ -11,7 +11,7 @@ const DUMMY_HASH = "$2b$12$ueJrS6/sCGEi4FcZX1gkIOl7veWb/sE1wQuN4f3UinBYH4zjVRU8W
 
 export type LoginResult =
   | { ok: true; accountId: string; sessionVersion: number; grant: { id: string; mode: AccessMode } | null }
-  | { ok: false; error: "invalid" | "locked" | "blocked" };
+  | { ok: false; error: "invalid" | "locked" | "blocked" | "tempExpired" };
 
 /** Faol a'zoliklar (faol tashkilotda yoki Super Admin). Demo tashkilot faqat demo hisobga ochiladi. */
 export async function activeMemberships(accountId: string) {
@@ -36,7 +36,12 @@ export async function checkLogin(identifier: string, password: string, now = new
   if (!account.isDemo && account.lockedUntil && account.lockedUntil > now) return { ok: false, error: "locked" };
 
   let grant: { id: string; mode: AccessMode } | null = null;
-  let valid = account.passwordHash ? await verifyPassword(password, account.passwordHash) : (await verifyPassword(password, DUMMY_HASH), false);
+  // Ariza tasdiqlanganda yuborilgan vaqtincha parol XXXX-XXXX-XXXX ko'rinishida saqlangan: kichik harf/probel farq qilmaydi.
+  const attempt = account.mustChangePassword ? (canonicalTempPassword(password) ?? password) : password;
+  let valid = account.passwordHash ? await verifyPassword(attempt, account.passwordHash) : (await verifyPassword(password, DUMMY_HASH), false);
+  if (valid && account.mustChangePassword && account.tempPasswordUntil && account.tempPasswordUntil <= now) {
+    return { ok: false, error: "tempExpired" };
+  }
   if (!valid && !account.isDemo) {
     const temp = canonicalTempPassword(password);
     if (temp) {

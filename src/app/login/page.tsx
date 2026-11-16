@@ -44,9 +44,14 @@ export default async function LoginPage() {
               invalid: t("login.error.invalid"),
               locked: t("login.error.locked"),
               blocked: t("login.error.blocked"),
+              tempExpired: t("login.error.tempExpired"),
             },
           }}
         />
+        <Link href="/register" className="btn grid justify-items-center gap-0.5 py-3 text-center">
+          <span className="font-semibold">{t("reg.button")}</span>
+          <span className="text-xs font-normal opacity-90">{t("reg.buttonHint")}</span>
+        </Link>
         <Link href="/login/code" className="rounded-lg border border-line px-3 py-2.5 text-sm hover:border-accent">
           <span className="font-semibold text-accent">{t("login.codeLink")}</span>
           <span className="block text-xs text-muted">{t("login.codeLinkHint")}</span>

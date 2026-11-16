@@ -9,7 +9,7 @@ import { consumeCode, issueCode } from "@/lib/accounts";
 import { normalizeEmail } from "@/lib/auth-core";
 import { hashPassword, MIN_PASSWORD_LENGTH } from "@/lib/password";
 
-export type LoginState = { error?: "invalid" | "locked" | "blocked" };
+export type LoginState = { error?: "invalid" | "locked" | "blocked" | "tempExpired" };
 
 export async function loginAction(_prev: LoginState, formData: FormData): Promise<LoginState> {
   const identifier = String(formData.get("login") ?? formData.get("phone") ?? "");
@@ -58,7 +58,10 @@ export async function resetWithCode(_prev: CodeState, formData: FormData): Promi
   if (!account || account.isDemo || !(await consumeCode(account.id, "RESET", code))) return { ...back, error: "code" };
   const updated = await db.account.update({
     where: { id: account.id },
-    data: { passwordHash: await hashPassword(password), sessionVersion: { increment: 1 }, failedLogins: 0, lockedUntil: null, lastLoginAt: new Date() },
+    data: {
+      passwordHash: await hashPassword(password), sessionVersion: { increment: 1 }, failedLogins: 0, lockedUntil: null, lastLoginAt: new Date(),
+      mustChangePassword: false, tempPasswordUntil: null,
+    },
   });
   await audit({ actorId: null, action: "account.password_set", entity: "Account", entityId: account.id, details: { via: "email_code" } });
   const opened = await openSession(account.id, updated.sessionVersion, null);

@@ -574,6 +574,61 @@ vaqtda, telefon va kompyuter ko'rinishi, ma'lumot yaxlitligi, arxiv
   foydalanuvchilar o'chirildi (zaxira:
   logistika-2026-11-16_10-06.dump). Super Admin qoldi.
 
+### Ro'yxatdan o'tish, obuna va sayt (16.11.2026)
+
+- Domenlar: reyspro.uz — ommaviy sayt, crm.reyspro.uz — dastur (login
+  sahifasi bosh oyna). Bitta server: SITE_HOSTS domenlariga kelgan
+  so'rovlar /site bo'limini ochadi, u yerda dastur sahifalari ochilmaydi.
+- Login sahifasida demo hisoblar ostida "Ro'yxatdan o'tish" tugmasi.
+  1-qadam: tariflar va ommaviy oferta, "qabul qilaman" belgisi.
+  2-qadam: tashkilot nomi, STIR, rahbar F.I.O., telefon, e-mail
+  (hammasi majburiy) — ariza yuboriladi. Spamdan himoya: yashirin maydon,
+  bir IP'dan soatiga 3 ta, bir xil STIR/e-mail bilan kutilayotgan ariza
+  bo'lsa — rad.
+- Super Admin "Arizalar" bo'limida tasdiqlaydi yoki sabab bilan rad
+  etadi. Tasdiqlansa: tashkilot faol, rahbar qo'shiladi, birinchi to'lov
+  hisobi yaratiladi, rahbar e-mailiga vaqtincha parol (7 kun) va to'lov
+  rekvizitlari boradi. Birinchi kirishda o'z parolini o'rnatmaguncha
+  boshqa sahifa ochilmaydi. Super Admin parolni ko'rmaydi. Shaxsning
+  ReysPro'da paroli bor bo'lsa — parol yuborilmaydi.
+- Ariza tasdiqlangan kun — shartnoma (oferta) sanasi. Qabul qilingan
+  oferta tahriri (OFFER_VERSION) va vaqti arizada saqlanadi.
+- Tariflar (faol tyagachlar soni bo'yicha):
+  - 10 tagacha — oyiga 100 000, yiliga 1 000 000 so'm;
+  - 20 tagacha — 200 000 / 2 000 000;
+  - 20 dan ko'p — 300 000 / 3 000 000.
+  Yillik = 10 oy narxi, 12 oy foydalaniladi. 31.12.2027 gacha (shu kun
+  ham) yaratilgan barcha to'lov hisoblariga 25% chegirma.
+- Tarif chegarasidan ortiq faol tyagach qo'shib (yoki arxivdan
+  qaytarib) bo'lmaydi. Prisep va boshqa transport hisobga kirmaydi.
+- Obuna orasida transport kamaysa pul qaytarilmaydi. Tarif oshirilsa
+  joriy davr oxirigacha qolgan qism uchun farq to'lanadi: yillikda qolgan
+  har bir boshlangan oy uchun yillik farqning 1/12 qismi (misol: 9 oy,
+  farq 1 000 000 → 750 000), oylikda qolgan kunlar ulushi (oy = 30 kun).
+  Yangi tarif to'lov tasdiqlangach kuchga kiradi. Pastroq tarifga faqat
+  uzaytirishda o'tiladi.
+- Uzaytirish tugashiga 30 kun qolganda ochiladi, keyingi davr joriy
+  davrdan keyin boshlanadi; tanlangan tarif faol tyagachlarga sig'ishi
+  kerak.
+- To'lov: bank o'tkazmasi. Rahbar yoki buxgalter "Sozlamalar → Obuna"da
+  kvitansiyani yuklaydi → hisob "tekshiruvda"; Super Admin "To'lovlar"da
+  tasdiqlaydi yoki sabab bilan rad etadi (rahbarga e-mail). Super Admin
+  tashkilot fayllaridan faqat kvitansiyalarni ocha oladi.
+- Yangi ariza va kvitansiya yuklanganda Super Admin Telegram botiga xabar
+  (TELEGRAM_BOT_TOKEN .env'da, chat id Super Admin sozlamalarida).
+- To'lanmagan hisob yoki muddat tugashiga 7 kun qolsa rahbar/buxgalterga
+  banner. Muddat o'tsa avtomatik bloklanmaydi (Super Admin qaror qiladi).
+- Oferta rekvizitlari (Ijrochi nomi, STIR, bank, MFO, hisob raqami...)
+  Super Admin sozlamalarida; to'ldirilmaguncha ro'yxatdan o'tish yopiq.
+  Oferta matni namuna — yurist ko'rib chiqishi kerak.
+- Sayt: bosh sahifa (imkoniyatlar, narxlar), "Yangiliklar", "Qonun va
+  qarorlar", "Foydali ma'lumotlar", oferta. Maqolalarni Super Admin
+  "Sayt" bo'limida kiritadi (oddiy matn formati, manba havolasi,
+  qoralama/e'lon).
+- Ma'lumotlar modeli: `OrgApplication`, `Invoice`, `AppSetting`, `Post`;
+  `Organization`ga plan, period, contractDate, subStart, subEnd;
+  `Account`ga mustChangePassword, tempPasswordUntil.
+
 ## 12. Loyihada ishlash qoidalari (Claude uchun)
 
 Bu bo'lim Project ko'rsatmasiga ko'chirilishi uchun yozilgan.
