@@ -19,7 +19,7 @@ export default async function PermitPage({ params }: { params: Promise<{ id: str
     include: { moves: { orderBy: [{ date: "asc" }, { createdAt: "asc" }] }, vehicle: { select: { plate: true } }, driver: { select: { fullName: true } } },
   });
   if (!p) notFound();
-  const canEdit = can(user.role, "data.edit") && !user.readOnly;
+  const canEdit = can(user.role, "data.edit");
   const last = p.moves[p.moves.length - 1];
   const driverIds = [...new Set(p.moves.map((m) => m.driverId).filter((x): x is string => !!x))];
   const linked = new Set((await db.driver.findMany({ where: { id: { in: driverIds }, telegramChatId: { not: null } }, select: { id: true } })).map((x) => x.id));

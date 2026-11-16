@@ -25,7 +25,8 @@ export default async function TirPage({ searchParams }: { searchParams: Promise<
   const user = await requireUser();
   const sp = await searchParams;
   const [t, d] = [await getT(), await getDict()];
-  const canEdit = can(user.role, "data.edit") && !user.readOnly;
+  // Demo va "faqat ko'rish" sessiyasi ham formani ko'radi (saqlash serverda to'xtatiladi) — boshqa bo'limlar kabi.
+  const canEdit = can(user.role, "data.edit");
   const status = PERMIT_STATUSES.includes(sp.s as PermitStatus) ? (sp.s as PermitStatus) : null;
   const type = sp.t === "TIR" || sp.t === "DAZVOL" ? (sp.t as PermitType) : null;
   const q = (sp.q ?? "").trim().toUpperCase().slice(0, 40);
@@ -71,8 +72,10 @@ export default async function TirPage({ searchParams }: { searchParams: Promise<
       <div className="flex flex-wrap items-center gap-3">
         <h1 className="text-2xl font-bold">{t("nav.tir")}</h1>
         <span className="flex-1" />
+        {canEdit && <a href="#receive" className="btn">+ {t("tir.receive")}</a>}
         <Link href="/tir/journal" className="btn-ghost">{t("tir.journal")}</Link>
       </div>
+      {!canEdit && <p className="text-sm text-muted">{t("tir.managerOnly")}</p>}
 
       {rejected.length > 0 && (
         <section className="card grid gap-1 border-bad bg-bad-soft p-4 text-sm">
@@ -102,10 +105,10 @@ export default async function TirPage({ searchParams }: { searchParams: Promise<
       </section>
 
       {canEdit && (
-        <details className="card p-5" open={permits.length === 0 && !status && !type && !q}>
-          <summary className="cursor-pointer text-lg font-semibold text-accent">+ {t("tir.receiveTitle")}</summary>
-          <div className="mt-4"><ReceiveForm d={d} today={today} /></div>
-        </details>
+        <section id="receive" className="card grid scroll-mt-20 gap-3 border-2 border-accent p-5">
+          <h2 className="text-lg font-semibold">+ {t("tir.receiveTitle")}</h2>
+          <ReceiveForm d={d} today={today} />
+        </section>
       )}
 
       <div className="grid gap-3">
