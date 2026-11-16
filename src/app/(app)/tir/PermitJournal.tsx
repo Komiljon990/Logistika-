@@ -10,13 +10,14 @@ import { parsePeriod } from "@/lib/cash-core";
 import { PrintButton } from "@/components/PrintButton";
 import { PeriodFilter } from "../cash/PeriodFilter";
 import { PERMIT_BASE } from "./PermitsList";
+import { permitSection } from "@/lib/permits-core";
 
 const KINDS: PermitMoveKind[] = ["RECEIVED", "ISSUED", "RETURNED", "SURRENDERED", "LOST"];
 export type JournalSP = { month?: string; from?: string; to?: string; k?: string };
 
 /** TIR yoki dazvol harakatlari jurnali: kirim, berildi, qaytarildi, topshirildi — davr bo'yicha ro'yxat. */
 export async function PermitJournal({ type, searchParams }: { type: PermitType; searchParams: Promise<JournalSP> }) {
-  const user = await requireSection("tir");
+  const user = await requireSection(permitSection(type));
   const sp = await searchParams;
   const t = await getT();
   const today = tashkentToday().toISOString().slice(0, 10);

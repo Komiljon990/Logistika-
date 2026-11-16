@@ -4,20 +4,28 @@ import { revalidatePath } from "next/cache";
 import type { PermitFormat, PermitMoveKind, PermitType } from "@prisma/client";
 import { db } from "@/lib/db";
 import { audit } from "@/lib/audit";
-import { requireSection } from "@/lib/session";
+import { requireSection, requireUser } from "@/lib/session";
 import { orgForWrite, ForbiddenError } from "@/lib/scope";
 import { parseDate } from "@/lib/dates";
 import { tashkentToday } from "@/lib/docs";
-import { canDo, nextStatus, parseNumbers, type PermitAction } from "@/lib/permits-core";
+import { canDo, nextStatus, parseNumbers, permitSection, type PermitAction } from "@/lib/permits-core";
 import { fail, optStr, str, type FormState } from "@/lib/form";
 import { notifyDriverMove } from "@/lib/telegram-bot";
 
 const TYPES: PermitType[] = ["TIR", "DAZVOL"];
 
-/** TIR va dazvollarni menejer yuritadi (boshqalar ko'radi). */
-async function editor() {
-  const user = await requireSection("tir", "EDIT");
+/** TIR va dazvollarni menejer (yoki shu bo'limga ruxsati bor Mutaxassis) yuritadi; TIR va dazvol — alohida bo'lim. */
+async function editor(type: PermitType) {
+  const user = await requireSection(permitSection(type), "EDIT");
   return { user, orgId: orgForWrite(user) };
+}
+
+/** Mavjud blanka bo'yicha amal: huquq uning turiga qarab (TIR yoki dazvol). */
+async function editorForPermit(id: string) {
+  const u = await requireUser();
+  const p = await db.permit.findFirst({ where: { id, orgId: orgForWrite(u) }, select: { type: true } });
+  if (!p) throw new ForbiddenError();
+  return editor(p.type);
 }
 
 const today = () => tashkentToday().toISOString().slice(0, 10);
@@ -29,9 +37,10 @@ function refresh() {
 
 /** Kirim: yuqori tashkilotdan olingan blankalar (bir yoki bir nechta raqam, oraliq ham mumkin). */
 export async function receivePermits(_prev: FormState, formData: FormData): Promise<FormState> {
-  const { user, orgId } = await editor();
+  await requireUser();
   const type = str(formData, "type") as PermitType;
   if (!TYPES.includes(type)) return fail("common.required", formData);
+  const { user, orgId } = await editor(type);
   const numbers = parseNumbers(str(formData, "numbers"));
   if (!numbers) return fail("tir.error.numbers", formData);
   const receivedAt = parseDate(formData.get("receivedAt"));
@@ -76,7 +85,7 @@ function actionDate(formData: FormData, last: Date | undefined): Date | null {
 }
 
 async function move(id: string, action: PermitAction, formData: FormData): Promise<FormState> {
-  const { user, orgId } = await editor();
+  const { user, orgId } = await editorForPermit(id);
   const p = await loadPermit(id, orgId);
   if (!canDo(action, p.status)) return fail("tir.error.state", formData);
   const date = action === "LOST" ? parseDate(formData.get("date")) ?? new Date(today()) : actionDate(formData, p.moves[0]?.date);
@@ -123,7 +132,7 @@ async function move(id: string, action: PermitAction, formData: FormData): Promi
  * Faqat oxirgi harakat shu rad etilgan berish bo'lsa.
  */
 export async function cancelRejectedIssue(id: string): Promise<FormState> {
-  const { user, orgId } = await editor();
+  const { user, orgId } = await editorForPermit(id);
   const p = await db.permit.findFirst({ where: { id, orgId }, include: { moves: { orderBy: { createdAt: "desc" }, take: 1 } } });
   if (!p) throw new ForbiddenError();
   const last = p.moves[0];
@@ -148,7 +157,7 @@ export async function lostPermit(id: string, _prev: FormState, formData: FormDat
 
 /** Xato kiritilgan blankani o'chirish: faqat hali hech kimga berilmagan (faqat kirim harakati bor). */
 export async function deletePermit(id: string): Promise<FormState> {
-  const { user, orgId } = await editor();
+  const { user, orgId } = await editorForPermit(id);
   const p = await db.permit.findFirst({ where: { id, orgId }, include: { _count: { select: { moves: true } } } });
   if (!p) throw new ForbiddenError();
   if (p.status !== "STOCK" || p._count.moves > 1) return { error: "tir.error.deleteUsed" };

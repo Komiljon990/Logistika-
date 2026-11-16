@@ -986,4 +986,8 @@ export const ru: Dict = {
   "tir.title.TIR": "TIR-карнеты",
   "tir.title.DAZVOL": "Дозволы",
   "tir.f.all": "Бумажные и электронные",
+
+  // Hisobot: TIR va Dazvol alohida
+  "rep.tab.tir": "TIR",
+  "rep.tab.dazvol": "Дозвол",
 };

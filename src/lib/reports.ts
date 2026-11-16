@@ -133,22 +133,15 @@ export async function expensesReport(orgId: string, from: string, to: string) {
   return { rows, total, count: expenses.length };
 }
 
-/** TIR / dazvol: davrdagi harakatlar soni va hozirgi holat. */
-export async function permitsReport(orgId: string, from: string, to: string) {
+/** TIR yoki dazvol (alohida): davrdagi harakatlar soni, hozirgi holat (dazvol — qog'oz/elektron bo'yicha) va haydovchilarga berilgani. */
+export async function permitsReport(orgId: string, from: string, to: string, type: "TIR" | "DAZVOL") {
+  const range = { gte: new Date(from), lte: new Date(to) };
   const [moves, status, issued] = await Promise.all([
-    db.permitMove.groupBy({ by: ["kind"], where: { orgId, date: { gte: new Date(from), lte: new Date(to) } }, _count: true }),
-    db.permit.groupBy({ by: ["type", "status"], where: { orgId }, _count: true }),
-    db.permitMove.findMany({
-      where: { orgId, kind: "ISSUED", date: { gte: new Date(from), lte: new Date(to) } },
-      select: { plate: true, driverName: true, permit: { select: { type: true } } },
-    }),
+    db.permitMove.groupBy({ by: ["kind"], where: { orgId, date: range, permit: { type } }, _count: true }),
+    db.permit.groupBy({ by: ["status", "format"], where: { orgId, type }, _count: true }),
+    db.permitMove.findMany({ where: { orgId, kind: "ISSUED", date: range, permit: { type } }, select: { driverName: true } }),
   ]);
-  const byDriver = new Map<string, { TIR: number; DAZVOL: number }>();
-  for (const m of issued) {
-    const k = m.driverName ?? "—";
-    const v = byDriver.get(k) ?? { TIR: 0, DAZVOL: 0 };
-    v[m.permit.type]++;
-    byDriver.set(k, v);
-  }
-  return { moves, status, byDriver: [...byDriver.entries()].sort((a, b) => b[1].TIR + b[1].DAZVOL - (a[1].TIR + a[1].DAZVOL)) };
+  const byDriver = new Map<string, number>();
+  for (const m of issued) byDriver.set(m.driverName ?? "—", (byDriver.get(m.driverName ?? "—") ?? 0) + 1);
+  return { moves, status, byDriver: [...byDriver.entries()].sort((a, b) => b[1] - a[1]) };
 }

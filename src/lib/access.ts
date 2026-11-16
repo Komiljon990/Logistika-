@@ -8,7 +8,7 @@
 import type { Role } from "@prisma/client";
 import { can, type Permission } from "./roles";
 
-export const SECTIONS = ["trips", "clients", "settlements", "cash", "vehicles", "drivers", "tir", "orgdocs", "reports"] as const;
+export const SECTIONS = ["trips", "clients", "settlements", "cash", "vehicles", "drivers", "tir", "dazvol", "orgdocs", "reports"] as const;
 export type Section = (typeof SECTIONS)[number];
 export type Level = "VIEW" | "EDIT";
 export type Access = Partial<Record<Section, Level>>;
@@ -22,6 +22,7 @@ const ROLE_EDIT: Record<Section, Permission | null> = {
   vehicles: "data.edit",
   drivers: "data.edit",
   tir: "data.edit",
+  dazvol: "data.edit",
   orgdocs: "orgdoc.edit",
   reports: null,
 };
@@ -29,7 +30,7 @@ const ROLE_EDIT: Record<Section, Permission | null> = {
 /** Bo'lim qaysi sahifada (menyu va yo'naltirish uchun). */
 export const SECTION_HREF: Record<Section, string> = {
   trips: "/trips", clients: "/clients", settlements: "/settlements", cash: "/cash", vehicles: "/vehicles",
-  drivers: "/drivers", tir: "/tir", orgdocs: "/org-docs", reports: "/reports",
+  drivers: "/drivers", tir: "/tir", dazvol: "/dazvol", orgdocs: "/org-docs", reports: "/reports",
 };
 
 /** Bazadagi JSON'ni tekshirib o'qiydi: faqat ma'lum bo'limlar va VIEW/EDIT qiymatlari. */

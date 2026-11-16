@@ -989,6 +989,10 @@ export const uz = {
   "tir.title.TIR": "TIR karnetlar",
   "tir.title.DAZVOL": "Dazvollar",
   "tir.f.all": "Qog'oz va elektron",
+
+  // Hisobot: TIR va Dazvol alohida
+  "rep.tab.tir": "TIR",
+  "rep.tab.dazvol": "Dazvol",
 };
 
 export type Dict = Record<keyof typeof uz, string>;

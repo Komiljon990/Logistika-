@@ -7,7 +7,7 @@ import { requireSection } from "@/lib/session";
 import { orgScope } from "@/lib/scope";
 import { formatDate } from "@/lib/dates";
 import { tashkentToday } from "@/lib/docs";
-import { daysTo, PERMIT_STATUSES } from "@/lib/permits-core";
+import { daysTo, PERMIT_STATUSES, permitSection } from "@/lib/permits-core";
 import { AckBadge, PermitActions, ReceivePanel } from "./forms";
 
 /** Har tur o'z sahifasida (17.11.2026): /tir — TIR karnetlar, /dazvol — dazvollar. */
@@ -25,11 +25,12 @@ const TONE: Record<PermitStatus, string> = {
 
 /** TIR karnetlar yoki dazvollar ro'yxati: tashkilotda, haydovchida, ishlatilgan (topshirilishi kerak), topshirilgan. */
 export async function PermitsList({ type, searchParams }: { type: PermitType; searchParams: Promise<SP> }) {
-  const user = await requireSection("tir");
+  const section = permitSection(type);
+  const user = await requireSection(section);
   const sp = await searchParams;
   const [t, d] = [await getT(), await getDict()];
   // Demo va "faqat ko'rish" sessiyasi ham formani ko'radi (saqlash serverda to'xtatiladi) — boshqa bo'limlar kabi.
-  const canEdit = canEditSection(user, "tir");
+  const canEdit = canEditSection(user, section);
   const status = PERMIT_STATUSES.includes(sp.s as PermitStatus) ? (sp.s as PermitStatus) : null;
   const base = PERMIT_BASE[type];
   // Dazvol: qog'oz yoki elektron (?f=PAPER / ?f=ELECTRONIC).

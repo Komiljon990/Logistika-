@@ -986,4 +986,8 @@ export const uzCyrl: Dict = {
   "tir.title.TIR": "ТИР карнетлар",
   "tir.title.DAZVOL": "Дазволлар",
   "tir.f.all": "Қоғоз ва электрон",
+
+  // Hisobot: TIR va Dazvol alohida
+  "rep.tab.tir": "ТИР",
+  "rep.tab.dazvol": "Дазвол",
 };

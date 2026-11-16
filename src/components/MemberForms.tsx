@@ -26,7 +26,7 @@ function Message({ state, d, ok }: { state: FormState; d: Dict; ok?: string }) {
  */
 const SECTION_LABEL: Record<Section, keyof Dict> = {
   trips: "nav.trips", clients: "nav.clients", settlements: "nav.settlements", cash: "nav.cash", vehicles: "nav.vehicles",
-  drivers: "nav.drivers", tir: "nav.tir", orgdocs: "nav.orgDocs", reports: "nav.reports",
+  drivers: "nav.drivers", tir: "nav.tirOnly", dazvol: "nav.dazvol", orgdocs: "nav.orgDocs", reports: "nav.reports",
 };
 
 /** Mutaxassis: har bo'lim — belgi (ruxsat) va daraja (faqat ko'rish / kiritish, tahrirlash va o'chirish). */

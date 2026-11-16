@@ -56,3 +56,8 @@ export function daysTo(validUntil: string | null, today: string): number | null 
   if (!validUntil) return null;
   return Math.round((Date.parse(`${validUntil}T00:00:00Z`) - Date.parse(`${today}T00:00:00Z`)) / 86_400_000);
 }
+
+/** Huquq bo'limi: TIR va dazvol alohida (Mutaxassisga birini berib, ikkinchisini bermaslik mumkin). */
+export function permitSection(type: "TIR" | "DAZVOL"): "tir" | "dazvol" {
+  return type === "TIR" ? "tir" : "dazvol";
+}

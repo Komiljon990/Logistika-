@@ -1,9 +1,10 @@
 import Link from "next/link";
-import { canEdit as canEditSection } from "@/lib/access";
+import { canEdit as canEditSection, canView } from "@/lib/access";
+import { permitSection } from "@/lib/permits-core";
 import { notFound } from "next/navigation";
 import { getDict, getT } from "@/i18n";
 import { db } from "@/lib/db";
-import { requireSection } from "@/lib/session";
+import { requireUser } from "@/lib/session";
 import { orgScope } from "@/lib/scope";
 import { formatDate } from "@/lib/dates";
 import { tashkentToday } from "@/lib/docs";
@@ -12,15 +13,16 @@ import { PERMIT_BASE } from "../PermitsList";
 
 /** Bitta TIR / dazvol: ma'lumotlar va to'liq harakatlar tarixi. */
 export default async function PermitPage({ params }: { params: Promise<{ id: string }> }) {
-  const user = await requireSection("tir");
+  const user = await requireUser();
   const { id } = await params;
   const [t, d] = [await getT(), await getDict()];
   const p = await db.permit.findFirst({
     where: { id, ...orgScope(user) },
     include: { moves: { orderBy: [{ date: "asc" }, { createdAt: "asc" }] }, vehicle: { select: { plate: true } }, driver: { select: { fullName: true } } },
   });
-  if (!p) notFound();
-  const canEdit = canEditSection(user, "tir");
+  // TIR va dazvol — alohida huquq bo'limlari.
+  if (!p || !canView(user, permitSection(p.type))) notFound();
+  const canEdit = canEditSection(user, permitSection(p.type));
   const last = p.moves[p.moves.length - 1];
   const driverIds = [...new Set(p.moves.map((m) => m.driverId).filter((x): x is string => !!x))];
   const linked = new Set((await db.driver.findMany({ where: { id: { in: driverIds }, telegramChatId: { not: null } }, select: { id: true } })).map((x) => x.id));

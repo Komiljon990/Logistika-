@@ -11,7 +11,7 @@ import { expensesReport, financeReport, permitsReport, tripsReport, type Money, 
 import { PrintButton } from "@/components/PrintButton";
 import { PeriodFilter } from "../cash/PeriodFilter";
 
-const TABS = ["trips", "finance", "expenses", "permits"] as const;
+const TABS = ["trips", "finance", "expenses", "tir", "dazvol"] as const;
 type Tab = (typeof TABS)[number];
 type SP = { r?: string; month?: string; from?: string; to?: string };
 
@@ -92,7 +92,8 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
       {tab === "trips" && <TripsTab t={t} orgId={orgId} from={period.from} to={period.to} />}
       {tab === "finance" && <FinanceTab t={t} orgId={orgId} from={period.from} to={period.to} />}
       {tab === "expenses" && <ExpensesTab t={t} orgId={orgId} from={period.from} to={period.to} />}
-      {tab === "permits" && <PermitsTab t={t} orgId={orgId} from={period.from} to={period.to} />}
+      {tab === "tir" && <PermitsTab t={t} orgId={orgId} from={period.from} to={period.to} type="TIR" />}
+      {tab === "dazvol" && <PermitsTab t={t} orgId={orgId} from={period.from} to={period.to} type="DAZVOL" />}
     </div>
   );
 }
@@ -178,9 +179,18 @@ async function ExpensesTab({ t, orgId, from, to }: { t: T; orgId: string; from: 
   );
 }
 
-async function PermitsTab({ t, orgId, from, to }: { t: T; orgId: string; from: string; to: string }) {
-  const r = await permitsReport(orgId, from, to);
-  const count = (type: string, st: string) => r.status.find((s) => s.type === type && s.status === st)?._count ?? 0;
+async function PermitsTab({ t, orgId, from, to, type }: { t: T; orgId: string; from: string; to: string; type: "TIR" | "DAZVOL" }) {
+  const r = await permitsReport(orgId, from, to, type);
+  const count = (fm: string | null, st: string) => r.status.filter((s) => s.status === st && (fm === "ALL" || s.format === fm)).reduce((a, s) => a + s._count, 0);
+  // Dazvol: qog'oz va elektron alohida qator + jami; TIR: bitta qator.
+  const rows: { key: string; label: string; fm: string | null }[] = type === "TIR"
+    ? [{ key: "TIR", label: t("tir.title.TIR"), fm: "ALL" }]
+    : [
+        { key: "PAPER", label: t("tir.f.PAPER"), fm: "PAPER" },
+        { key: "ELECTRONIC", label: t("tir.f.ELECTRONIC"), fm: "ELECTRONIC" },
+        { key: "ALL", label: t("cash.total"), fm: "ALL" },
+      ];
+  const base = type === "TIR" ? "/tir" : "/dazvol";
   return (
     <>
       <section className="grid gap-2">
@@ -202,10 +212,10 @@ async function PermitsTab({ t, orgId, from, to }: { t: T; orgId: string; from: s
               </tr>
             </thead>
             <tbody>
-              {(["TIR", "DAZVOL"] as const).map((ty) => (
-                <tr key={ty} className="border-t border-line">
-                  <td className="px-3 py-2">{t(`tir.t.${ty}`)}</td>
-                  {(["STOCK", "ISSUED", "USED", "SURRENDERED", "LOST"] as const).map((s) => <td key={s} className="px-3 py-2 text-right tabular-nums">{count(ty, s)}</td>)}
+              {rows.map((row) => (
+                <tr key={row.key} className={`border-t border-line ${row.key === "ALL" ? "bg-ground font-semibold" : ""}`}>
+                  <td className="px-3 py-2">{row.label}</td>
+                  {(["STOCK", "ISSUED", "USED", "SURRENDERED", "LOST"] as const).map((s) => <td key={s} className="px-3 py-2 text-right tabular-nums">{count(row.fm, s)}</td>)}
                 </tr>
               ))}
             </tbody>
@@ -216,12 +226,12 @@ async function PermitsTab({ t, orgId, from, to }: { t: T; orgId: string; from: s
         <h2 className="text-lg font-semibold">{t("rep.permitByDriver")}</h2>
         <div className="card divide-y divide-line">
           {r.byDriver.map(([name, v]) => (
-            <div key={name} className="flex gap-3 px-4 py-2.5 text-sm"><span className="flex-1">{name}</span><span className="tabular-nums">TIR: {v.TIR} · {t("tir.t.DAZVOL")}: {v.DAZVOL}</span></div>
+            <div key={name} className="flex gap-3 px-4 py-2.5 text-sm"><span className="flex-1">{name}</span><span className="font-semibold tabular-nums">{v}</span></div>
           ))}
           {r.byDriver.length === 0 && <p className="px-4 py-5 text-sm text-muted">{t("common.none")}</p>}
         </div>
       </section>
-      <span className="flex flex-wrap gap-4 print:hidden"><Link href={`/tir/journal?from=${from}&to=${to}`} className="text-sm text-accent hover:underline">{t("tir.title.TIR")} — {t("tir.journal")} →</Link><Link href={`/dazvol/journal?from=${from}&to=${to}`} className="text-sm text-accent hover:underline">{t("tir.title.DAZVOL")} — {t("tir.journal")} →</Link></span>
+      <Link href={`${base}/journal?from=${from}&to=${to}`} className="text-sm text-accent hover:underline print:hidden">{t("tir.journal")} →</Link>
     </>
   );
 }
