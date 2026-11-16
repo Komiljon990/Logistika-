@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { getT, type T } from "@/i18n";
-import { requirePermission } from "@/lib/session";
+import { requireSection } from "@/lib/session";
 import { orgForWrite } from "@/lib/scope";
 import { formatNumber } from "@/lib/currency-core";
 import { formatDate } from "@/lib/dates";
@@ -58,7 +58,7 @@ function GroupTable({ t, title, rows, first }: { t: T; title: string; rows: Trip
 
 /** Hisobotlar: reyslar (transport, haydovchi, mijoz, yo'nalish), pul oqimi, xarajatlar, TIR/dazvol. Davr — oy yoki sana oralig'i. */
 export default async function ReportsPage({ searchParams }: { searchParams: Promise<SP> }) {
-  const user = await requirePermission("data.view");
+  const user = await requireSection("reports");
   const sp = await searchParams;
   const t = await getT();
   const orgId = orgForWrite(user);

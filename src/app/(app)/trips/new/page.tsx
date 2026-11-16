@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { getDict, getT } from "@/i18n";
 import { db } from "@/lib/db";
-import { requirePermission } from "@/lib/session";
+import { requireSection } from "@/lib/session";
 import { orgForWrite } from "@/lib/scope";
 import { activeCurrencies } from "@/lib/org-currency";
 import { loadedVehicleIds } from "@/lib/trips";
@@ -10,7 +10,7 @@ import { TripForm } from "../forms";
 
 /** Yangi tashish: ro'yxatda faqat bo'sh (yuki yo'q) transport. Qo'shimcha yuk — tashish kartochkasidan. */
 export default async function NewTripPage() {
-  const user = await requirePermission("data.edit");
+  const user = await requireSection("trips", "EDIT");
   const orgId = orgForWrite(user);
   const [t, d] = [await getT(), await getDict()];
   const busy = await loadedVehicleIds(orgId);

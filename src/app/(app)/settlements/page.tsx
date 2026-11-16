@@ -1,8 +1,8 @@
 import Link from "next/link";
+import { canEdit as canEditSection } from "@/lib/access";
 import { getDict, getT } from "@/i18n";
 import { db } from "@/lib/db";
-import { requirePermission } from "@/lib/session";
-import { can } from "@/lib/roles";
+import { requireSection } from "@/lib/session";
 import { orgScope, seesAllOrgs } from "@/lib/scope";
 import { formatDate } from "@/lib/dates";
 import { tashkentToday } from "@/lib/docs";
@@ -20,7 +20,7 @@ function sumBy(rows: { currency: string; value: number }[]) {
 
 /** Mijozlar bilan hisob-kitob: qarz, avans, haydovchilardagi naqd, bu oy tushum. */
 export default async function SettlementsPage({ searchParams }: { searchParams: Promise<{ q?: string; all?: string; org?: string }> }) {
-  const user = await requirePermission("data.view");
+  const user = await requireSection("settlements");
   const sp = await searchParams;
   const [t, d] = [await getT(), await getDict()];
   const global = seesAllOrgs(user);
@@ -40,7 +40,7 @@ export default async function SettlementsPage({ searchParams }: { searchParams: 
   const toUsd = (pairs: [string, number][]) => pairs.reduce((s, [c, v]) => s + v * (crossRate(rates, c, "USD") ?? 0), 0);
   const driverCash = payments.filter((p) => p.active && p.receivedBy === "DRIVER" && !p.handedOverAt);
   const accountsByOrg = new Map<string, PayAccounts>();
-  if (can(user.role, "data.edit")) {
+  if (canEditSection(user, "settlements")) {
     for (const o of new Set(driverCash.map((p) => p.orgId))) accountsByOrg.set(o, await paymentAccounts(o));
   }
   const month = today.slice(0, 7);
@@ -145,7 +145,7 @@ export default async function SettlementsPage({ searchParams }: { searchParams: 
                     <td className="px-4 py-2.5"><Link href={`/clients/${p.clientId}`} className="text-accent hover:underline">{clientName.get(p.clientId)?.name}</Link></td>
                     <td className="whitespace-nowrap px-4 py-2.5 tabular-nums">{formatDate(p.date)}</td>
                     <td className="whitespace-nowrap px-4 py-2.5 text-right font-semibold tabular-nums">{formatNumber(p.amount)} {p.currency}</td>
-                    <td className="px-4 py-2.5 text-right">{can(user.role, "data.edit") && <HandOverButton d={d} paymentId={p.id} currency={p.currency} accounts={accountsByOrg.get(p.orgId) ?? { options: [], required: false }} />}</td>
+                    <td className="px-4 py-2.5 text-right">{canEditSection(user, "settlements") && <HandOverButton d={d} paymentId={p.id} currency={p.currency} accounts={accountsByOrg.get(p.orgId) ?? { options: [], required: false }} />}</td>
                   </tr>
                 ))}
               </tbody>

@@ -1,8 +1,9 @@
 import Link from "next/link";
+import { canEdit as canEditSection } from "@/lib/access";
 import type { DriverCategory, Prisma } from "@prisma/client";
 import { getDict, getT } from "@/i18n";
 import { db } from "@/lib/db";
-import { requireUser } from "@/lib/session";
+import { requireSection } from "@/lib/session";
 import { can } from "@/lib/roles";
 import { orgScope, seesAllOrgs } from "@/lib/scope";
 import { formatPhone } from "@/lib/phone";
@@ -13,7 +14,7 @@ import { DriverForm } from "../fleet-forms";
 const CATS: DriverCategory[] = ["EMPLOYEE", "OWNER_OPERATOR"];
 
 export default async function DriversPage({ searchParams }: { searchParams: Promise<{ q?: string; category?: string; archived?: string; org?: string }> }) {
-  const user = await requireUser();
+  const user = await requireSection("drivers");
   const sp = await searchParams;
   const [t, d] = [await getT(), await getDict()];
   const global = seesAllOrgs(user);
@@ -85,7 +86,7 @@ export default async function DriversPage({ searchParams }: { searchParams: Prom
           </tbody>
         </table>
       </div>
-      {can(user.role, "data.edit") && (
+      {canEditSection(user, "drivers") && (
         <section className="card grid gap-4 p-5">
           <h2 className="text-lg font-semibold">{t("drv.new")}</h2>
           <DriverForm d={d} />

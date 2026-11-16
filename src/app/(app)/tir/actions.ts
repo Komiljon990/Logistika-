@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import type { PermitFormat, PermitMoveKind, PermitType } from "@prisma/client";
 import { db } from "@/lib/db";
 import { audit } from "@/lib/audit";
-import { requirePermission } from "@/lib/session";
+import { requireSection } from "@/lib/session";
 import { orgForWrite, ForbiddenError } from "@/lib/scope";
 import { parseDate } from "@/lib/dates";
 import { tashkentToday } from "@/lib/docs";
@@ -16,7 +16,7 @@ const TYPES: PermitType[] = ["TIR", "DAZVOL"];
 
 /** TIR va dazvollarni menejer yuritadi (boshqalar ko'radi). */
 async function editor() {
-  const user = await requirePermission("data.edit");
+  const user = await requireSection("tir", "EDIT");
   return { user, orgId: orgForWrite(user) };
 }
 

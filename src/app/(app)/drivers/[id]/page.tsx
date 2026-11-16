@@ -1,8 +1,9 @@
 import Link from "next/link";
+import { canEdit as canEditSection } from "@/lib/access";
 import { notFound } from "next/navigation";
 import { getDict, getT } from "@/i18n";
 import { db } from "@/lib/db";
-import { requireUser } from "@/lib/session";
+import { requireSection } from "@/lib/session";
 import { can } from "@/lib/roles";
 import { orgScope } from "@/lib/scope";
 import { StatusPill } from "@/components/StatusPill";
@@ -13,7 +14,7 @@ import { setDriverStatus } from "../../fleet-actions";
 import { Documents } from "../../Documents";
 
 export default async function DriverPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ docs?: string }> }) {
-  const user = await requireUser();
+  const user = await requireSection("drivers");
   const [{ id }, sp] = [await params, await searchParams];
   const [t, d] = [await getT(), await getDict()];
   const x = await db.driver.findFirst({
@@ -21,7 +22,7 @@ export default async function DriverPage({ params, searchParams }: { params: Pro
     include: { org: { select: { name: true } }, pairedVehicles: { where: { status: "ACTIVE" }, select: { id: true, plate: true } } },
   });
   if (!x) notFound();
-  const editor = can(user.role, "data.edit");
+  const editor = canEditSection(user, "drivers");
   const bot = await getSetting<string>("telegramBot");
   const canEdit = editor && x.status === "ACTIVE";
   const toggle = setDriverStatus.bind(null, x.id, x.status === "ACTIVE" ? "ARCHIVED" : "ACTIVE");

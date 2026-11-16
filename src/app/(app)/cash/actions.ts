@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import type { AccountKind, Status } from "@prisma/client";
 import { db } from "@/lib/db";
 import { audit } from "@/lib/audit";
-import { requirePermission } from "@/lib/session";
+import { requirePermission, requireSection } from "@/lib/session";
 import { orgForWrite, ForbiddenError } from "@/lib/scope";
 import { parseDate } from "@/lib/dates";
 import { parseAmount } from "@/lib/currency-core";
@@ -20,7 +20,7 @@ import { ACCOUNT_KINDS, convertTransfer, normalizeAccountNumber, normalizeCard, 
  * Kassa bo'limi o'chirilgan tashkilotga yozib bo'lmaydi.
  */
 async function writer(formData?: FormData) {
-  const user = await requirePermission("cash.edit");
+  const user = await requireSection("cash", "EDIT");
   const orgId = orgForWrite(user, formData ? str(formData, "orgId") || null : null);
   const org = await db.organization.findFirst({ where: { id: orgId, status: "ACTIVE", cashEnabled: true } });
   if (!org) throw new ForbiddenError();
@@ -32,7 +32,7 @@ async function writer(formData?: FormData) {
  * tashkilot yozuvning o'zidan olinadi va foydalanuvchi doirasida tekshiriladi.
  */
 async function writerFor<T extends { orgId: string }>(load: () => Promise<T | null>) {
-  const user = await requirePermission("cash.edit");
+  const user = await requireSection("cash", "EDIT");
   const row = await load();
   if (!row) throw new ForbiddenError();
   const recordOrgId = row.orgId;

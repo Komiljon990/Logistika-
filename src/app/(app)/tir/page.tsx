@@ -1,9 +1,9 @@
 import Link from "next/link";
+import { canEdit as canEditSection } from "@/lib/access";
 import type { PermitFormat, PermitStatus, PermitType, Prisma } from "@prisma/client";
 import { getDict, getT } from "@/i18n";
 import { db } from "@/lib/db";
-import { requireUser } from "@/lib/session";
-import { can } from "@/lib/roles";
+import { requireSection } from "@/lib/session";
 import { orgScope } from "@/lib/scope";
 import { formatDate } from "@/lib/dates";
 import { tashkentToday } from "@/lib/docs";
@@ -22,11 +22,11 @@ const TONE: Record<PermitStatus, string> = {
 
 /** TIR karnetlar va dazvollar: tashkilotda, haydovchida, ishlatilgan (topshirilishi kerak), topshirilgan. */
 export default async function TirPage({ searchParams }: { searchParams: Promise<SP> }) {
-  const user = await requireUser();
+  const user = await requireSection("tir");
   const sp = await searchParams;
   const [t, d] = [await getT(), await getDict()];
   // Demo va "faqat ko'rish" sessiyasi ham formani ko'radi (saqlash serverda to'xtatiladi) — boshqa bo'limlar kabi.
-  const canEdit = can(user.role, "data.edit");
+  const canEdit = canEditSection(user, "tir");
   const status = PERMIT_STATUSES.includes(sp.s as PermitStatus) ? (sp.s as PermitStatus) : null;
   const [tRaw, fRaw] = (sp.t ?? "").split(":");
   const type = tRaw === "TIR" || tRaw === "DAZVOL" ? (tRaw as PermitType) : null;

@@ -1,8 +1,9 @@
 import Link from "next/link";
+import { canEdit as canEditSection } from "@/lib/access";
 import type { Prisma, VehicleType } from "@prisma/client";
 import { getDict, getT } from "@/i18n";
 import { db } from "@/lib/db";
-import { requireUser } from "@/lib/session";
+import { requireSection } from "@/lib/session";
 import { can } from "@/lib/roles";
 import { orgScope, seesAllOrgs } from "@/lib/scope";
 import { normalizePlate } from "@/lib/docs";
@@ -13,7 +14,7 @@ import { VehicleForm } from "../fleet-forms";
 const TYPES: VehicleType[] = ["TRACTOR", "TRAILER", "TRAIN", "OTHER"];
 
 export default async function VehiclesPage({ searchParams }: { searchParams: Promise<{ q?: string; type?: string; archived?: string; org?: string }> }) {
-  const user = await requireUser();
+  const user = await requireSection("vehicles");
   const sp = await searchParams;
   const [t, d] = [await getT(), await getDict()];
   const global = seesAllOrgs(user);
@@ -35,7 +36,7 @@ export default async function VehiclesPage({ searchParams }: { searchParams: Pro
     },
   });
   const orgs = global ? await db.organization.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }) : [];
-  const canEdit = can(user.role, "data.edit");
+  const canEdit = canEditSection(user, "vehicles");
   return (
     <div className="grid gap-5">
       <h1 className="text-2xl font-bold">{t("veh.title")}</h1>

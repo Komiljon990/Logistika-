@@ -1,8 +1,9 @@
 import Link from "next/link";
+import { canEdit as canEditSection } from "@/lib/access";
 import { notFound } from "next/navigation";
 import { getDict, getT } from "@/i18n";
 import { db } from "@/lib/db";
-import { requireUser } from "@/lib/session";
+import { requireSection } from "@/lib/session";
 import { can } from "@/lib/roles";
 import { orgScope } from "@/lib/scope";
 import { toInputDate } from "@/lib/dates";
@@ -12,13 +13,13 @@ import { VehicleActions } from "./VehicleActions";
 import { Documents } from "../../Documents";
 
 export default async function VehiclePage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ docs?: string; limit?: string }> }) {
-  const user = await requireUser();
+  const user = await requireSection("vehicles");
   const [{ id }, sp] = [await params, await searchParams];
   const [t, d] = [await getT(), await getDict()];
   // Markaziy filtr: boshqa tashkilot transporti "topilmadi" bo'ladi.
   const v = await db.vehicle.findFirst({ where: { id, ...orgScope(user) }, include: { org: { select: { name: true } } } });
   if (!v) notFound();
-  const canEdit = can(user.role, "data.edit") && v.status === "ACTIVE";
+  const canEdit = canEditSection(user, "vehicles") && v.status === "ACTIVE";
   const [trailers, drivers] = await Promise.all([
     db.vehicle.findMany({ where: { orgId: v.orgId, type: "TRAILER", status: "ACTIVE" }, orderBy: { plate: "asc" }, select: { id: true, plate: true } }),
     db.driver.findMany({ where: { orgId: v.orgId, status: "ACTIVE" }, orderBy: { fullName: "asc" }, select: { id: true, fullName: true } }),
@@ -34,10 +35,10 @@ export default async function VehiclePage({ params, searchParams }: { params: Pr
         <span className="flex-1" />
         <VehicleActions
           d={d} id={v.id} plate={v.plate} active={v.status === "ACTIVE"}
-          canEdit={can(user.role, "data.edit")} canDelete={can(user.role, "vehicle.delete")}
+          canEdit={canEditSection(user, "vehicles")} canDelete={can(user.role, "vehicle.delete") || (user.role === "SPECIALIST" && canEditSection(user, "vehicles"))}
         />
       </div>
-      {!can(user.role, "data.edit") && <p className="text-sm text-muted">{t("common.viewOnly")}</p>}
+      {!canEditSection(user, "vehicles") && <p className="text-sm text-muted">{t("common.viewOnly")}</p>}
       {sp.limit && <p role="alert" className="rounded-lg bg-warn-soft px-3 py-2 text-sm text-warn">{t("sub.error.limit")}</p>}
       <Documents owner={{ kind: "vehicle", id: v.id }} canEdit={canEdit} showArchived={sp.docs === "all"} />
       <h2 id="details" className="scroll-mt-4 text-lg font-semibold">{t("common.details")}</h2>

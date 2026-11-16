@@ -973,6 +973,15 @@ export const uz = {
   "tir.f.PAPER": "qog'oz",
   "tir.f.ELECTRONIC": "elektron",
   "tir.error.format": "Dazvol qog'oz yoki elektron ekanini tanlang.",
+
+  // Mutaxassis roli (17.11.2026)
+  "role.SPECIALIST": "Mutaxassis",
+  "team.access": "Ruxsat berilgan bo'limlar",
+  "team.accessHint": "Belgilangan bo'limlar Mutaxassis menyusida ko'rinadi, qolganlari yopiq. Har biri uchun: faqat ko'rish yoki kiritish, tahrirlash va o'chirish.",
+  "team.level.VIEW": "Faqat ko'rish",
+  "team.level.EDIT": "Kiritish, tahrirlash va o'chirish",
+  "team.specialistHint": "Har Mutaxassisga tartib raqami beriladi: Mutaxassis-1, Mutaxassis-2 …",
+  "team.error.noSections": "Mutaxassis uchun kamida bitta bo'limni belgilang.",
 };
 
 export type Dict = Record<keyof typeof uz, string>;

@@ -1,9 +1,9 @@
 import Link from "next/link";
+import { canEdit as canEditSection } from "@/lib/access";
 import { notFound } from "next/navigation";
 import { getDict, getT } from "@/i18n";
 import { db } from "@/lib/db";
-import { requireUser } from "@/lib/session";
-import { can } from "@/lib/roles";
+import { requireSection } from "@/lib/session";
 import { orgScope } from "@/lib/scope";
 import { formatDate } from "@/lib/dates";
 import { formatNumber } from "@/lib/currency-core";
@@ -18,7 +18,7 @@ import { tashkentToday } from "@/lib/docs";
 const PAY_STYLE = { UNPAID: "bg-bad-soft text-bad", PARTIAL: "bg-warn-soft text-warn", PAID: "bg-accent-soft text-accent" } as const;
 
 export default async function TripPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ docs?: string }> }) {
-  const user = await requireUser();
+  const user = await requireSection("trips");
   const [{ id }, sp] = [await params, await searchParams];
   const [t, d] = [await getT(), await getDict()];
   const trip = await db.trip.findFirst({
@@ -40,7 +40,7 @@ export default async function TripPage({ params, searchParams }: { params: Promi
     },
   });
   if (!trip) notFound();
-  const editor = can(user.role, "data.edit");
+  const editor = canEditSection(user, "trips");
   const today = tashkentToday().toISOString().slice(0, 10);
   const done =Object.fromEntries(trip.events.map((e) => [e.type, e.at]));
   const allowed = trip.status === "CANCELLED" ? [] : nextEvents(done);

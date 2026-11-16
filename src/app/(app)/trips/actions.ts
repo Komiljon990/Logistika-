@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import type { Prisma, TripEventType } from "@prisma/client";
 import { db } from "@/lib/db";
 import { audit } from "@/lib/audit";
-import { requirePermission } from "@/lib/session";
+import { requireSection } from "@/lib/session";
 import { orgForWrite, orgScope, ForbiddenError } from "@/lib/scope";
 import { parseDate } from "@/lib/dates";
 import { parseAmount } from "@/lib/currency-core";
@@ -17,7 +17,7 @@ import type { Dict } from "@/i18n";
 
 /** Tashish, yuk va holatlarni menejer kiritadi; tashkilot sessiyadan olinadi. */
 async function editor() {
-  const user = await requirePermission("data.edit");
+  const user = await requireSection("trips", "EDIT");
   return { user, orgId: orgForWrite(user) };
 }
 

@@ -6,6 +6,7 @@ import type { AccessMode, Role } from "@prisma/client";
 import { db } from "./db";
 import { can, type Permission } from "./roles";
 import { activeMemberships } from "./login";
+import { canEdit, canView, parseAccess, SECTION_HREF, SECTIONS, type Access, type Level, type Section } from "./access";
 
 const COOKIE = "session";
 const MAX_AGE_SECONDS = 60 * 60 * 24 * 7;
@@ -35,6 +36,9 @@ export type CurrentUser = {
   memberships: number;
   /** Vaqtincha parol bilan birinchi kirish: o'z parolini o'rnatmaguncha boshqa sahifa ochilmaydi. */
   mustChangePassword: boolean;
+  /** Mutaxassis: bo'limlar bo'yicha ruxsat va tartib raqami (Mutaxassis-1 …). */
+  access: Access | null;
+  specialistNo: number | null;
 };
 
 /** Ma'lumotni o'zgartiradigan huquqlar: demo va "faqat ko'rish" sessiyasiga hech qachon berilmaydi. */
@@ -170,6 +174,8 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
     readOnly: isDemo || grant?.mode === "VIEW",
     memberships,
     mustChangePassword: !grant && user.account.mustChangePassword,
+    access: user.role === "SPECIALIST" ? parseAccess(user.access) : null,
+    specialistNo: user.specialistNo,
   };
 }
 
@@ -198,9 +204,29 @@ export async function requireOwner(): Promise<CurrentUser> {
   return user;
 }
 
+/**
+ * Bo'lim sahifasi yoki amali (17.11.2026). Mutaxassis — faqat rahbar belgilagan bo'lim va daraja; qolgan rollar
+ * avvalgi jadval bo'yicha. Ko'rish huquqi bo'lmasa — o'zi ko'ra oladigan birinchi bo'limga yo'naltiriladi.
+ * Tahrirlash amalini faqat-o'qish sessiyasi (demo, "ko'rish" vaqtincha paroli) bajara olmaydi.
+ */
+export async function requireSection(section: Section, level: Level = "VIEW"): Promise<CurrentUser> {
+  const user = await requireUser();
+  const ok = level === "EDIT" ? canEdit(user, section) : canView(user, section);
+  if (!ok) redirect(homeFor(user));
+  if (level === "EDIT" && user.readOnly && (await headers()).has("next-action")) await demoBlocked();
+  return user;
+}
+
+/** Foydalanuvchining bosh sahifasi: Mutaxassis — ruxsat berilgan birinchi bo'lim. */
+export function homeFor(user: CurrentUser): string {
+  if (user.role !== "SPECIALIST") return user.orgId ? "/" : "/admin/orgs";
+  const first = SECTIONS.find((s) => canView(user, s));
+  return first ? SECTION_HREF[first] : "/account";
+}
+
 export async function requirePermission(permission: Permission): Promise<CurrentUser> {
   const user = await requireSession();
-  if (!can(user.role, permission)) redirect("/");
+  if (!can(user.role, permission)) redirect(homeFor(user));
   // Faqat o'qish sessiyasi sahifalarni (formalar bilan) ko'radi, lekin saqlash amali (server action) bajarilmaydi.
   if (WRITE_PERMISSIONS.has(permission) && user.readOnly && (await headers()).has("next-action")) await demoBlocked();
   return user;

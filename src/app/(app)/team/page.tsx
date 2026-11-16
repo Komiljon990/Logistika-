@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { roleTitle } from "@/lib/access";
 import { getDict, getT } from "@/i18n";
 import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/session";
@@ -37,7 +38,7 @@ export default async function TeamPage() {
             {users.map((u) => (
               <tr key={u.id} className="border-t border-line">
                 <td className="px-4 py-2.5"><Link href={`/team/${u.id}`} className="text-accent hover:underline">{u.fullName}</Link></td>
-                <td className="px-4 py-2.5">{t(`role.${u.role}`)}</td>
+                <td className="px-4 py-2.5">{roleTitle(t, u)}</td>
                 <td className="px-4 py-2.5">{u.account.email ?? u.email ?? "—"}</td>
                 <td className="whitespace-nowrap px-4 py-2.5 tabular-nums">{u.phone ? formatPhone(u.phone) : "—"}</td>
                 <td className="px-4 py-2.5">

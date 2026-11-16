@@ -18,7 +18,7 @@ export const GRANT_HOURS = [1, 8, 24, 72] as const;
 export type GrantHours = (typeof GRANT_HOURS)[number];
 
 /** Rahbar qo'shadigan va boshqaradigan rollar. Rahbarni faqat Super Admin qo'shadi. */
-export const MEMBER_ROLES = ["MANAGER", "ACCOUNTANT", "DEPUTY"] as const satisfies readonly Role[];
+export const MEMBER_ROLES = ["MANAGER", "ACCOUNTANT", "DEPUTY", "SPECIALIST"] as const satisfies readonly Role[];
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 

@@ -1,9 +1,9 @@
 import Link from "next/link";
+import { canEdit as canEditSection } from "@/lib/access";
 import { notFound } from "next/navigation";
 import { getDict, getT } from "@/i18n";
 import { db } from "@/lib/db";
-import { requireUser } from "@/lib/session";
-import { can } from "@/lib/roles";
+import { requireSection } from "@/lib/session";
 import { orgScope } from "@/lib/scope";
 import { formatDate } from "@/lib/dates";
 import { tashkentToday } from "@/lib/docs";
@@ -11,7 +11,7 @@ import { AckBadge, CancelIssueButton, DeletePermitButton, PermitActions } from "
 
 /** Bitta TIR / dazvol: ma'lumotlar va to'liq harakatlar tarixi. */
 export default async function PermitPage({ params }: { params: Promise<{ id: string }> }) {
-  const user = await requireUser();
+  const user = await requireSection("tir");
   const { id } = await params;
   const [t, d] = [await getT(), await getDict()];
   const p = await db.permit.findFirst({
@@ -19,7 +19,7 @@ export default async function PermitPage({ params }: { params: Promise<{ id: str
     include: { moves: { orderBy: [{ date: "asc" }, { createdAt: "asc" }] }, vehicle: { select: { plate: true } }, driver: { select: { fullName: true } } },
   });
   if (!p) notFound();
-  const canEdit = can(user.role, "data.edit");
+  const canEdit = canEditSection(user, "tir");
   const last = p.moves[p.moves.length - 1];
   const driverIds = [...new Set(p.moves.map((m) => m.driverId).filter((x): x is string => !!x))];
   const linked = new Set((await db.driver.findMany({ where: { id: { in: driverIds }, telegramChatId: { not: null } }, select: { id: true } })).map((x) => x.id));

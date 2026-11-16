@@ -1,9 +1,9 @@
 import Link from "next/link";
+import { canEdit as canEditSection } from "@/lib/access";
 import type { Prisma } from "@prisma/client";
 import { getT } from "@/i18n";
 import { db } from "@/lib/db";
-import { requireUser } from "@/lib/session";
-import { can } from "@/lib/roles";
+import { requireSection } from "@/lib/session";
 import { orgScope, seesAllOrgs } from "@/lib/scope";
 import { formatDate } from "@/lib/dates";
 import { currentStage, tripNumber } from "@/lib/trips-core";
@@ -12,7 +12,7 @@ const FILTERS = ["active", "completed", "cancelled", "all"] as const;
 type Filter = (typeof FILTERS)[number];
 
 export default async function TripsPage({ searchParams }: { searchParams: Promise<{ f?: string; q?: string; org?: string }> }) {
-  const user = await requireUser();
+  const user = await requireSection("trips");
   const sp = await searchParams;
   const t = await getT();
   const global = seesAllOrgs(user);
@@ -55,7 +55,7 @@ export default async function TripsPage({ searchParams }: { searchParams: Promis
       <div className="flex flex-wrap items-center gap-3">
         <h1 className="text-2xl font-bold">{t("trip.title")}</h1>
         <span className="flex-1" />
-        {can(user.role, "data.edit") && <Link href="/trips/new" className="btn">+ {t("trip.new")}</Link>}
+        {canEditSection(user, "trips") && <Link href="/trips/new" className="btn">+ {t("trip.new")}</Link>}
       </div>
       <div className="flex flex-wrap gap-2" role="tablist">
         {FILTERS.map((x) => (

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { roleTitle } from "@/lib/access";
 import { getDict, getLocale, getT } from "@/i18n";
 import { db } from "@/lib/db";
 import { requireSession } from "@/lib/session";
@@ -60,7 +61,7 @@ export default async function AccountPage() {
                 <input type="hidden" name="userId" value={m.id} />
                 <span className="min-w-0 flex-1">
                   <span className="font-semibold">{m.org?.name ?? t("admin.panel")}</span>
-                  <span className="text-sm text-muted"> · {t(`role.${m.role}`)}</span>
+                  <span className="text-sm text-muted"> · {roleTitle(t, m)}</span>
                 </span>
                 {m.id === user.id ? <span className="text-sm text-accent">{t("org.current")}</span> : <button className="btn-ghost">{t("org.switch")}</button>}
               </form>

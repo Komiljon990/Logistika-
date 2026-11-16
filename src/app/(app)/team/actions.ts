@@ -2,12 +2,13 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import type { Role } from "@prisma/client";
+import { Prisma, type Role } from "@prisma/client";
+import { accessFromForm } from "@/lib/access";
 import { db } from "@/lib/db";
 import { audit } from "@/lib/audit";
 import { requirePermission } from "@/lib/session";
 import { canManageMember, MEMBER_ROLES } from "@/lib/auth-core";
-import { addMembership, parseMember, resendInviteFor } from "@/lib/members";
+import { addMembership, parseMember, resendInviteFor, specialistNumber } from "@/lib/members";
 import { fail, type FormState } from "@/lib/form";
 
 export type { FormState };
@@ -25,7 +26,10 @@ export async function addMember(_prev: FormState, formData: FormData): Promise<F
   const v = parseMember(formData);
   if (!role) return fail("common.required", formData);
   if ("error" in v) return fail(v.error, formData);
-  const res = await addMembership({ orgId: me.orgId, role, input: v.data, actorId: me.id, formData });
+  const access = accessFromForm(formData);
+  // Mutaxassisga kamida bitta bo'lim belgilanishi shart.
+  if (role === "SPECIALIST" && Object.keys(access).length === 0) return fail("team.error.noSections", formData);
+  const res = await addMembership({ orgId: me.orgId, role, input: v.data, actorId: me.id, formData, access });
   if (!res.ok) return res;
   redirect(`/team/${res.id}?added=1`);
 }
@@ -45,13 +49,24 @@ export async function updateMember(id: string, _prev: FormState, formData: FormD
   const v = parseMember(formData, false);
   if (!role) return fail("common.required", formData);
   if ("error" in v) return fail(v.error, formData);
+  const specialist = role === "SPECIALIST";
+  const access = specialist ? accessFromForm(formData) : null;
+  if (specialist && Object.keys(access!).length === 0) return fail("team.error.noSections", formData);
+  // Raqam xodimga bir marta beriladi va o'zgarmaydi (Mutaxassis-2 boshqa rolga o'tib qaytsa ham — o'sha raqam).
+  const specialistNo = specialist ? (m.target.specialistNo ?? (await specialistNumber(m.me.orgId!))) : m.target.specialistNo;
   await db.user.update({
     where: { id },
-    data: { fullName: v.data.fullName, phone: v.data.phone, role, ...(role !== m.target.role ? { sessionVersion: { increment: 1 } } : {}) },
+    data: {
+      fullName: v.data.fullName, phone: v.data.phone, role, specialistNo, access: specialist ? access! : Prisma.DbNull,
+      ...(role !== m.target.role ? { sessionVersion: { increment: 1 } } : {}),
+    },
   });
   await audit({
     actorId: m.me.id, orgId: m.me.orgId, action: "team.update", entity: "User", entityId: id,
-    details: { from: { role: m.target.role, fullName: m.target.fullName }, to: { role, fullName: v.data.fullName } },
+    details: {
+      from: { role: m.target.role, fullName: m.target.fullName, access: (m.target.access ?? null) as Prisma.InputJsonValue },
+      to: { role, fullName: v.data.fullName, access },
+    },
   });
   revalidatePath(`/team/${id}`);
   return { ok: true };

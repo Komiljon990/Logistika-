@@ -16,6 +16,7 @@ enum Role {
   MANAGER // Menejer
   DIRECTOR // Rahbar
   DEPUTY // Ishonchli vakil
+  SPECIALIST // Mutaxassis (17.11.2026): rahbar belgilagan bo'limlar, har biri "ko'rish" yoki "tahrirlash"
 }
 
 enum Status {
@@ -164,6 +165,10 @@ model User {
   sessionVersion Int           @default(0)
   // Demo (reklama) hisobi: hamma narsani ko'radi, hech narsani saqlay olmaydi; faqat demo tashkilotda.
   isDemo         Boolean       @default(false)
+  // Mutaxassis: tashkilot ichidagi tartib raqami (Mutaxassis-1, -2 …) va bo'limlar bo'yicha ruxsat
+  // { "tir": "EDIT", "trips": "VIEW" } — EDIT: kiritish, tahrirlash va o'chirish; VIEW: faqat ko'rish.
+  specialistNo   Int?
+  access         Json?
   failedLogins   Int           @default(0) // ESKIRGAN
   lockedUntil    DateTime? // ESKIRGAN
   lastLoginAt    DateTime?

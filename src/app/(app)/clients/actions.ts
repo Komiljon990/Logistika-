@@ -5,12 +5,12 @@ import { redirect } from "next/navigation";
 import type { Status } from "@prisma/client";
 import { db } from "@/lib/db";
 import { audit } from "@/lib/audit";
-import { requirePermission } from "@/lib/session";
+import { requireSection } from "@/lib/session";
 import { orgForWrite, orgScope, ForbiddenError } from "@/lib/scope";
 import { fail, optStr, str, type FormState } from "@/lib/form";
 
 async function editor() {
-  const user = await requirePermission("data.edit");
+  const user = await requireSection("clients", "EDIT");
   return { user, orgId: orgForWrite(user) };
 }
 

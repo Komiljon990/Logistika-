@@ -1,8 +1,8 @@
 import Link from "next/link";
+import { canEdit as canEditSection } from "@/lib/access";
 import { getT } from "@/i18n";
 import { db } from "@/lib/db";
-import { requirePermission } from "@/lib/session";
-import { can } from "@/lib/roles";
+import { requireSection } from "@/lib/session";
 import { Documents } from "../Documents";
 
 /**
@@ -11,7 +11,7 @@ import { Documents } from "../Documents";
  * buxgalter va Super Admin tashkilotni tanlaydi.
  */
 export default async function OrgDocsPage({ searchParams }: { searchParams: Promise<{ org?: string; docs?: string }> }) {
-  const user = await requirePermission("data.view");
+  const user = await requireSection("orgdocs");
   const sp = await searchParams;
   const t = await getT();
   const orgs = user.orgId
@@ -19,7 +19,7 @@ export default async function OrgDocsPage({ searchParams }: { searchParams: Prom
     : await db.organization.findMany({ where: { status: "ACTIVE" }, orderBy: { name: "asc" }, select: { id: true, name: true } });
   const orgId = user.orgId ?? (orgs.some((o) => o.id === sp.org) ? sp.org! : null);
   const org = orgId ? await db.organization.findUnique({ where: { id: orgId }, select: { id: true, name: true, status: true } }) : null;
-  const canEdit = can(user.role, "orgdoc.edit") && org?.status === "ACTIVE";
+  const canEdit = canEditSection(user, "orgdocs") && org?.status === "ACTIVE";
 
   return (
     <div className="grid gap-6">
@@ -38,7 +38,7 @@ export default async function OrgDocsPage({ searchParams }: { searchParams: Prom
           </form>
         )}
       </div>
-      {!can(user.role, "orgdoc.edit") && <p className="text-sm text-muted">{t("common.viewOnly")}</p>}
+      {!canEditSection(user, "orgdocs") && <p className="text-sm text-muted">{t("common.viewOnly")}</p>}
       {org ? (
         <Documents owner={{ kind: "org", id: org.id }} canEdit={canEdit} showArchived={sp.docs === "all"} />
       ) : (

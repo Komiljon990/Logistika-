@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { parseAccess, roleTitle } from "@/lib/access";
 import { notFound } from "next/navigation";
 import { getDict, getLocale, getT } from "@/i18n";
 import { db } from "@/lib/db";
@@ -47,7 +48,7 @@ export default async function TeamMemberPage({ params, searchParams }: { params:
       </div>
       {added && <p className="card border-accent p-4 text-sm">{t("team.added")}</p>}
       <p className="text-sm text-muted">
-        {t(`role.${user.role}`)} · {user.account.email ?? "—"}{user.phone ? <> · <span className="tabular-nums">{formatPhone(user.phone)}</span></> : null}
+        {roleTitle(t, user)} · {user.account.email ?? "—"}{user.phone ? <> · <span className="tabular-nums">{formatPhone(user.phone)}</span></> : null}
         <span className="block">
           {user.account.passwordHash
             ? `${t("user.lastLogin")}: ${user.account.lastLoginAt ? fmt.format(user.account.lastLoginAt) : "—"}`
@@ -61,7 +62,7 @@ export default async function TeamMemberPage({ params, searchParams }: { params:
               d={d}
               action={updateMember.bind(null, user.id)}
               roles={MEMBER_ROLES}
-              member={{ fullName: user.fullName, email: user.account.email, phone: user.phone, role: user.role }}
+              member={{ fullName: user.fullName, email: user.account.email, phone: user.phone, role: user.role, access: parseAccess(user.access) }}
               submit={t("common.save")}
             />
           </section>

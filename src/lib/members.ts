@@ -7,6 +7,7 @@ import { normalizeEmail } from "./auth-core";
 import { normalizePhone } from "./phone";
 import { fail, str, type FormState } from "./form";
 import type { Dict } from "@/i18n";
+import { nextSpecialistNo, type Access } from "./access";
 
 export type MemberInput = { fullName: string; email: string; phone: string };
 
@@ -26,8 +27,18 @@ export function parseMember(formData: FormData, needEmail = true): { data: Membe
  * Tashkilotga a'zo qo'shadi: shaxs e-mail bo'yicha topiladi (boshqa tashkilotda allaqachon bo'lsa — o'sha login
  * bilan kiradi va tashkilotni tanlaydi) yoki yangi hisob yaratiladi. Taklifnoma e-mailga yuboriladi.
  */
+/** Tashkilotdagi keyingi Mutaxassis raqami (Mutaxassis-1, -2 …). */
+export async function specialistNumber(orgId: string): Promise<number> {
+  const rows = await db.user.findMany({ where: { orgId, specialistNo: { not: null } }, select: { specialistNo: true } });
+  return nextSpecialistNo(rows.map((r) => r.specialistNo));
+}
+
+export function roleLabelUz(role: Role, specialistNo?: number | null): string {
+  return role === "SPECIALIST" && specialistNo ? `${ROLE_LABEL_UZ[role]}-${specialistNo}` : ROLE_LABEL_UZ[role];
+}
+
 export async function addMembership(opts: {
-  orgId: string; role: Role; input: MemberInput; actorId: string; formData: FormData;
+  orgId: string; role: Role; input: MemberInput; actorId: string; formData: FormData; access?: Access;
 }): Promise<FormState & { id?: string }> {
   const org = await db.organization.findUnique({ where: { id: opts.orgId } });
   if (!org || org.isDemo) return fail("user.error.org", opts.formData);
@@ -35,14 +46,19 @@ export async function addMembership(opts: {
   if ("error" in link) return fail(link.error, opts.formData);
   const exists = await db.user.findFirst({ where: { accountId: link.accountId, orgId: opts.orgId } });
   if (exists) return fail("user.error.memberExists", opts.formData);
+  const specialist = opts.role === "SPECIALIST";
+  const specialistNo = specialist ? await specialistNumber(opts.orgId) : null;
   const user = await db.user.create({
-    data: { accountId: link.accountId, orgId: opts.orgId, role: opts.role, fullName: opts.input.fullName, phone: opts.input.phone, email: opts.input.email },
+    data: {
+      accountId: link.accountId, orgId: opts.orgId, role: opts.role, fullName: opts.input.fullName, phone: opts.input.phone, email: opts.input.email,
+      specialistNo, access: specialist ? (opts.access ?? {}) : undefined,
+    },
   });
   await audit({
     actorId: opts.actorId, orgId: opts.orgId, action: "team.add", entity: "User", entityId: user.id,
-    details: { role: opts.role, fullName: opts.input.fullName, newAccount: link.isNew },
+    details: { role: opts.role, fullName: opts.input.fullName, newAccount: link.isNew, ...(specialist ? { specialistNo, access: opts.access ?? {} } : {}) },
   });
-  await sendInvite({ email: opts.input.email, fullName: opts.input.fullName, orgName: org.name, roleLabel: ROLE_LABEL_UZ[opts.role], hasPassword: link.hasPassword }).catch((e) => {
+  await sendInvite({ email: opts.input.email, fullName: opts.input.fullName, orgName: org.name, roleLabel: roleLabelUz(opts.role, specialistNo), hasPassword: link.hasPassword }).catch((e) => {
     console.error("Taklifnoma yuborilmadi:", e);
   });
   return { ok: true, id: user.id };
@@ -52,6 +68,6 @@ export async function addMembership(opts: {
 export async function resendInviteFor(userId: string) {
   const u = await db.user.findUnique({ where: { id: userId }, include: { account: true, org: true } });
   if (!u?.org || !u.account.email) return false;
-  await sendInvite({ email: u.account.email, fullName: u.fullName, orgName: u.org.name, roleLabel: ROLE_LABEL_UZ[u.role], hasPassword: !!u.account.passwordHash });
+  await sendInvite({ email: u.account.email, fullName: u.fullName, orgName: u.org.name, roleLabel: roleLabelUz(u.role, u.specialistNo), hasPassword: !!u.account.passwordHash });
   return true;
 }

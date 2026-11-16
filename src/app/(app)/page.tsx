@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { getT } from "@/i18n";
 import { db } from "@/lib/db";
-import { requireUser } from "@/lib/session";
+import { redirect } from "next/navigation";
+import { homeFor, requireUser } from "@/lib/session";
 import { orgScope, seesAllOrgs } from "@/lib/scope";
 import { formatDate } from "@/lib/dates";
 import { tashkentToday } from "@/lib/docs";
@@ -17,6 +18,8 @@ import { Calculator } from "./home/Calculator";
 
 export default async function HomePage({ searchParams }: { searchParams: Promise<{ date?: string; m?: string }> }) {
   const user = await requireUser();
+  // Mutaxassis uchun bosh sahifa — unga ruxsat berilgan birinchi bo'lim (umumiy ko'rsatkichlar ko'rinmaydi).
+  if (user.role === "SPECIALIST") redirect(homeFor(user));
   const sp = await searchParams;
   const t = await getT();
   const scope = orgScope(user);

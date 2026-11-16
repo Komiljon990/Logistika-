@@ -1,15 +1,15 @@
 import Link from "next/link";
+import { canEdit as canEditSection } from "@/lib/access";
 import type { Prisma } from "@prisma/client";
 import { getDict, getT } from "@/i18n";
 import { db } from "@/lib/db";
-import { requireUser } from "@/lib/session";
-import { can } from "@/lib/roles";
+import { requireSection } from "@/lib/session";
 import { orgScope, seesAllOrgs } from "@/lib/scope";
 import { StatusPill } from "@/components/StatusPill";
 import { ClientForm } from "../trips/forms";
 
 export default async function ClientsPage({ searchParams }: { searchParams: Promise<{ q?: string; archived?: string; org?: string }> }) {
-  const user = await requireUser();
+  const user = await requireSection("clients");
   const sp = await searchParams;
   const [t, d] = [await getT(), await getDict()];
   const global = seesAllOrgs(user);
@@ -68,7 +68,7 @@ export default async function ClientsPage({ searchParams }: { searchParams: Prom
           </tbody>
         </table>
       </div>
-      {can(user.role, "data.edit") && (
+      {canEditSection(user, "clients") && (
         <section className="card grid gap-4 p-5">
           <h2 className="text-lg font-semibold">{t("client.new")}</h2>
           <ClientForm d={d} />

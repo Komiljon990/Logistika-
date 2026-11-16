@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { audit } from "@/lib/audit";
-import { requirePermission, requireUser } from "@/lib/session";
+import { requireUser, requireSection } from "@/lib/session";
 import { orgForWrite, ForbiddenError } from "@/lib/scope";
 import { parseDate } from "@/lib/dates";
 import { addDays, parseAmount, parseDay, type RateMap } from "@/lib/currency-core";
@@ -20,7 +20,7 @@ import type { Dict } from "@/i18n";
 
 /** To'lov, qo'shimcha xarajat va prostoyni menejer kiritadi (texnik shart 2-bo'lim). */
 async function editor() {
-  const user = await requirePermission("data.edit");
+  const user = await requireSection("settlements", "EDIT");
   return { user, orgId: orgForWrite(user) };
 }
 

@@ -1,9 +1,9 @@
 import Link from "next/link";
+import { canEdit as canEditSection } from "@/lib/access";
 import { notFound } from "next/navigation";
 import { getDict, getT } from "@/i18n";
 import { db } from "@/lib/db";
-import { requireUser } from "@/lib/session";
-import { can } from "@/lib/roles";
+import { requireSection } from "@/lib/session";
 import { orgScope } from "@/lib/scope";
 import { formatDate } from "@/lib/dates";
 import { tashkentToday } from "@/lib/docs";
@@ -22,13 +22,13 @@ import { setClientStatus } from "../actions";
 const PAY_STYLE = { UNPAID: "bg-bad-soft text-bad", PARTIAL: "bg-warn-soft text-warn", PAID: "bg-accent-soft text-accent" } as const;
 
 export default async function ClientPage({ params }: { params: Promise<{ id: string }> }) {
-  const user = await requireUser();
+  const user = await requireSection("clients");
   const { id } = await params;
   const [t, d] = [await getT(), await getDict()];
   const c = await db.client.findFirst({ where: { id, ...orgScope(user) }, include: { org: { select: { name: true } } } });
   if (!c) notFound();
   const today = tashkentToday().toISOString().slice(0, 10);
-  const editor = can(user.role, "data.edit");
+  const editor = canEditSection(user, "clients");
   const { shipments, payments } = await loadLedger({ orgId: c.orgId, clientId: c.id });
   const balance = balancesByClient(shipments, payments).get(c.id) ?? {};
   const cancelledShipments = await db.shipment.findMany({

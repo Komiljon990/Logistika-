@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import type { DocType, DriverCategory, Ownership, Status, VehicleType } from "@prisma/client";
 import { db } from "@/lib/db";
 import { audit } from "@/lib/audit";
-import { requirePermission } from "@/lib/session";
+import { requirePermission, requireSection, requireUser } from "@/lib/session";
 import { orgForWrite, orgScope, ForbiddenError } from "@/lib/scope";
 import { normalizePhone } from "@/lib/phone";
 import { parseDate } from "@/lib/dates";
@@ -19,9 +19,9 @@ const OWNERSHIPS: Ownership[] = ["OWNED", "LEASED"];
 const CATEGORIES: DriverCategory[] = ["EMPLOYEE", "OWNER_OPERATOR"];
 const LIFECYCLE: Status[] = ["ACTIVE", "ARCHIVED"];
 
-/** Faqat menejer kiritadi; tashkilot sessiyadan olinadi. */
-async function editor() {
-  const user = await requirePermission("data.edit");
+/** Bo'lim bo'yicha tahrirlash huquqi (menejer yoki shu bo'limga ruxsat berilgan Mutaxassis); tashkilot sessiyadan olinadi. */
+async function editor(section: "vehicles" | "drivers" | "trips") {
+  const user = await requireSection(section, "EDIT");
   return { user, orgId: orgForWrite(user) };
 }
 
@@ -53,7 +53,7 @@ async function plateTaken(orgId: string, plate: string, exceptId?: string) {
 }
 
 export async function createVehicle(_prev: FormState, formData: FormData): Promise<FormState> {
-  const { user, orgId } = await editor();
+  const { user, orgId } = await editor("vehicles");
   const data = vehicleInput(formData);
   if (!data) return fail("common.required", formData);
   if (await plateTaken(orgId, data.plate)) return fail("veh.error.plate", formData);
@@ -64,7 +64,7 @@ export async function createVehicle(_prev: FormState, formData: FormData): Promi
 }
 
 export async function updateVehicle(id: string, _prev: FormState, formData: FormData): Promise<FormState> {
-  const { user, orgId } = await editor();
+  const { user, orgId } = await editor("vehicles");
   const current = await db.vehicle.findFirst({ where: { id, ...orgScope(user) } });
   if (!current) throw new ForbiddenError();
   const data = vehicleInput(formData);
@@ -102,7 +102,7 @@ export async function updateVehicle(id: string, _prev: FormState, formData: Form
 }
 
 export async function setVehicleStatus(id: string, status: Status) {
-  const { user, orgId } = await editor();
+  const { user, orgId } = await editor("vehicles");
   if (!LIFECYCLE.includes(status)) return;
   const v = await db.vehicle.findFirst({ where: { id, ...orgScope(user) } });
   if (!v) throw new ForbiddenError();
@@ -129,7 +129,8 @@ export type DeleteState = { error?: "veh.error.deleteLinked" };
  * Tarixi bor transport o'chirilmaydi, nofaol (arxiv) qilinadi: texnik shart — ma'lumot yo'qolmasligi.
  */
 export async function deleteVehicle(id: string, _prev: DeleteState): Promise<DeleteState> {
-  const user = await requirePermission("vehicle.delete");
+  // Menejer yoki transport bo'limiga "tahrirlash va o'chirish" huquqi berilgan Mutaxassis.
+  const user = (await requireUser()).role === "SPECIALIST" ? await requireSection("vehicles", "EDIT") : await requirePermission("vehicle.delete");
   const v = await db.vehicle.findFirst({
     where: { id, ...orgScope(user) },
     include: { _count: { select: { documents: true, tripsAsTractor: true, tripsAsTrailer: true } } },
@@ -158,7 +159,7 @@ function driverInput(formData: FormData) {
 }
 
 export async function createDriver(_prev: FormState, formData: FormData): Promise<FormState> {
-  const { user, orgId } = await editor();
+  const { user, orgId } = await editor("drivers");
   const data = driverInput(formData);
   if (data === "phone") return fail("user.error.phone", formData);
   if (!data) return fail("common.required", formData);
@@ -168,7 +169,7 @@ export async function createDriver(_prev: FormState, formData: FormData): Promis
 }
 
 export async function updateDriver(id: string, _prev: FormState, formData: FormData): Promise<FormState> {
-  const { user, orgId } = await editor();
+  const { user, orgId } = await editor("drivers");
   const current = await db.driver.findFirst({ where: { id, ...orgScope(user) } });
   if (!current) throw new ForbiddenError();
   const data = driverInput(formData);
@@ -183,7 +184,7 @@ export async function updateDriver(id: string, _prev: FormState, formData: FormD
 }
 
 export async function setDriverStatus(id: string, status: Status) {
-  const { user, orgId } = await editor();
+  const { user, orgId } = await editor("drivers");
   if (!LIFECYCLE.includes(status)) return;
   if (!(await db.driver.findFirst({ where: { id, ...orgScope(user) } }))) throw new ForbiddenError();
   await db.$transaction([
@@ -201,7 +202,7 @@ type Owner = { kind: DocOwnerKind; id: string };
 /** Hujjat egasiga qarab: transport/haydovchi — menejer; tashkilot — menejer, rahbar, buxgalter. */
 async function docEditor(owner: Owner) {
   if (owner.kind !== "org") {
-    const { user, orgId } = await editor();
+    const { user, orgId } = await editor(owner.kind === "vehicle" ? "vehicles" : owner.kind === "driver" ? "drivers" : "trips");
     const scope = orgScope(user);
     const row =
       owner.kind === "vehicle"
@@ -212,7 +213,7 @@ async function docEditor(owner: Owner) {
     if (!row) throw new ForbiddenError();
     return { user, orgId };
   }
-  const user = await requirePermission("orgdoc.edit");
+  const user = await requireSection("orgdocs", "EDIT");
   // Tashkilot foydalanuvchisi uchun har doim o'z tashkiloti; buxgalter tanlagan tashkilot mavjud va faol bo'lishi shart.
   const orgId = orgForWrite(user, owner.id);
   const org = await db.organization.findFirst({ where: { id: orgId, status: "ACTIVE" } });
@@ -300,7 +301,7 @@ export async function addDocument(owner: Owner, renewOf: string | null, _prev: F
 }
 
 export async function archiveDocument(id: string) {
-  const user = await requirePermission("data.view");
+  const user = await requireUser();
   const doc = await db.document.findFirst({ where: { id, ...orgScope(user), status: "ACTIVE" } });
   if (!doc) throw new ForbiddenError();
   const owner: Owner = doc.vehicleId

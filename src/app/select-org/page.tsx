@@ -1,4 +1,5 @@
 import { getT } from "@/i18n";
+import { roleTitle } from "@/lib/access";
 import { requireSession } from "@/lib/session";
 import { activeMemberships } from "@/lib/login";
 import { switchOrg, logout } from "@/app/actions";
@@ -22,7 +23,7 @@ export default async function SelectOrgPage() {
               <button className={`flex w-full items-center gap-3 rounded-lg border px-4 py-3 text-left hover:border-accent ${m.id === user.id ? "border-accent" : "border-line"}`}>
                 <span className="min-w-0 flex-1">
                   <span className="block font-semibold">{m.org?.name ?? t("admin.panel")}</span>
-                  <span className="block text-sm text-muted">{t(`role.${m.role}`)}</span>
+                  <span className="block text-sm text-muted">{roleTitle(t, m)}</span>
                 </span>
                 <span aria-hidden className="text-accent">→</span>
               </button>

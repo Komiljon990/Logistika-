@@ -2,7 +2,7 @@ import Link from "next/link";
 import type { PermitMoveKind, PermitType } from "@prisma/client";
 import { getT } from "@/i18n";
 import { db } from "@/lib/db";
-import { requireUser } from "@/lib/session";
+import { requireSection } from "@/lib/session";
 import { orgScope } from "@/lib/scope";
 import { formatDate } from "@/lib/dates";
 import { tashkentToday } from "@/lib/docs";
@@ -15,7 +15,7 @@ type SP = { month?: string; from?: string; to?: string; k?: string; t?: string }
 
 /** TIR / dazvol harakatlari jurnali: kirim, berildi, qaytarildi, topshirildi — davr bo'yicha ro'yxat. */
 export default async function PermitJournalPage({ searchParams }: { searchParams: Promise<SP> }) {
-  const user = await requireUser();
+  const user = await requireSection("tir");
   const sp = await searchParams;
   const t = await getT();
   const today = tashkentToday().toISOString().slice(0, 10);

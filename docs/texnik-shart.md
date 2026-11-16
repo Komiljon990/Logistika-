@@ -675,6 +675,24 @@ vaqtda, telefon va kompyuter ko'rinishi, ma'lumot yaxlitligi, arxiv
   tashkilotda, jurnalda izoh bilan).
 - Bot serverning o'zida getUpdates (long polling) orqali ishlaydi —
   ochiq HTTPS manzil kerak emas. .env: TELEGRAM_BOT_TOKEN.
+- Dazvol ikki xil: qog'oz yoki elektron (kirimda majburiy tanlanadi;
+  ro'yxat, filtr, tarix va bot xabarida ko'rinadi).
+
+### Mutaxassis roli (16.11.2026)
+
+- Rahbar xodim qo'shganda "Mutaxassis" rolini tanlaydi va bo'limlarni
+  belgilaydi: tashishlar, mijozlar, hisob-kitob, kassa, transport,
+  haydovchilar, TIR/dazvol, tashkilot hujjatlari, hisobotlar. Har bo'lim
+  uchun: "faqat ko'rish" yoki "kiritish, tahrirlash va o'chirish".
+  Kamida bitta bo'lim majburiy.
+- Bir nechta bo'lsa Mutaxassis-1, Mutaxassis-2 … deb nomlanadi; raqam
+  xodimga bir marta beriladi va o'zgarmaydi.
+- Mutaxassis menyuda faqat ruxsat berilgan bo'limlarni ko'radi; bosh
+  sahifasi — birinchi ruxsat berilgan bo'lim. Boshqa sahifa va amallar
+  serverda ham yopiq. Ruxsat o'zgarsa darhol (shu sessiyada ham) amal
+  qiladi. Sozlamalar, ogohlantirishlar, xodimlar, valyutalar unga yopiq.
+- Boshqa rollarning huquqlari o'zgarmagan.
+- Model: `User.specialistNo`, `User.access` (JSON: bo'lim → VIEW/EDIT).
 
 ## 12. Loyihada ishlash qoidalari (Claude uchun)
 

@@ -116,4 +116,5 @@ export const ROLE_LABEL_UZ: Record<Role, string> = {
   MANAGER: "Menejer",
   DIRECTOR: "Rahbar",
   DEPUTY: "Ishonchli vakil",
+  SPECIALIST: "Mutaxassis",
 };

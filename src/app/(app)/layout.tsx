@@ -5,7 +5,7 @@ import { DemoNotice } from "@/components/DemoNotice";
 import { Logo } from "@/components/Logo";
 import { ThemeToggle, type ThemePref } from "@/components/ThemeToggle";
 import { getT } from "@/i18n";
-import { requireSession } from "@/lib/session";
+import { homeFor, requireSession } from "@/lib/session";
 import { can } from "@/lib/roles";
 import { countAlerts } from "@/lib/alerts";
 import { tashkentToday } from "@/lib/docs";
@@ -15,6 +15,7 @@ import { HeaderLinks } from "@/components/HeaderLinks";
 import { cashEnabled } from "@/lib/cash";
 import { db } from "@/lib/db";
 import { reviewCount, todayDate } from "@/lib/billing";
+import { canView, roleTitle, type Section } from "@/lib/access";
 import { Nav } from "./Nav";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
@@ -23,6 +24,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const themeCookie = (await cookies()).get("theme")?.value;
   const themePref: ThemePref = themeCookie === "light" || themeCookie === "dark" ? themeCookie : "system";
   const member = !!user.orgId;
+  const specialist = user.role === "SPECIALIST";
   const alertCount = member && can(user.role, "alerts.badge") ? await countAlerts(user, tashkentToday()) : 0;
   // Kassa bo'limi tashkilot sozlamasiga qarab ko'rinadi.
   const showCash = member && (await cashEnabled(user.orgId!));
@@ -49,18 +51,25 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     { href: "/admin/payments", label: withCount(t("inv.title"), reviewInvoices) },
     { href: "/admin/site", label: t("site.admin") },
     { href: "/admin/settings", label: t("set.title") },
-  ] : [
+  ] : ([
     { href: "/", label: t("nav.home") },
-    { href: "/trips", label: t("nav.trips") },
-    { href: "/clients", label: t("nav.clients") },
-    { href: "/settlements", label: t("nav.settlements") },
-    ...(showCash ? [{ href: "/cash", label: t("nav.cash") }] : []),
-    { href: "/vehicles", label: t("nav.vehicles") },
-    { href: "/drivers", label: t("nav.drivers") },
-    { href: "/tir", label: t("nav.tir") },
-    { href: "/reports", label: t("nav.reports") },
-  ];
-  const headerLinks = !member ? [accountLink] : [
+    { href: "/trips", label: t("nav.trips"), section: "trips" },
+    { href: "/clients", label: t("nav.clients"), section: "clients" },
+    { href: "/settlements", label: t("nav.settlements"), section: "settlements" },
+    ...(showCash ? [{ href: "/cash", label: t("nav.cash"), section: "cash" as const }] : []),
+    { href: "/vehicles", label: t("nav.vehicles"), section: "vehicles" },
+    { href: "/drivers", label: t("nav.drivers"), section: "drivers" },
+    { href: "/tir", label: t("nav.tir"), section: "tir" },
+    { href: "/org-docs", label: t("nav.orgDocs"), section: "orgdocs", specialistOnly: true },
+    { href: "/reports", label: t("nav.reports"), section: "reports" },
+  ] as { href: string; label: string; section?: Section; specialistOnly?: boolean }[])
+    // Mutaxassis menyuda faqat ruxsat berilgan bo'limlarni ko'radi (bosh sahifa ham — birinchi bo'lim).
+    .filter((it) => (specialist ? !!it.section && canView(user, it.section) : !it.specialistOnly))
+    .map(({ href, label }) => ({ href, label }));
+  const headerLinks = !member ? [accountLink] : specialist ? [
+    { href: "/activity", label: t("act.title"), icon: "history" as const },
+    accountLink,
+  ] : [
     { href: "/alerts", label: t("nav.alerts"), icon: "bell" as const, badge: alertCount },
     { href: "/activity", label: t("act.title"), icon: "history" as const },
     { href: "/settings", label: t("settings.title"), icon: "gear" as const, match: ["/org-docs", "/team", "/currencies"] },
@@ -70,7 +79,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <div className="min-h-dvh">
       <header className="sticky top-0 z-10 print:hidden flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-line bg-paper px-4 py-2.5 shadow-sm">
-        <Link href="/" aria-label={t("appName")}><Logo name={t("appName")} /></Link>
+        <Link href={homeFor(user)} aria-label={t("appName")}><Logo name={t("appName")} /></Link>
         {user.memberships > 1 ? (
           <Link href="/select-org" title={t("org.switch")} className="flex items-center gap-1 rounded-lg border border-line px-2.5 py-1 text-sm hover:border-accent">
             {orgLabel} <span aria-hidden className="text-accent">⇄</span>
@@ -82,7 +91,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         <HeaderLinks items={headerLinks} />
         <ThemeToggle initial={themePref} labels={{ system: t("theme.system"), light: t("theme.light"), dark: t("theme.dark") }} />
         <LangSwitch />
-        <span className="text-sm text-muted">{t(`role.${user.role}`)} · {user.fullName}</span>
+        <span className="text-sm text-muted">{roleTitle(t, user)} · {user.fullName}</span>
         <form action={logout}><button className="text-sm text-accent hover:underline">{t("logout")}</button></form>
       </header>
       {user.isDemo && (
