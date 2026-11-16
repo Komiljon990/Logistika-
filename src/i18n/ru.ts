@@ -948,4 +948,7 @@ export const ru: Dict = {
 
   // TIR: kim kiritadi
   "tir.managerOnly": "Приход, выдачу и возврат TIR и дозволов ведёт менеджер. Вы видите список и историю.",
+
+  // Umumiy: yopish
+  "common.close": "Закрыть",
 };

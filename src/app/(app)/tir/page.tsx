@@ -8,7 +8,7 @@ import { orgScope } from "@/lib/scope";
 import { formatDate } from "@/lib/dates";
 import { tashkentToday } from "@/lib/docs";
 import { daysTo, PERMIT_STATUSES } from "@/lib/permits-core";
-import { AckBadge, PermitActions, ReceiveForm } from "./forms";
+import { AckBadge, PermitActions, ReceivePanel } from "./forms";
 
 type SP = { s?: string; t?: string; q?: string };
 
@@ -72,7 +72,6 @@ export default async function TirPage({ searchParams }: { searchParams: Promise<
       <div className="flex flex-wrap items-center gap-3">
         <h1 className="text-2xl font-bold">{t("nav.tir")}</h1>
         <span className="flex-1" />
-        {canEdit && <a href="#receive" className="btn">+ {t("tir.receive")}</a>}
         <Link href="/tir/journal" className="btn-ghost">{t("tir.journal")}</Link>
       </div>
       {!canEdit && <p className="text-sm text-muted">{t("tir.managerOnly")}</p>}
@@ -105,10 +104,7 @@ export default async function TirPage({ searchParams }: { searchParams: Promise<
       </section>
 
       {canEdit && (
-        <section id="receive" className="card grid scroll-mt-20 gap-3 border-2 border-accent p-5">
-          <h2 className="text-lg font-semibold">+ {t("tir.receiveTitle")}</h2>
-          <ReceiveForm d={d} today={today} />
-        </section>
+        <ReceivePanel d={d} today={today} title={t("tir.receiveTitle")} />
       )}
 
       <div className="grid gap-3">

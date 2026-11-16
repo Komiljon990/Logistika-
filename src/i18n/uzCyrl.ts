@@ -948,4 +948,7 @@ export const uzCyrl: Dict = {
 
   // TIR: kim kiritadi
   "tir.managerOnly": "ТИР ва дазволни кирим қилиш, ҳайдовчига бериш ва қайтариб олишни менежер бажаради. Сиз рўйхат ва тарихни кўрасиз.",
+
+  // Umumiy: yopish
+  "common.close": "Ёпиш",
 };

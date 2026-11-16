@@ -951,6 +951,9 @@ export const uz = {
 
   // TIR: kim kiritadi
   "tir.managerOnly": "TIR va dazvolni kirim qilish, haydovchiga berish va qaytarib olishni menejer bajaradi. Siz ro'yxat va tarixni ko'rasiz.",
+
+  // Umumiy: yopish
+  "common.close": "Yopish",
 };
 
 export type Dict = Record<keyof typeof uz, string>;

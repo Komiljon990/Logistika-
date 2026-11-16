@@ -17,6 +17,27 @@ function Msg({ state, d, ok }: { state: FormState; d: Dict; ok?: string }) {
   return null;
 }
 
+/** Kirim oynasi: odatda yopiq; "+ Kirim qilish" ochadi, "Yopish" yopadi. */
+export function ReceivePanel({ d, today, title }: { d: Dict; today: string; title: string }) {
+  const [open, setOpen] = useState(false);
+  if (!open) {
+    return (
+      <div>
+        <button type="button" className="btn" onClick={() => setOpen(true)}>+ {d["tir.receive"]}</button>
+      </div>
+    );
+  }
+  return (
+    <section className="card grid gap-3 border-2 border-accent p-5">
+      <div className="flex items-start gap-3">
+        <h2 className="flex-1 text-lg font-semibold">+ {title}</h2>
+        <button type="button" className="btn-ghost" onClick={() => setOpen(false)} aria-label={d["common.close"]}>✕ {d["common.close"]}</button>
+      </div>
+      <ReceiveForm d={d} today={today} />
+    </section>
+  );
+}
+
 export function ReceiveForm({ d, today }: { d: Dict; today: string }) {
   const [type, setType] = useState<"TIR" | "DAZVOL">("TIR");
   const [saved, setSaved] = useState(0);
@@ -100,11 +121,23 @@ export function PermitActions({ d, id, status, today, vehicles, drivers, pair }:
 }
 
 function Pop({ d, label, primary, children }: { d: Dict; label: string; primary?: boolean; children: React.ReactNode }) {
-  void d;
   return (
     <details className="relative">
       <summary className={`${primary ? "btn" : "btn-ghost"} cursor-pointer list-none`}>{label}</summary>
-      <div className="card absolute right-0 z-20 mt-2 w-80 max-w-[85vw] p-4 shadow-lg">{children}</div>
+      <div className="card absolute right-0 z-20 mt-2 grid w-80 max-w-[85vw] gap-2 p-4 shadow-lg">
+        <div className="flex items-center gap-2">
+          <span className="flex-1 text-sm font-semibold">{label}</span>
+          <button
+            type="button"
+            className="text-sm text-muted hover:text-ink"
+            aria-label={d["common.close"]}
+            onClick={(e) => { const det = e.currentTarget.closest("details"); if (det) det.open = false; }}
+          >
+            ✕
+          </button>
+        </div>
+        {children}
+      </div>
     </details>
   );
 }
