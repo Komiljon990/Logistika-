@@ -8,7 +8,7 @@ import { cbuTransferRate, convertTransfer, rateBaseFor, type AccountKind } from 
 import type { CategoryTree } from "@/lib/cash";
 import { ratesForDay } from "../settlements/actions";
 import {
-  addCategory, cancelExpense, cancelExpenseAndBack, cancelTransfer, createAccount, createExpense, createTransfer,
+  addCategory, cancelEntry, cancelExpense, cancelExpenseAndBack, cancelTransfer, createAccount, createEntry, createExpense, createTransfer,
   renameCategory, setAccountStatus, setCashEnabled, setCategoryStatus, updateAccount, updateExpense,
 } from "./actions";
 
@@ -40,7 +40,7 @@ export function ConfirmAction({ label, confirm, run, className = "text-sm text-m
 
 export type AccountValues = {
   id: string; kind: AccountKind; name: string; mfo: string; accountNumber: string; cardNumber: string; cardHolder: string;
-  currency: string; openingBalance: string; note: string;
+  currency: string; openingBalance: string; note: string; untracked: boolean;
 };
 
 export function AccountForm({ d, currencies, orgField, account }: { d: Dict; currencies: string[]; orgField: string | null; account?: AccountValues }) {
@@ -52,7 +52,8 @@ export function AccountForm({ d, currencies, orgField, account }: { d: Dict; cur
     if (r.ok && !account) setSaved((n) => n + 1);
     return r;
   }, {});
-  const v = (k: keyof AccountValues) => state.values?.[k] ?? account?.[k] ?? "";
+  const v = (k: Exclude<keyof AccountValues, "untracked">) => state.values?.[k] ?? account?.[k] ?? "";
+  const untracked = state.values ? state.values.untracked === "on" : !!account?.untracked;
   return (
     <form key={saved} action={action} className="grid gap-4">
       <OrgField orgId={orgField} />
@@ -111,6 +112,13 @@ export function AccountForm({ d, currencies, orgField, account }: { d: Dict; cur
         </div>
       </div>
       <p className="text-xs text-muted">{d["cash.openingHint"]}</p>
+      <label className="flex items-start gap-2 rounded-lg border border-line p-3 text-sm">
+        <input type="checkbox" name="untracked" defaultChecked={untracked} className="mt-1" />
+        <span>
+          <span className="font-semibold">{d["cash.untracked"]}</span>
+          <span className="block text-xs text-muted">{d["cash.untrackedHint"]}</span>
+        </span>
+      </label>
       <button className="btn min-h-11" disabled={pending}>{d["common.save"]}</button>
       <Msg state={state} d={d} ok={d["common.saved"]} />
     </form>
@@ -288,6 +296,67 @@ export function TransferForm({ d, accounts, rates: initialRates, today, orgField
 
 export function CancelTransferButton({ d, id }: { d: Dict; id: string }) {
   return <ConfirmAction label={d["common.delete"]} confirm={d["cash.deleteConfirm"]} run={() => cancelTransfer(id)} />;
+}
+
+// ---------- Boshqa kirim / chiqim ----------
+
+export function EntryForm({ d, accounts, today, orgField }: { d: Dict; accounts: AccountOpt[]; today: string; orgField: string | null }) {
+  const [direction, setDirection] = useState<"IN" | "OUT">("IN");
+  const [accountId, setAccountId] = useState(accounts.length === 1 ? accounts[0].id : "");
+  const [saved, setSaved] = useState(0);
+  const [state, action, pending] = useActionState(async (prev: FormState, fd: FormData) => {
+    const r = await createEntry(prev, fd);
+    if (r.ok) setSaved((n) => n + 1);
+    return r;
+  }, {});
+  const cur = accounts.find((a) => a.id === accountId)?.currency ?? "";
+  if (accounts.length === 0) return <p className="text-sm text-muted">{d["cash.noAccounts"]}</p>;
+  return (
+    <form key={saved} action={action} className="grid gap-3">
+      <OrgField orgId={orgField} />
+      <fieldset>
+        <legend className="label">{d["cash.entryDirection"]}</legend>
+        <div className="grid grid-cols-2 gap-2">
+          {(["IN", "OUT"] as const).map((k) => (
+            <label key={k} className={`flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-lg text-sm ${direction === k ? `border-2 font-semibold ${k === "IN" ? "border-accent text-accent" : "border-bad text-bad"}` : "border border-line"}`}>
+              <input type="radio" name="direction" value={k} checked={direction === k} onChange={() => setDirection(k)} /> {d[`cash.entry.${k}`]}
+            </label>
+          ))}
+        </div>
+      </fieldset>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div className="sm:col-span-2">
+          <label htmlFor="x-party" className="label">{direction === "IN" ? d["cash.partyFrom"] : d["cash.partyTo"]}</label>
+          <input id="x-party" name="party" required maxLength={200} defaultValue={state.values?.party} placeholder={d["cash.partyPh"]} className="input" />
+        </div>
+        <div className="sm:col-span-2">
+          <label htmlFor="x-acc" className="label">{direction === "IN" ? d["cash.toAccount"] : d["cash.fromAccount"]}</label>
+          <select id="x-acc" name="accountId" required value={accountId} onChange={(e) => setAccountId(e.target.value)} className="input">
+            <option value="" disabled>{d["pay.pickAccount"]}</option>
+            {accounts.map((a) => <option key={a.id} value={a.id}>{a.label}</option>)}
+          </select>
+        </div>
+        <div>
+          <label htmlFor="x-amount" className="label">{d["cash.amount"]}{cur ? `, ${cur}` : ""}</label>
+          <input id="x-amount" name="amount" required inputMode="decimal" defaultValue={state.values?.amount} className="input text-lg font-semibold tabular-nums" />
+        </div>
+        <div>
+          <label htmlFor="x-date" className="label">{d["pay.date"]}</label>
+          <input id="x-date" name="date" type="date" required max={today} defaultValue={state.values?.date ?? today} className="input" />
+        </div>
+        <div className="sm:col-span-2">
+          <label htmlFor="x-note" className="label">{d["common.note"]}</label>
+          <input id="x-note" name="note" maxLength={300} defaultValue={state.values?.note} placeholder={d["cash.entryNotePh"]} className="input" />
+        </div>
+      </div>
+      <button className="btn min-h-11" disabled={pending}>{d["common.save"]}</button>
+      <Msg state={state} d={d} ok={d["cash.entrySaved"]} />
+    </form>
+  );
+}
+
+export function CancelEntryButton({ d, id }: { d: Dict; id: string }) {
+  return <ConfirmAction label={d["common.delete"]} confirm={d["cash.deleteConfirm"]} run={() => cancelEntry(id)} />;
 }
 
 // ---------- Sozlamalar: bo'limni yoqish, turkumlar ----------

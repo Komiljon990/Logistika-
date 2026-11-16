@@ -121,7 +121,7 @@ describe("oxirgi amallar: kim nimani ko'radi", () => {
     expect(activityWhere({ id: "a", role: "ACCOUNTANT", orgId: null }, false)).toEqual({ actorId: "a" });
   });
   it("faqat yaratish amallarini o'chirib bo'ladi", () => {
-    expect(Object.keys(UNDOABLE).every((k) => k.endsWith(".create") || k === "document.renew")).toBe(true);
+    expect(Object.keys(UNDOABLE).every((k) => k.endsWith(".create") || k === "document.renew" || k === "permit.receive")).toBe(true);
     expect("payment.cancel" in UNDOABLE).toBe(false);
   });
 });

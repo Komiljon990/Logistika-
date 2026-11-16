@@ -3,7 +3,7 @@ import { getT } from "@/i18n";
 import { formatNumber } from "@/lib/currency-core";
 import { formatDate } from "@/lib/dates";
 import { tashkentToday } from "@/lib/docs";
-import { balances, loadAccounts, loadMovements } from "@/lib/cash";
+import { balances, loadAccounts, loadMovements, trackedOnly } from "@/lib/cash";
 import { parsePeriod, turnover } from "@/lib/cash-core";
 import { cashContext } from "./context";
 import { CashHeader, CashUnavailable } from "./CashHeader";
@@ -23,8 +23,10 @@ export default async function CashPage({ searchParams }: { searchParams: Promise
 
   const today = tashkentToday().toISOString().slice(0, 10);
   const period = parsePeriod(today, sp);
-  const accounts = await loadAccounts(ctx.orgId, true);
-  const movements = await loadMovements(ctx.orgId);
+  const allAccounts = await loadAccounts(ctx.orgId, true);
+  // Aylanmasi yuritilmaydigan hisoblar (masalan rahbar kartasi) kassa qoldig'i va aylanmasida ko'rinmaydi.
+  const { accounts, movements } = trackedOnly(allAccounts, await loadMovements(ctx.orgId));
+  const untracked = allAccounts.filter((a) => a.untracked && a.active);
   const current = balances(accounts, movements);
   const rows = accounts
     .map((a) => ({ a, tv: turnover(a.openingBalance, movements.filter((m) => m.accountId === a.id), period.from, period.to) }))
@@ -76,7 +78,21 @@ export default async function CashPage({ searchParams }: { searchParams: Promise
             })}
           </section>
 
+          {untracked.length > 0 && (
+            <p className="text-xs text-muted">
+              {t("cash.untrackedList")}:{" "}
+              {untracked.map((a, i) => (
+                <span key={a.id}>{i > 0 && ", "}<Link href={`/cash/accounts/${a.id}${ctx.q ? `?${ctx.q}` : ""}`} className="text-accent hover:underline">{a.name}</Link></span>
+              ))}
+            </p>
+          )}
+
           <PeriodFilter t={t} org={ctx.q ? ctx.orgId : null} period={period} account={accountFilter?.id} accounts={accounts.map((a) => ({ id: a.id, label: a.label }))} />
+          {accountFilter && (
+            <Link href={`/cash/accounts/${accountFilter.id}?${qs(period.month ? { month: period.month } : { from: period.from, to: period.to })}#statement`} className="text-sm font-semibold text-accent hover:underline">
+              {t("cash.statementOpen")} →
+            </Link>
+          )}
 
           <section className="grid gap-2">
             <h2 className="text-lg font-semibold">{t("cash.turnover")}: {formatDate(new Date(period.from))} — {formatDate(new Date(period.to))}</h2>

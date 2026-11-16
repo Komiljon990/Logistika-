@@ -1,0 +1,174 @@
+"use client";
+
+import { useActionState, useState } from "react";
+import type { Dict } from "@/i18n";
+import type { FormState } from "@/lib/form";
+import { deletePermit, issuePermit, lostPermit, receivePermits, returnPermit, surrenderPermit } from "./actions";
+
+function Msg({ state, d, ok }: { state: FormState; d: Dict; ok?: string }) {
+  if (state.error) {
+    return (
+      <p role="alert" className="rounded-lg bg-bad-soft px-3 py-2 text-sm text-bad">
+        {d[state.error]}{state.values?.dup ? `: ${state.values.dup}` : ""}
+      </p>
+    );
+  }
+  if (state.ok && ok) return <p role="status" className="text-sm text-accent">{ok}</p>;
+  return null;
+}
+
+export function ReceiveForm({ d, today }: { d: Dict; today: string }) {
+  const [type, setType] = useState<"TIR" | "DAZVOL">("TIR");
+  const [saved, setSaved] = useState(0);
+  const [state, action, pending] = useActionState(async (prev: FormState, fd: FormData) => {
+    const r = await receivePermits(prev, fd);
+    if (r.ok) setSaved((n) => n + 1);
+    return r;
+  }, {});
+  const v = state.values ?? {};
+  return (
+    <form key={saved} action={action} className="grid gap-3">
+      <fieldset>
+        <legend className="label">{d["tir.type"]}</legend>
+        <div className="grid grid-cols-2 gap-2">
+          {(["TIR", "DAZVOL"] as const).map((k) => (
+            <label key={k} className={`flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-lg text-sm ${type === k ? "border-2 border-accent font-semibold" : "border border-line"}`}>
+              <input type="radio" name="type" value={k} checked={type === k} onChange={() => setType(k)} /> {d[`tir.t.${k}`]}
+            </label>
+          ))}
+        </div>
+      </fieldset>
+      <div>
+        <label htmlFor="p-numbers" className="label">{d["tir.numbers"]}</label>
+        <textarea id="p-numbers" name="numbers" required rows={2} defaultValue={v.numbers} placeholder="XA12345678, XA12345679 / 1001-1010" className="input font-mono" />
+        <p className="mt-1 text-xs text-muted">{d["tir.numbersHint"]}</p>
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2">
+        {type === "DAZVOL" && (
+          <div>
+            <label htmlFor="p-country" className="label">{d["tir.country"]}</label>
+            <input id="p-country" name="country" required maxLength={100} defaultValue={v.country} placeholder={d["tir.countryPh"]} className="input" />
+          </div>
+        )}
+        <div>
+          <label htmlFor="p-kind" className="label">{type === "DAZVOL" ? d["tir.kindDazvol"] : d["tir.kindTir"]}</label>
+          <input id="p-kind" name="kind" maxLength={100} defaultValue={v.kind} placeholder={type === "DAZVOL" ? d["tir.kindDazvolPh"] : d["tir.kindTirPh"]} className="input" />
+        </div>
+        <div className={type === "DAZVOL" ? "sm:col-span-2" : ""}>
+          <label htmlFor="p-issuer" className="label">{d["tir.issuer"]}</label>
+          <input id="p-issuer" name="issuer" maxLength={200} defaultValue={v.issuer} placeholder={d["tir.issuerPh"]} className="input" />
+        </div>
+        <div>
+          <label htmlFor="p-recv" className="label">{d["tir.receivedAt"]}</label>
+          <input id="p-recv" name="receivedAt" type="date" required max={today} defaultValue={v.receivedAt ?? today} className="input" />
+        </div>
+        <div>
+          <label htmlFor="p-valid" className="label">{d["tir.validUntil"]}</label>
+          <input id="p-valid" name="validUntil" type="date" defaultValue={v.validUntil} className="input" />
+        </div>
+        <div className="sm:col-span-2">
+          <label htmlFor="p-note" className="label">{d["common.note"]}</label>
+          <input id="p-note" name="note" maxLength={300} defaultValue={v.note} className="input" />
+        </div>
+      </div>
+      <button className="btn min-h-11" disabled={pending}>{d["tir.receive"]}</button>
+      <Msg state={state} d={d} ok={d["tir.received"]} />
+    </form>
+  );
+}
+
+type Opt = { id: string; label: string };
+
+/** Bitta blanka bo'yicha amallar (holatiga qarab). */
+export function PermitActions({ d, id, status, today, vehicles, drivers, pair }: {
+  d: Dict; id: string; status: string; today: string; vehicles: Opt[]; drivers: Opt[];
+  /** Tyagach → standart haydovchi (tanlanganda avtomatik qo'yiladi). */
+  pair: Record<string, string>;
+}) {
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      {status === "STOCK" && <Pop d={d} label={d["tir.issue"]} primary><IssueForm d={d} id={id} today={today} vehicles={vehicles} drivers={drivers} pair={pair} /></Pop>}
+      {status === "ISSUED" && <Pop d={d} label={d["tir.return"]} primary><SimpleForm d={d} today={today} action={returnPermit.bind(null, id)} submit={d["tir.return"]} used /></Pop>}
+      {(status === "USED" || status === "STOCK") && (
+        <Pop d={d} label={d["tir.surrender"]} primary={status === "USED"}><SimpleForm d={d} today={today} action={surrenderPermit.bind(null, id)} submit={d["tir.surrender"]} /></Pop>
+      )}
+      {status !== "SURRENDERED" && status !== "LOST" && (
+        <Pop d={d} label={d["tir.lost"]}><SimpleForm d={d} today={today} action={lostPermit.bind(null, id)} submit={d["tir.lost"]} danger /></Pop>
+      )}
+    </div>
+  );
+}
+
+function Pop({ d, label, primary, children }: { d: Dict; label: string; primary?: boolean; children: React.ReactNode }) {
+  void d;
+  return (
+    <details className="relative">
+      <summary className={`${primary ? "btn" : "btn-ghost"} cursor-pointer list-none`}>{label}</summary>
+      <div className="card absolute right-0 z-20 mt-2 w-80 max-w-[85vw] p-4 shadow-lg">{children}</div>
+    </details>
+  );
+}
+
+function IssueForm({ d, id, today, vehicles, drivers, pair }: { d: Dict; id: string; today: string; vehicles: Opt[]; drivers: Opt[]; pair: Record<string, string> }) {
+  const [state, action, pending] = useActionState(issuePermit.bind(null, id), {});
+  const [driverId, setDriverId] = useState("");
+  return (
+    <form action={action} className="grid gap-3">
+      <div>
+        <label htmlFor={`v-${id}`} className="label">{d["trip.tractor"]}</label>
+        <select id={`v-${id}`} name="vehicleId" required defaultValue="" onChange={(e) => pair[e.target.value] && setDriverId(pair[e.target.value])} className="input">
+          <option value="" disabled>—</option>
+          {vehicles.map((v) => <option key={v.id} value={v.id}>{v.label}</option>)}
+        </select>
+      </div>
+      <div>
+        <label htmlFor={`dr-${id}`} className="label">{d["trip.driver"]}</label>
+        <select id={`dr-${id}`} name="driverId" required value={driverId} onChange={(e) => setDriverId(e.target.value)} className="input">
+          <option value="" disabled>—</option>
+          {drivers.map((v) => <option key={v.id} value={v.id}>{v.label}</option>)}
+        </select>
+      </div>
+      <div>
+        <label htmlFor={`di-${id}`} className="label">{d["pay.date"]}</label>
+        <input id={`di-${id}`} name="date" type="date" required max={today} defaultValue={today} className="input" />
+      </div>
+      <input name="note" maxLength={300} placeholder={d["common.note"]} aria-label={d["common.note"]} className="input" />
+      <button className="btn" disabled={pending}>{d["tir.issue"]}</button>
+      <Msg state={state} d={d} />
+    </form>
+  );
+}
+
+function SimpleForm({ d, today, action: act, submit, used, danger }: {
+  d: Dict; today: string; action: (prev: FormState, fd: FormData) => Promise<FormState>; submit: string; used?: boolean; danger?: boolean;
+}) {
+  const [state, action, pending] = useActionState(act, {});
+  return (
+    <form action={action} className="grid gap-3">
+      <div>
+        <label className="label">{d["pay.date"]}
+          <input name="date" type="date" required max={today} defaultValue={today} className="input mt-1" />
+        </label>
+      </div>
+      {used && (
+        <label className="flex items-start gap-2 text-sm">
+          <input type="checkbox" name="used" defaultChecked className="mt-1" />
+          <span>{d["tir.used"]}<span className="block text-xs text-muted">{d["tir.usedHint"]}</span></span>
+        </label>
+      )}
+      <input name="note" maxLength={300} placeholder={d["common.note"]} aria-label={d["common.note"]} className="input" />
+      <button className={danger ? "btn-danger" : "btn"} disabled={pending}>{submit}</button>
+      <Msg state={state} d={d} />
+    </form>
+  );
+}
+
+export function DeletePermitButton({ d, id }: { d: Dict; id: string }) {
+  const [state, action, pending] = useActionState(async () => deletePermit(id), {} as FormState);
+  return (
+    <form action={action} onSubmit={(e) => { if (!window.confirm(d["tir.deleteConfirm"])) e.preventDefault(); }} className="flex flex-wrap items-center gap-2">
+      <button className="btn-ghost text-bad" disabled={pending}>{d["common.delete"]}</button>
+      <Msg state={state} d={d} />
+    </form>
+  );
+}

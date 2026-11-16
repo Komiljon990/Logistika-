@@ -46,6 +46,23 @@ export function turnover(openingBalance: number, movements: Movement[], from: st
   return { opening, income, expense, closing: round2(opening + income - expense) };
 }
 
+/**
+ * Hisob ko'chirmasi (bank ko'chirmasi kabi): davr boshidagi qoldiq, davr ichidagi har bir harakat vaqt tartibida
+ * va undan keyingi qoldiq, jami kirim/chiqim va davr oxiridagi qoldiq.
+ */
+export function statement<M extends Movement & { at?: number }>(openingBalance: number, movements: M[], from: string, to: string) {
+  const tv = turnover(openingBalance, movements, from, to);
+  const inPeriod = movements
+    .filter((m) => m.day >= from && m.day <= to)
+    .sort((a, b) => (a.day === b.day ? (a.at ?? 0) - (b.at ?? 0) : a.day < b.day ? -1 : 1));
+  let running = tv.opening;
+  const rows = inPeriod.map((m) => {
+    running = round2(running + m.amount);
+    return { ...m, balance: running };
+  });
+  return { ...tv, rows };
+}
+
 /** Joriy qoldiq: boshlang'ich qoldiq + barcha harakatlar. */
 export function balance(openingBalance: number, movements: Movement[]): number {
   return round2(movements.reduce((s, m) => s + m.amount, openingBalance));

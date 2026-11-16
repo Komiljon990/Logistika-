@@ -22,4 +22,6 @@ export const UNDOABLE = {
   "expense.create": "cash.edit",
   "transfer.create": "cash.edit",
   "account.create": "cash.edit",
+  "entry.create": "cash.edit",
+  "permit.receive": "data.edit",
 } as const;

@@ -230,6 +230,7 @@ model Vehicle {
   updatedAt      DateTime     @updatedAt
 
   documents Document[]
+  permits   Permit[]
   tripsAsTractor Trip[] @relation("TripTractor")
   tripsAsTrailer Trip[] @relation("TripTrailer")
 
@@ -250,6 +251,7 @@ model Driver {
   updatedAt DateTime       @updatedAt
 
   documents      Document[]
+  permits        Permit[]
   pairedVehicles Vehicle[]
   trips          Trip[]
   payments       Payment[]
@@ -530,11 +532,15 @@ model CashAccount {
   currency       String
   openingBalance Decimal     @default(0) @db.Decimal(18, 2)
   note           String?
+  // Aylanmasi yuritilmaydigan hisob (17.11.2026): masalan rahbar kartasi — unga o'tkazilgan pul ko'rinadi, lekin
+  // u yerdan qanday sarflangani kiritilmaydi. Kassa qoldig'i va aylanmasida ko'rinmaydi, tarix saqlanadi.
+  untracked      Boolean     @default(false)
   status         Status      @default(ACTIVE)
   createdById    String
   createdAt      DateTime    @default(now())
   updatedAt      DateTime    @updatedAt
 
+  entries      CashEntry[]
   payments     Payment[]
   expenses     Expense[]
   transfersOut CashTransfer[] @relation("TransferFrom")
@@ -573,6 +579,32 @@ model Expense {
   createdById String
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt
+
+  @@index([orgId, date])
+  @@index([accountId])
+}
+
+enum EntryDirection {
+  IN // kirim
+  OUT // chiqim
+}
+
+/// Tashishlardan tashqari kirim/chiqim (17.11.2026): ta'sischi yoki rahbar o'z yonidan qo'ygan pul, boshqa
+/// tashkilotdan yordam, qarzni qaytarish va h.k. Xarajat turkumlariga kirmaydi.
+model CashEntry {
+  id          String         @id @default(cuid())
+  orgId       String
+  date        DateTime       @db.Date
+  accountId   String
+  account     CashAccount    @relation(fields: [accountId], references: [id])
+  direction   EntryDirection
+  amount      Decimal        @db.Decimal(18, 2) // hisob valyutasida, musbat
+  party       String // kimdan / kimga (ta'sischi, tashkilot nomi)
+  note        String?
+  status      Status         @default(ACTIVE) // ARCHIVED = bekor qilingan
+  createdById String
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
 
   @@index([orgId, date])
   @@index([accountId])
@@ -617,6 +649,78 @@ model PaymentAllocation {
 
   @@index([shipmentId])
   @@index([paymentId])
+}
+
+// ---------- TIR karnetlar va dazvollar (17.11.2026) ----------
+
+enum PermitType {
+  TIR // TIR karnet
+  DAZVOL // xalqaro tashish ruxsatnomasi
+}
+
+enum PermitStatus {
+  STOCK // tashkilotda (foydalanishga tayyor)
+  ISSUED // haydovchiga berilgan
+  USED // ishlatilgan, yuqori tashkilotga topshirilishi kerak
+  SURRENDERED // yuqori tashkilotga topshirilgan
+  LOST // yo'qolgan / bekor
+}
+
+enum PermitMoveKind {
+  RECEIVED // yuqori tashkilotdan olindi (kirim)
+  ISSUED // haydovchiga berildi
+  RETURNED // haydovchi tashkilotga qaytardi
+  SURRENDERED // yuqori tashkilotga topshirildi
+  LOST
+}
+
+/// TIR karnet yoki dazvol: kirim → haydovchiga berish → qaytarish → yuqori tashkilotga topshirish.
+model Permit {
+  id          String       @id @default(cuid())
+  orgId       String
+  type        PermitType
+  number      String
+  country     String? // dazvol: qaysi davlat
+  kind        String? // dazvol turi (bir martalik, ikki tomonlama, tranzit...) yoki TIR varaqlari soni
+  issuer      String? // yuqori turuvchi tashkilot (qayerdan olingan, qayerga topshiriladi)
+  receivedAt  DateTime     @db.Date
+  validUntil  DateTime?    @db.Date
+  status      PermitStatus @default(STOCK)
+  vehicleId   String? // hozir kimda (ISSUED holatida)
+  vehicle     Vehicle?     @relation(fields: [vehicleId], references: [id])
+  driverId    String?
+  driver      Driver?      @relation(fields: [driverId], references: [id])
+  issuedAt    DateTime?    @db.Date
+  note        String?
+  createdById String
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  moves PermitMove[]
+
+  @@index([orgId, type, status])
+  @@index([orgId, number])
+}
+
+/// Harakatlar jurnali. Transport va haydovchi nomi yozilgan paytdagi holatida saqlanadi.
+model PermitMove {
+  id          String         @id @default(cuid())
+  permitId    String
+  permit      Permit         @relation(fields: [permitId], references: [id], onDelete: Cascade)
+  orgId       String
+  kind        PermitMoveKind
+  date        DateTime       @db.Date
+  vehicleId   String?
+  plate       String?
+  driverId    String?
+  driverName  String?
+  used        Boolean?
+  note        String?
+  createdById String
+  createdAt   DateTime       @default(now())
+
+  @@index([orgId, date])
+  @@index([permitId])
 }
 
 // ---------- Ro'yxatdan o'tish, obuna va to'lovlar (17.11.2026) ----------

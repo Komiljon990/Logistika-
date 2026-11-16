@@ -629,6 +629,33 @@ vaqtda, telefon va kompyuter ko'rinishi, ma'lumot yaxlitligi, arxiv
   `Organization`ga plan, period, contractDate, subStart, subEnd;
   `Account`ga mustChangePassword, tempPasswordUntil.
 
+### Kassa qo'shimchalari, TIR/dazvol, hisobotlar (16.11.2026)
+
+- "Boshqa kirim-chiqim" (kassa bo'limi): tashishlardan tashqari pul —
+  ta'sischi yoki rahbar o'z yonidan qo'ygan mablag', boshqa tashkilotdan
+  yordam (kirim) yoki ularga qaytarilgan pul (chiqim). Kiritiladi: turi,
+  kimdan/kimga, qaysi hisob, summa, sana, izoh. Xarajat turkumlariga
+  kirmaydi. Model: `CashEntry`.
+- Hisobda "Aylanmasini yuritmaslik" belgisi (masalan rahbar kartasi):
+  unga o'tkazilgan pul (o'tkazma) ko'rinadi, lekin qayerga sarflangani
+  kiritilmaydi. Bunday hisob kassa qoldig'i, aylanmasi va harakatlar
+  ro'yxatida ko'rinmaydi; o'z sahifasida harakatlar tarixi saqlanadi
+  (qoldiqsiz). Hisobotda unga o'tkazilgan pul alohida ustunda.
+- Hisob ko'chirmasi: hisob sahifasida tanlangan oy yoki davr uchun
+  boshlang'ich qoldiq, har bir kirim/chiqim vaqt tartibida va undan
+  keyingi qoldiq, jami va oxirgi qoldiq. Chop etish / PDF.
+- TIR karnet va dazvol: kirim (yuqori tashkilotdan; bir nechta raqam yoki
+  oraliq bilan) → haydovchiga berish (tyagach + haydovchi, sana) →
+  tashkilotga qaytarish (ishlatilgan / ishlatilmagan) → yuqori tashkilotga
+  topshirish. Yo'qolgan/bekor belgisi. Har blankaning tarixi va davr
+  bo'yicha harakatlar jurnali; muddati 30 kundan kam qolsa ogohlantirish.
+  Menejer yuritadi, boshqalar ko'radi. Modellar: `Permit`, `PermitMove`.
+- Hisobotlar: reyslar (transport, haydovchi, mijoz, yo'nalish bo'yicha
+  soni va hisoblangan daromad), pul oqimi oylar bo'yicha (mijozlardan
+  tushum, boshqa kirim, xarajatlar, boshqa chiqim, aylanmasiz hisoblarga,
+  sof oqim), xarajatlar turkum bo'yicha, TIR/dazvol. Har valyuta alohida
+  (so'mga aylantirilmaydi). Chop etish / PDF.
+
 ## 12. Loyihada ishlash qoidalari (Claude uchun)
 
 Bu bo'lim Project ko'rsatmasiga ko'chirilishi uchun yozilgan.

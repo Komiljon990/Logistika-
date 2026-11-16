@@ -9,7 +9,8 @@ import { cancelCharge, cancelPayment } from "../settlements/actions";
 import { cancelTrip } from "../trips/actions";
 import { setClientStatus } from "../clients/actions";
 import { archiveDocument, setDriverStatus, setVehicleStatus } from "../fleet-actions";
-import { cancelExpense, cancelTransfer, setAccountStatus } from "../cash/actions";
+import { cancelEntry, cancelExpense, cancelTransfer, setAccountStatus } from "../cash/actions";
+import { deletePermit } from "../tir/actions";
 
 /**
  * "Oxirgi amallar"dan o'chirish: yaratilgan yozuv bekor qilinadi (bazadan o'chmaydi, tarix saqlanadi).
@@ -34,6 +35,8 @@ export async function undoActivity(auditId: string): Promise<{ ok?: boolean; err
     case "expense.create": r = await cancelExpense(id); break;
     case "transfer.create": r = await cancelTransfer(id); break;
     case "account.create": r = await setAccountStatus(id, "ARCHIVED"); break;
+    case "entry.create": r = await cancelEntry(id); break;
+    case "permit.receive": r = await deletePermit(id); break;
   }
   revalidatePath("/activity");
   if (r && typeof r === "object" && "error" in r && r.error) return { error: "act.error.undo" };

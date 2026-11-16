@@ -122,3 +122,9 @@
     text-shadow: 0 1px 2px rgb(0 0 0 / 0.9), 0 0 12px rgb(0 0 0 / 0.7);
   }
 }
+/* Chop etish (hisob ko'chirmasi, hisobotlar): fon rasmi va menyular yashiriladi, oq qog'oz. */
+@media print {
+  .bg-photo-layer { display: none !important; }
+  body { background: #fff !important; color: #000 !important; }
+  .card { box-shadow: none !important; border-color: #999 !important; background: #fff !important; }
+}

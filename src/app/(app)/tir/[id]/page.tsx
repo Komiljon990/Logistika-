@@ -1,0 +1,76 @@
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import { getDict, getT } from "@/i18n";
+import { db } from "@/lib/db";
+import { requireUser } from "@/lib/session";
+import { can } from "@/lib/roles";
+import { orgScope } from "@/lib/scope";
+import { formatDate } from "@/lib/dates";
+import { tashkentToday } from "@/lib/docs";
+import { DeletePermitButton, PermitActions } from "../forms";
+
+/** Bitta TIR / dazvol: ma'lumotlar va to'liq harakatlar tarixi. */
+export default async function PermitPage({ params }: { params: Promise<{ id: string }> }) {
+  const user = await requireUser();
+  const { id } = await params;
+  const [t, d] = [await getT(), await getDict()];
+  const p = await db.permit.findFirst({
+    where: { id, ...orgScope(user) },
+    include: { moves: { orderBy: [{ date: "asc" }, { createdAt: "asc" }] }, vehicle: { select: { plate: true } }, driver: { select: { fullName: true } } },
+  });
+  if (!p) notFound();
+  const canEdit = can(user.role, "data.edit") && !user.readOnly;
+  const today = tashkentToday().toISOString().slice(0, 10);
+  const [vehicles, drivers] = canEdit && p.status === "STOCK"
+    ? await Promise.all([
+        db.vehicle.findMany({ where: { orgId: p.orgId, status: "ACTIVE", type: "TRACTOR" }, orderBy: { plate: "asc" }, select: { id: true, plate: true, pairDriverId: true } }),
+        db.driver.findMany({ where: { orgId: p.orgId, status: "ACTIVE" }, orderBy: { fullName: "asc" }, select: { id: true, fullName: true } }),
+      ])
+    : [[], []];
+  const rows: [string, string][] = [
+    [t("tir.type"), t(`tir.t.${p.type}`)],
+    ...(p.country ? [[t("tir.country"), p.country] as [string, string]] : []),
+    ...(p.kind ? [[p.type === "DAZVOL" ? t("tir.kindDazvol") : t("tir.kindTir"), p.kind] as [string, string]] : []),
+    ...(p.issuer ? [[t("tir.issuer"), p.issuer] as [string, string]] : []),
+    [t("tir.receivedAt"), formatDate(p.receivedAt)],
+    [t("tir.validUntil"), formatDate(p.validUntil)],
+    ...(p.status === "ISSUED" && p.vehicle && p.driver ? [[t("tir.holder"), `${p.vehicle.plate} · ${p.driver.fullName} (${formatDate(p.issuedAt)})`] as [string, string]] : []),
+    ...(p.note ? [[t("common.note"), p.note] as [string, string]] : []),
+  ];
+  return (
+    <div className="grid max-w-3xl gap-6">
+      <Link href="/tir" className="text-sm text-accent hover:underline">← {t("nav.tir")}</Link>
+      <div className="flex flex-wrap items-center gap-3">
+        <h1 className="font-mono text-2xl font-bold">{p.number}</h1>
+        <span className="rounded-full border border-line px-2.5 py-0.5 text-xs">{t(`tir.s.${p.status}`)}</span>
+        <span className="flex-1" />
+        {canEdit && (
+          <PermitActions
+            d={d} id={p.id} status={p.status} today={today}
+            pair={Object.fromEntries(vehicles.filter((v) => v.pairDriverId).map((v) => [v.id, v.pairDriverId!]))}
+            vehicles={vehicles.map((v) => ({ id: v.id, label: v.plate }))} drivers={drivers.map((x) => ({ id: x.id, label: x.fullName }))}
+          />
+        )}
+      </div>
+      <section className="card p-5">
+        <dl className="grid gap-2 text-sm sm:grid-cols-[180px_1fr]">
+          {rows.map(([k, v]) => <div key={k} className="contents"><dt className="text-muted">{k}</dt><dd>{v}</dd></div>)}
+        </dl>
+      </section>
+      <section className="grid gap-2">
+        <h2 className="text-lg font-semibold">{t("tir.history")}</h2>
+        <ol className="card divide-y divide-line">
+          {p.moves.map((m) => (
+            <li key={m.id} className="px-4 py-3 text-sm">
+              <span className="tabular-nums text-muted">{formatDate(m.date)}</span> · <span className="font-semibold">{t(`tir.m.${m.kind}`)}</span>
+              {m.plate || m.driverName ? <span> · {[m.plate, m.driverName].filter(Boolean).join(" · ")}</span> : null}
+              {m.used !== null && <span className="text-muted"> · {m.used ? t("tir.usedYes") : t("tir.usedNo")}</span>}
+              {m.note && <div className="text-xs text-muted">{m.note}</div>}
+            </li>
+          ))}
+        </ol>
+      </section>
+      {canEdit && p.status === "STOCK" && p.moves.length === 1 && <DeletePermitButton d={d} id={p.id} />}
+    </div>
+  );
+}

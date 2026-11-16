@@ -43,7 +43,11 @@ export default async function AccountsPage({ searchParams }: { searchParams: Pro
                         </span>
                       </span>
                       <span className="flex-1" />
-                      <span className={`font-bold tabular-nums ${(current.get(a.id) ?? 0) < 0 ? "text-bad" : ""}`}>{`${formatNumber(current.get(a.id) ?? 0)} ${a.currency}`}</span>
+                      {a.untracked ? (
+                        <span className="text-xs text-muted">{t("cash.untrackedShort")}</span>
+                      ) : (
+                        <span className={`font-bold tabular-nums ${(current.get(a.id) ?? 0) < 0 ? "text-bad" : ""}`}>{`${formatNumber(current.get(a.id) ?? 0)} ${a.currency}`}</span>
+                      )}
                     </Link>
                   ))}
                   {list.length === 0 && <p className="px-4 py-3 text-sm text-muted">{t("common.none")}</p>}

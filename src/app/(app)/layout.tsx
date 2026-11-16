@@ -57,10 +57,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     ...(showCash ? [{ href: "/cash", label: t("nav.cash") }] : []),
     { href: "/vehicles", label: t("nav.vehicles") },
     { href: "/drivers", label: t("nav.drivers") },
-    ...(["nav.tir", "nav.reports"] as const).map((k) => ({
-      label: t(k),
-      soon: t("nav.soon"),
-    })),
+    { href: "/tir", label: t("nav.tir") },
+    { href: "/reports", label: t("nav.reports") },
   ];
   const headerLinks = !member ? [accountLink] : [
     { href: "/alerts", label: t("nav.alerts"), icon: "bell" as const, badge: alertCount },
@@ -71,7 +69,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const orgLabel = user.orgName ?? t("admin.panel");
   return (
     <div className="min-h-dvh">
-      <header className="sticky top-0 z-10 flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-line bg-paper px-4 py-2.5 shadow-sm">
+      <header className="sticky top-0 z-10 print:hidden flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-line bg-paper px-4 py-2.5 shadow-sm">
         <Link href="/" aria-label={t("appName")}><Logo name={t("appName")} /></Link>
         {user.memberships > 1 ? (
           <Link href="/select-org" title={t("org.switch")} className="flex items-center gap-1 rounded-lg border border-line px-2.5 py-1 text-sm hover:border-accent">
@@ -101,13 +99,13 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         </Suspense>
       )}
       {billingNote && (
-        <Link href="/settings/subscription" className="block bg-warn-soft px-4 py-2 text-center text-sm text-warn hover:underline">{billingNote}</Link>
+        <Link href="/settings/subscription" className="block bg-warn-soft px-4 print:hidden py-2 text-center text-sm text-warn hover:underline">{billingNote}</Link>
       )}
       {!user.isDemo && !user.grant && !user.email && (
         <Link href="/account" className="block bg-accent-soft px-4 py-2 text-center text-sm text-accent hover:underline">{t("acc.noEmailBanner")}</Link>
       )}
       <div className="mx-auto grid max-w-6xl gap-6 px-4 py-6 md:grid-cols-[232px_minmax(0,1fr)]">
-        <aside className="card self-start p-2 md:sticky md:top-20"><Nav items={items} /></aside>
+        <aside className="card self-start p-2 md:sticky md:top-20 print:hidden"><Nav items={items} /></aside>
         <main className="min-w-0">{children}</main>
       </div>
     </div>

@@ -54,7 +54,7 @@ function revalidateCash() {
 
 type AccountInput = {
   kind: AccountKind; name: string; currency: string; mfo: string | null; accountNumber: string | null;
-  cardNumber: string | null; cardHolder: string | null; openingBalance: number; note: string | null;
+  cardNumber: string | null; cardHolder: string | null; openingBalance: number; note: string | null; untracked: boolean;
 };
 
 async function accountInput(orgId: string, formData: FormData): Promise<AccountInput | FormState> {
@@ -78,16 +78,20 @@ async function accountInput(orgId: string, formData: FormData): Promise<AccountI
     if (!cardNumber) return fail("cash.error.card", formData);
     if (!cardHolder) return fail("cash.error.cardHolder", formData);
   }
-  return { kind, name, currency, mfo, accountNumber, cardNumber, cardHolder, openingBalance: opening, note: optStr(formData, "note", 300) };
+  return {
+    kind, name, currency, mfo, accountNumber, cardNumber, cardHolder, openingBalance: opening, note: optStr(formData, "note", 300),
+    untracked: formData.get("untracked") === "on",
+  };
 }
 
 async function hasMovements(accountId: string): Promise<boolean> {
-  const [p, e, t] = await Promise.all([
+  const [p, e, t, x] = await Promise.all([
     db.payment.count({ where: { accountId } }),
     db.expense.count({ where: { accountId } }),
     db.cashTransfer.count({ where: { OR: [{ fromAccountId: accountId }, { toAccountId: accountId }] } }),
+    db.cashEntry.count({ where: { accountId } }),
   ]);
-  return p + e + t > 0;
+  return p + e + t + x > 0;
 }
 
 export async function createAccount(_prev: FormState, formData: FormData): Promise<FormState> {
@@ -211,6 +215,37 @@ export async function cancelTransfer(id: string): Promise<FormState> {
   const { user, orgId } = await writerFor(() => db.cashTransfer.findFirst({ where: { id, status: "ACTIVE" } }));
   await db.cashTransfer.update({ where: { id }, data: { status: "ARCHIVED" } });
   await audit({ actorId: user.id, orgId, action: "transfer.cancel", entity: "CashTransfer", entityId: id });
+  revalidateCash();
+  return { ok: true };
+}
+
+// ---------- Boshqa kirim / chiqim (tashishlardan tashqari) ----------
+
+/** Ta'sischi yoki rahbar qo'ygan pul, boshqa tashkilotdan yordam (kirim) yoki ularga qaytarilgan pul (chiqim). */
+export async function createEntry(_prev: FormState, formData: FormData): Promise<FormState> {
+  const { user, orgId } = await writer(formData);
+  const direction = str(formData, "direction");
+  if (direction !== "IN" && direction !== "OUT") return fail("common.required", formData);
+  const date = parseDate(formData.get("date"));
+  if (!date || date.toISOString().slice(0, 10) > today()) return fail("pay.error.date", formData);
+  const amount = parseAmount(str(formData, "amount"));
+  if (amount === null || amount <= 0 || amount > 1e13) return fail("pay.error.amount", formData);
+  const account = await db.cashAccount.findFirst({ where: { id: str(formData, "accountId"), orgId, status: "ACTIVE" } });
+  if (!account) return fail("cash.error.account", formData);
+  const party = str(formData, "party").slice(0, 200);
+  if (!party) return fail("common.required", formData);
+  const e = await db.cashEntry.create({
+    data: { orgId, date, accountId: account.id, direction, amount, party, note: optStr(formData, "note", 300), createdById: user.id },
+  });
+  await audit({ actorId: user.id, orgId, action: "entry.create", entity: "CashEntry", entityId: e.id, details: { direction, amount, accountId: account.id, party } });
+  revalidateCash();
+  return { ok: true };
+}
+
+export async function cancelEntry(id: string): Promise<FormState> {
+  const { user, orgId } = await writerFor(() => db.cashEntry.findFirst({ where: { id, status: "ACTIVE" } }));
+  await db.cashEntry.update({ where: { id }, data: { status: "ARCHIVED" } });
+  await audit({ actorId: user.id, orgId, action: "entry.cancel", entity: "CashEntry", entityId: id });
   revalidateCash();
   return { ok: true };
 }

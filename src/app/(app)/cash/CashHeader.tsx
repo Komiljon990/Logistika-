@@ -5,6 +5,7 @@ import type { CashContext } from "./context";
 const TABS = [
   { href: "/cash", key: "cash.tab.overview" },
   { href: "/cash/expenses", key: "cash.tab.expenses" },
+  { href: "/cash/entries", key: "cash.tab.entries" },
   { href: "/cash/transfers", key: "cash.tab.transfers" },
   { href: "/cash/accounts", key: "cash.tab.accounts" },
 ] as const;
