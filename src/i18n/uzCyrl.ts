@@ -979,4 +979,11 @@ export const uzCyrl: Dict = {
   "team.level.EDIT": "Киритиш, таҳрирлаш ва ўчириш",
   "team.specialistHint": "Ҳар Мутахассисга тартиб рақами берилади: Мутахассис-1, Мутахассис-2 …",
   "team.error.noSections": "Мутахассис учун камида битта бўлимни белгиланг.",
+
+  // TIR va Dazvol alohida menyu
+  "nav.tirOnly": "ТИР",
+  "nav.dazvol": "Дазвол",
+  "tir.title.TIR": "ТИР карнетлар",
+  "tir.title.DAZVOL": "Дазволлар",
+  "tir.f.all": "Қоғоз ва электрон",
 };

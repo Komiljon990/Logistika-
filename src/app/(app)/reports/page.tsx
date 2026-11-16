@@ -221,7 +221,7 @@ async function PermitsTab({ t, orgId, from, to }: { t: T; orgId: string; from: s
           {r.byDriver.length === 0 && <p className="px-4 py-5 text-sm text-muted">{t("common.none")}</p>}
         </div>
       </section>
-      <Link href={`/tir/journal?from=${from}&to=${to}`} className="text-sm text-accent hover:underline print:hidden">{t("tir.journal")} →</Link>
+      <span className="flex flex-wrap gap-4 print:hidden"><Link href={`/tir/journal?from=${from}&to=${to}`} className="text-sm text-accent hover:underline">{t("tir.title.TIR")} — {t("tir.journal")} →</Link><Link href={`/dazvol/journal?from=${from}&to=${to}`} className="text-sm text-accent hover:underline">{t("tir.title.DAZVOL")} — {t("tir.journal")} →</Link></span>
     </>
   );
 }

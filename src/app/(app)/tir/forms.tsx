@@ -18,8 +18,8 @@ function Msg({ state, d, ok }: { state: FormState; d: Dict; ok?: string }) {
 }
 
 /** Kirim oynasi: odatda yopiq; "+ Kirim qilish" ochadi, "Yopish" yopadi. */
-export function ReceivePanel({ d, today, title, heading, journal }: {
-  d: Dict; today: string; title: string; heading: React.ReactNode; journal: React.ReactNode;
+export function ReceivePanel({ d, today, title, heading, journal, type }: {
+  d: Dict; today: string; title: string; heading: React.ReactNode; journal: React.ReactNode; type?: "TIR" | "DAZVOL";
 }) {
   const [open, setOpen] = useState(false);
   return (
@@ -36,15 +36,15 @@ export function ReceivePanel({ d, today, title, heading, journal }: {
             <h2 className="flex-1 text-lg font-semibold">+ {title}</h2>
             <button type="button" className="btn-ghost" onClick={() => setOpen(false)} aria-label={d["common.close"]}>✕ {d["common.close"]}</button>
           </div>
-          <ReceiveForm d={d} today={today} />
+          <ReceiveForm d={d} today={today} fixedType={type} />
         </section>
       )}
     </div>
   );
 }
 
-export function ReceiveForm({ d, today }: { d: Dict; today: string }) {
-  const [type, setType] = useState<"TIR" | "DAZVOL">("TIR");
+export function ReceiveForm({ d, today, fixedType }: { d: Dict; today: string; fixedType?: "TIR" | "DAZVOL" }) {
+  const [type, setType] = useState<"TIR" | "DAZVOL">(fixedType ?? "TIR");
   const [saved, setSaved] = useState(0);
   const [state, action, pending] = useActionState(async (prev: FormState, fd: FormData) => {
     const r = await receivePermits(prev, fd);
@@ -54,16 +54,20 @@ export function ReceiveForm({ d, today }: { d: Dict; today: string }) {
   const v = state.values ?? {};
   return (
     <form key={saved} action={action} className="grid gap-3">
-      <fieldset>
-        <legend className="label">{d["tir.type"]}</legend>
-        <div className="grid grid-cols-2 gap-2">
-          {(["TIR", "DAZVOL"] as const).map((k) => (
-            <label key={k} className={`flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-lg text-sm ${type === k ? "border-2 border-accent font-semibold" : "border border-line"}`}>
-              <input type="radio" name="type" value={k} checked={type === k} onChange={() => setType(k)} /> {d[`tir.t.${k}`]}
-            </label>
-          ))}
-        </div>
-      </fieldset>
+      {fixedType ? (
+        <input type="hidden" name="type" value={fixedType} />
+      ) : (
+        <fieldset>
+          <legend className="label">{d["tir.type"]}</legend>
+          <div className="grid grid-cols-2 gap-2">
+            {(["TIR", "DAZVOL"] as const).map((k) => (
+              <label key={k} className={`flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-lg text-sm ${type === k ? "border-2 border-accent font-semibold" : "border border-line"}`}>
+                <input type="radio" name="type" value={k} checked={type === k} onChange={() => setType(k)} /> {d[`tir.t.${k}`]}
+              </label>
+            ))}
+          </div>
+        </fieldset>
+      )}
       <div>
         <label htmlFor="p-numbers" className="label">{d["tir.numbers"]}</label>
         <textarea id="p-numbers" name="numbers" required rows={2} defaultValue={v.numbers} placeholder="XA12345678, XA12345679 / 1001-1010" className="input font-mono" />

@@ -97,7 +97,7 @@ export async function loadAlerts(user: ScopeUser, today: Date): Promise<AlertIte
     items.push({
       key: `permit:${p.id}`,
       kind: "permit",
-      href: `/tir/${p.id}`,
+      href: `${p.type === "TIR" ? "/tir" : "/dazvol"}/${p.id}`,
       owner: p.vehicle && p.driver ? `${p.vehicle.plate} · ${p.driver.fullName}` : p.type === "TIR" ? "TIR" : "Dazvol",
       orgName,
       docType: p.type === "TIR" ? "TIR_CARNET" : "DAZVOL",

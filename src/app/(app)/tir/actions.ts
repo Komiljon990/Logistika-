@@ -24,6 +24,7 @@ const today = () => tashkentToday().toISOString().slice(0, 10);
 
 function refresh() {
   revalidatePath("/tir", "layout");
+  revalidatePath("/dazvol", "layout");
 }
 
 /** Kirim: yuqori tashkilotdan olingan blankalar (bir yoki bir nechta raqam, oraliq ham mumkin). */

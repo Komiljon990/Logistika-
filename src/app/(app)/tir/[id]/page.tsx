@@ -8,6 +8,7 @@ import { orgScope } from "@/lib/scope";
 import { formatDate } from "@/lib/dates";
 import { tashkentToday } from "@/lib/docs";
 import { AckBadge, CancelIssueButton, DeletePermitButton, PermitActions } from "../forms";
+import { PERMIT_BASE } from "../PermitsList";
 
 /** Bitta TIR / dazvol: ma'lumotlar va to'liq harakatlar tarixi. */
 export default async function PermitPage({ params }: { params: Promise<{ id: string }> }) {
@@ -42,7 +43,7 @@ export default async function PermitPage({ params }: { params: Promise<{ id: str
   ];
   return (
     <div className="grid max-w-3xl gap-6">
-      <Link href="/tir" className="text-sm text-accent hover:underline">← {t("nav.tir")}</Link>
+      <Link href={PERMIT_BASE[p.type]} className="text-sm text-accent hover:underline">← {t(`tir.title.${p.type}`)}</Link>
       <div className="flex flex-wrap items-center gap-3">
         <h1 className="font-mono text-2xl font-bold">{p.number}</h1>
         <span className="rounded-full border border-line px-2.5 py-0.5 text-xs">{t(`tir.s.${p.status}`)}</span>

@@ -982,6 +982,13 @@ export const uz = {
   "team.level.EDIT": "Kiritish, tahrirlash va o'chirish",
   "team.specialistHint": "Har Mutaxassisga tartib raqami beriladi: Mutaxassis-1, Mutaxassis-2 …",
   "team.error.noSections": "Mutaxassis uchun kamida bitta bo'limni belgilang.",
+
+  // TIR va Dazvol alohida menyu
+  "nav.tirOnly": "TIR",
+  "nav.dazvol": "Dazvol",
+  "tir.title.TIR": "TIR karnetlar",
+  "tir.title.DAZVOL": "Dazvollar",
+  "tir.f.all": "Qog'oz va elektron",
 };
 
 export type Dict = Record<keyof typeof uz, string>;

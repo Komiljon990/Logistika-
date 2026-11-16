@@ -979,4 +979,11 @@ export const ru: Dict = {
   "team.level.EDIT": "Ввод, редактирование и удаление",
   "team.specialistHint": "Каждому специалисту присваивается номер: Специалист-1, Специалист-2 …",
   "team.error.noSections": "Отметьте хотя бы один раздел для специалиста.",
+
+  // TIR va Dazvol alohida menyu
+  "nav.tirOnly": "TIR",
+  "nav.dazvol": "Дозвол",
+  "tir.title.TIR": "TIR-карнеты",
+  "tir.title.DAZVOL": "Дозволы",
+  "tir.f.all": "Бумажные и электронные",
 };
