@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ExcelButton } from "@/components/ExcelButton";
 import { notFound } from "next/navigation";
 import { getDict, getT } from "@/i18n";
 import { db } from "@/lib/db";
@@ -75,7 +76,8 @@ export default async function AccountPage({ params, searchParams }: { params: Pr
         <div className="print:hidden"><PeriodFilter t={t} org={ctx.q ? ctx.orgId : null} period={period} /></div>
         <p className="hidden text-sm print:block">{accountLabel(a)}</p>
         <div className="card overflow-x-auto">
-          <table className="w-full text-sm">
+          <div className="flex justify-end border-b border-line px-3 py-1 print:hidden"><ExcelButton label={t("common.excel")} target="xl-cash-accounts-id-page" file={t("nav.cash")} /></div>
+          <table id="xl-cash-accounts-id-page" className="w-full text-sm">
             <thead className="text-left text-xs text-muted">
               <tr>
                 <th className="px-3 py-2 font-medium">{t("pay.date")}</th>

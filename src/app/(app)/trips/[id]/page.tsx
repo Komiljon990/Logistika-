@@ -14,6 +14,7 @@ import { AddShipmentPanel, CancelTripButton, EventForm, ShipmentEditPanel, TripE
 import { CancelChargeButton, ChargeForm } from "../../settlements/forms";
 import { payStatus, shipmentTotals } from "@/lib/settlement-core";
 import { tashkentToday } from "@/lib/docs";
+import { routePlaces } from "@/lib/trips";
 
 const PAY_STYLE = { UNPAID: "bg-bad-soft text-bad", PARTIAL: "bg-warn-soft text-warn", PAID: "bg-accent-soft text-accent" } as const;
 
@@ -50,15 +51,16 @@ export default async function TripPage({ params, searchParams }: { params: Promi
   const userName = new Map(users.map((u) => [u.id, u.fullName]));
   const canChange = editor && trip.status !== "CANCELLED";
   // Tahrirlash uchun ro'yxatlar (joriy transport/haydovchi arxivlangan bo'lsa ham ro'yxatda qoladi).
-  const [clients, currencies, tractors, trailers, drivers] = canChange
+  const [clients, currencies, tractors, trailers, drivers, places] = canChange
     ? await Promise.all([
         db.client.findMany({ where: { orgId: trip.orgId, OR: [{ status: "ACTIVE" }, { id: { in: trip.shipments.map((s) => s.clientId) } }] }, orderBy: { name: "asc" }, select: { id: true, name: true } }),
         activeCurrencies(trip.orgId),
-        db.vehicle.findMany({ where: { orgId: trip.orgId, type: "TRACTOR", OR: [{ status: "ACTIVE" }, { id: trip.tractorId }] }, orderBy: { plate: "asc" }, select: { id: true, plate: true } }),
+        db.vehicle.findMany({ where: { orgId: trip.orgId, type: "TRACTOR", OR: [{ status: "ACTIVE" }, { id: trip.tractorId }] }, orderBy: { plate: "asc" }, select: { id: true, plate: true, pairTrailerId: true, pairDriverId: true } }),
         db.vehicle.findMany({ where: { orgId: trip.orgId, type: "TRAILER", OR: [{ status: "ACTIVE" }, ...(trip.trailerId ? [{ id: trip.trailerId }] : [])] }, orderBy: { plate: "asc" }, select: { id: true, plate: true } }),
         db.driver.findMany({ where: { orgId: trip.orgId, OR: [{ status: "ACTIVE" }, { id: trip.driverId }] }, orderBy: { fullName: "asc" }, select: { id: true, fullName: true } }),
+        routePlaces(trip.orgId),
       ])
-    : [[], [], [], [], []];
+    : [[], [], [], [], [], []];
   // Ichki tashishda chegara bosqichlari ko'rsatilmaydi (chiqish belgilanmagan va yuk tushirilgan bo'lsa).
   const steps = EVENT_ORDER.filter((s) => !(s === "ENTERED_UZ" && done.UNLOADED && !done.EXITED_UZ) && !(s === "EXITED_UZ" && done.UNLOADED && !done.EXITED_UZ));
 
@@ -78,7 +80,7 @@ export default async function TripPage({ params, searchParams }: { params: Promi
         {canChange && (
           <TripEditPanel
             d={d} tripId={trip.id}
-            tractors={tractors.map((x) => ({ id: x.id, label: x.plate }))} trailers={trailers.map((x) => ({ id: x.id, label: x.plate }))} drivers={drivers.map((x) => ({ id: x.id, label: x.fullName }))}
+            tractors={tractors.map((x) => ({ id: x.id, label: x.plate, pairTrailerId: x.pairTrailerId ?? "", pairDriverId: x.pairDriverId ?? "" }))} places={places} trailers={trailers.map((x) => ({ id: x.id, label: x.plate }))} drivers={drivers.map((x) => ({ id: x.id, label: x.fullName }))}
             trip={{ routeFrom: trip.routeFrom, routeTo: trip.routeTo, loadDate: trip.loadDate.toISOString().slice(0, 10), cargo: trip.cargo ?? "", note: trip.note ?? "", tractorId: trip.tractorId, trailerId: trip.trailerId ?? "", driverId: trip.driverId, listOnly: trip.listOnly }}
           />
         )}

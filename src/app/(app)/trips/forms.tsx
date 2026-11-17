@@ -179,25 +179,50 @@ function ShipmentFields({ d, clients, currencies, v, listOnly = false, noNewClie
 
 export type TractorOption = { id: string; label: string; pairTrailerId: string; pairDriverId: string };
 
-export function TripForm({ d, tractors, trailers, drivers, clients, currencies, today }: {
-  d: Dict; tractors: TractorOption[]; trailers: Option[]; drivers: Option[]; clients: Option[]; currencies: string[]; today: string;
+/**
+ * Standart bog'lama (17.11.2026): tyagach, prisep yoki haydovchidan bittasi tanlansa, qolganlari tyagach kartochkasidagi
+ * juftlikdan to'ldiriladi. Qo'lda almashtirish mumkin; juftligi yo'q qiymat tanlovni o'chirmaydi.
+ */
+function usePairing(tractors: TractorOption[], init: { tractorId: string; trailerId: string; driverId: string }) {
+  const [tractorId, setTractorId] = useState(init.tractorId);
+  const [trailerId, setTrailerId] = useState(init.trailerId);
+  const [driverId, setDriverId] = useState(init.driverId);
+  const pickTractor = (id: string) => {
+    setTractorId(id);
+    const t = tractors.find((x) => x.id === id);
+    if (t?.pairTrailerId) setTrailerId(t.pairTrailerId);
+    if (t?.pairDriverId) setDriverId(t.pairDriverId);
+  };
+  const pickTrailer = (id: string) => {
+    setTrailerId(id);
+    const t = id ? tractors.find((x) => x.pairTrailerId === id) : undefined;
+    if (t) { setTractorId(t.id); if (t.pairDriverId) setDriverId(t.pairDriverId); }
+  };
+  const pickDriver = (id: string) => {
+    setDriverId(id);
+    const t = id ? tractors.find((x) => x.pairDriverId === id) : undefined;
+    if (t) { setTractorId(t.id); if (t.pairTrailerId) setTrailerId(t.pairTrailerId); }
+  };
+  return { tractorId, trailerId, driverId, pickTractor, pickTrailer, pickDriver };
+}
+
+/** Avval kiritilgan joylar ro'yxati (qayerdan / qayerga): 1-2 harf yozilsa brauzer filtrlab ko'rsatadi. */
+function Places({ id, places }: { id: string; places: string[] }) {
+  return <datalist id={id}>{places.map((p) => <option key={p} value={p} />)}</datalist>;
+}
+
+export function TripForm({ d, tractors, trailers, drivers, clients, currencies, today, places = [] }: {
+  d: Dict; tractors: TractorOption[]; trailers: Option[]; drivers: Option[]; clients: Option[]; currencies: string[]; today: string; places?: string[];
 }) {
   const [state, formAction, pending] = useActionState(createTrip, {});
   const v = state.values;
-  const [tractorId, setTractorId] = useState(v?.tractorId ?? "");
-  const [trailerId, setTrailerId] = useState(v?.trailerId ?? "");
-  const [driverId, setDriverId] = useState(v?.driverId ?? "");
+  const { tractorId, trailerId, driverId, pickTractor: pick, pickTrailer, pickDriver } = usePairing(tractors, { tractorId: v?.tractorId ?? "", trailerId: v?.trailerId ?? "", driverId: v?.driverId ?? "" });
   const [listOnly, setListOnly] = useState(v?.listOnly === "on");
-  const pick = (id: string) => {
-    setTractorId(id);
-    const t = tractors.find((x) => x.id === id);
-    // Standart juftlik avtomatik tanlanadi, qo'lda almashtirish mumkin.
-    if (t) { setTrailerId(t.pairTrailerId); setDriverId(t.pairDriverId); }
-  };
   return (
     <form key={JSON.stringify(v ?? null)} action={formAction} className="grid gap-6">
       <section className="card grid gap-4 p-5 sm:grid-cols-2">
         <h2 className="text-lg font-semibold sm:col-span-2">{d["trip.vehicleAndDriver"]}</h2>
+        <p className="-mt-2 text-xs text-muted sm:col-span-2">{d["trip.pairHint"]}</p>
         <Field id="t-tractor" label={`${d["trip.tractor"]} — ${d["trip.onlyFree"]} (${tractors.length})`} wide>
           <select id="t-tractor" name="tractorId" required value={tractorId} onChange={(e) => pick(e.target.value)} className="input">
             <option value="" disabled>{d["trip.pickTractor"]}</option>
@@ -205,22 +230,23 @@ export function TripForm({ d, tractors, trailers, drivers, clients, currencies, 
           </select>
         </Field>
         <Field id="t-trailer" label={d["trip.trailer"]} hint={d["trip.fromPair"]}>
-          <select id="t-trailer" name="trailerId" value={trailerId} onChange={(e) => setTrailerId(e.target.value)} className="input">
+          <select id="t-trailer" name="trailerId" value={trailerId} onChange={(e) => pickTrailer(e.target.value)} className="input">
             <option value="">—</option>
             {trailers.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}
           </select>
         </Field>
         <Field id="t-driver" label={d["trip.driver"]} hint={d["trip.fromPair"]}>
-          <select id="t-driver" name="driverId" required value={driverId} onChange={(e) => setDriverId(e.target.value)} className="input">
+          <select id="t-driver" name="driverId" required value={driverId} onChange={(e) => pickDriver(e.target.value)} className="input">
             <option value="" disabled>—</option>
             {drivers.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}
           </select>
         </Field>
         <Field id="t-from" label={d["trip.from"]}>
-          <input id="t-from" name="routeFrom" required defaultValue={v?.routeFrom} className="input" />
+          <input id="t-from" name="routeFrom" required list="places" autoComplete="off" defaultValue={v?.routeFrom} className="input" />
         </Field>
         <Field id="t-to" label={d["trip.to"]}>
-          <input id="t-to" name="routeTo" required defaultValue={v?.routeTo} className="input" />
+          <input id="t-to" name="routeTo" required list="places" autoComplete="off" defaultValue={v?.routeTo} className="input" />
+          <Places id="places" places={places} />
         </Field>
         <Field id="t-date" label={d["trip.loadDate"]}>
           <input id="t-date" name="loadDate" type="date" required defaultValue={v?.loadDate ?? today} className="input" />
@@ -289,10 +315,11 @@ export type TripEditValues = {
 };
 
 /** Tashish ma'lumotlarini tahrirlash: yo'nalish, sana, transport, haydovchi, "faqat ro'yxat". */
-export function TripEditPanel({ d, tripId, trip, tractors, trailers, drivers }: {
-  d: Dict; tripId: string; trip: TripEditValues; tractors: Option[]; trailers: Option[]; drivers: Option[];
+export function TripEditPanel({ d, tripId, trip, tractors, trailers, drivers, places = [] }: {
+  d: Dict; tripId: string; trip: TripEditValues; tractors: TractorOption[]; trailers: Option[]; drivers: Option[]; places?: string[];
 }) {
   const [open, setOpen] = useState(false);
+  const pair = usePairing(tractors, { tractorId: trip.tractorId, trailerId: trip.trailerId, driverId: trip.driverId });
   const [state, formAction, pending] = useActionState(async (prev: FormState, fd: FormData) => {
     const res = await updateTrip(tripId, prev, fd);
     if (res.ok) setOpen(false);
@@ -307,23 +334,23 @@ export function TripEditPanel({ d, tripId, trip, tractors, trailers, drivers }: 
         <h2 className="flex-1 text-lg font-semibold">{d["trip.editTitle"]}</h2>
         <button type="button" className="btn-ghost" onClick={() => setOpen(false)}>✕ {d["common.close"]}</button>
       </div>
-      <Field id="te-from" label={d["trip.from"]}><input id="te-from" name="routeFrom" required defaultValue={val("routeFrom")} className="input" /></Field>
-      <Field id="te-to" label={d["trip.to"]}><input id="te-to" name="routeTo" required defaultValue={val("routeTo")} className="input" /></Field>
+      <Field id="te-from" label={d["trip.from"]}><input id="te-from" name="routeFrom" required list="te-places" autoComplete="off" defaultValue={val("routeFrom")} className="input" /></Field>
+      <Field id="te-to" label={d["trip.to"]}><input id="te-to" name="routeTo" required list="te-places" autoComplete="off" defaultValue={val("routeTo")} className="input" /><Places id="te-places" places={places} /></Field>
       <Field id="te-date" label={d["trip.loadDate"]}><input id="te-date" name="loadDate" type="date" required defaultValue={val("loadDate")} className="input" /></Field>
       <Field id="te-cargo" label={d["trip.cargo"]}><input id="te-cargo" name="cargo" defaultValue={val("cargo")} className="input" /></Field>
       <Field id="te-tractor" label={d["trip.tractor"]}>
-        <select id="te-tractor" name="tractorId" defaultValue={val("tractorId")} className="input">
+        <select id="te-tractor" name="tractorId" value={pair.tractorId} onChange={(e) => pair.pickTractor(e.target.value)} className="input">
           {tractors.map((x) => <option key={x.id} value={x.id}>{x.label}</option>)}
         </select>
       </Field>
       <Field id="te-trailer" label={d["trip.trailer"]}>
-        <select id="te-trailer" name="trailerId" defaultValue={val("trailerId")} className="input">
+        <select id="te-trailer" name="trailerId" value={pair.trailerId} onChange={(e) => pair.pickTrailer(e.target.value)} className="input">
           <option value="">—</option>
           {trailers.map((x) => <option key={x.id} value={x.id}>{x.label}</option>)}
         </select>
       </Field>
       <Field id="te-driver" label={d["trip.driver"]}>
-        <select id="te-driver" name="driverId" defaultValue={val("driverId")} className="input">
+        <select id="te-driver" name="driverId" value={pair.driverId} onChange={(e) => pair.pickDriver(e.target.value)} className="input">
           {drivers.map((x) => <option key={x.id} value={x.id}>{x.label}</option>)}
         </select>
       </Field>

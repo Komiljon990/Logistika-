@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ExcelButton } from "@/components/ExcelButton";
 import { canEdit as canEditSection } from "@/lib/access";
 import type { Prisma } from "@prisma/client";
 import { getT } from "@/i18n";
@@ -77,7 +78,8 @@ export default async function TripsPage({ searchParams }: { searchParams: Promis
         <button className="btn-ghost">{t("common.search")}</button>
       </form>
       <div className="card overflow-x-auto">
-        <table className="w-full text-sm">
+        <div className="flex justify-end border-b border-line px-3 py-1 print:hidden"><ExcelButton label={t("common.excel")} target="xl-trips-page" file={t("nav.trips")} /></div>
+        <table id="xl-trips-page" className="w-full text-sm">
           <thead className="text-left text-xs text-muted">
             <tr>
               <th className="px-4 py-2 font-medium">{t("trip.number")}</th>

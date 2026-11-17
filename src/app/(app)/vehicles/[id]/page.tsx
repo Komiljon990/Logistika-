@@ -17,7 +17,7 @@ export default async function VehiclePage({ params, searchParams }: { params: Pr
   const [{ id }, sp] = [await params, await searchParams];
   const [t, d] = [await getT(), await getDict()];
   // Markaziy filtr: boshqa tashkilot transporti "topilmadi" bo'ladi.
-  const v = await db.vehicle.findFirst({ where: { id, ...orgScope(user) }, include: { org: { select: { name: true } } } });
+  const v = await db.vehicle.findFirst({ where: { id, ...orgScope(user) }, include: { org: { select: { name: true } }, ownerDriver: { select: { id: true, fullName: true } } } });
   if (!v) notFound();
   const canEdit = canEditSection(user, "vehicles") && v.status === "ACTIVE";
   const [trailers, drivers] = await Promise.all([
@@ -31,6 +31,7 @@ export default async function VehiclePage({ params, searchParams }: { params: Pr
         <h1 className="text-2xl font-bold tabular-nums">{v.plate}</h1>
         <span className="text-muted">{t(`veh.type.${v.type}`)}</span>
         <StatusPill status={v.status} t={t} />
+        {v.ownerDriver && <Link href={`/lessors/${v.ownerDriver.id}`} className="rounded-full border border-line px-2.5 py-0.5 text-sm text-accent hover:underline">{t("lessor.owner")}: {v.ownerDriver.fullName}</Link>}
         {!user.orgId && <span className="text-sm text-muted">· {v.org.name}</span>}
         <span className="flex-1" />
         <VehicleActions

@@ -15,8 +15,25 @@ import { HeaderLinks } from "@/components/HeaderLinks";
 import { cashEnabled } from "@/lib/cash";
 import { db } from "@/lib/db";
 import { reviewCount, todayDate } from "@/lib/billing";
-import { canView, roleTitle, type Section } from "@/lib/access";
+import { canEdit, canView, roleTitle, type Section } from "@/lib/access";
+import { getDict, type Dict } from "@/i18n";
+import { QuickIncome } from "@/components/QuickIncome";
 import { Nav } from "./Nav";
+
+// "+ Kirim" oynasidagi matnlar (butun lug'at har sahifada brauzerga yuborilmasin).
+const INCOME_KEYS = [
+  "income.button", "income.title", "income.from", "income.src.client", "income.src.lessor", "income.src.other", "income.clientHint",
+  "income.pickLessor", "income.noAccounts", "income.noRights", "income.saved", "income.another", "common.close", "common.loading",
+  "common.save", "common.note", "trip.client", "trip.pickClient", "cash.party", "ledger.toAccount", "pay.pickAccount", "cash.amount",
+  "currency.code", "pay.method", "pay.m.BANK", "pay.m.CASH", "pay.m.CARD", "pay.date",
+  "income.error.client", "income.error.lessor", "cash.error.account", "pay.error.date", "pay.error.amount", "common.required",
+  "trip.error.currency", "pay.error.method", "pay.error.over", "pay.error.exceed", "pay.error.rate", "lessor.error.type",
+  "lessor.error.period", "lessor.error.trip", "demo.blocked",
+] as const satisfies readonly (keyof Dict)[];
+
+function pickDict(d: Dict, keys: readonly (keyof Dict)[]): Dict {
+  return Object.fromEntries(keys.map((k) => [k, d[k]])) as Dict;
+}
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const user = await requireSession();
@@ -44,6 +61,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     else if (unpaid > 0) billingNote = t("sub.bannerUnpaid");
     else if (daysLeft !== null && daysLeft <= 7) billingNote = t("sub.bannerSoon").replace("{n}", String(daysLeft));
   }
+  // "+ Kirim" tugmasi: mijoz to'lovi, ijarachi to'lovi yoki boshqa kirimdan birortasini kiritish huquqi bo'lsa.
+  const canIncome = member && (canEdit(user, "settlements") || canEdit(user, "lessors") || (showCash && canEdit(user, "cash")));
   const withCount =(label: string, n: number) => (n > 0 ? `${label} (${n})` : label);
   const items = !member ? [
     { href: "/admin/orgs", label: t("nav.orgs") },
@@ -60,14 +79,16 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     ...(showCash ? [{ href: "/cash", label: t("nav.cash"), section: "cash" as const }] : []),
     { href: "/vehicles", label: t("nav.vehicles"), section: "vehicles" },
     { href: "/drivers", label: t("nav.drivers"), section: "drivers" },
-    { href: "/tir", label: t("nav.tirOnly"), section: "tir" },
-    { href: "/dazvol", label: t("nav.dazvol"), section: "dazvol" },
+    // TIR va dazvol — bitta bo'lim (17.11.2026), ichida ikki menyu. Mutaxassisga faqat bittasi berilgan bo'lishi mumkin.
+    canView(user, "tir") || !specialist
+      ? { href: "/tir", label: t("nav.tir"), section: "tir", match: ["/dazvol"] }
+      : { href: "/dazvol", label: t("nav.tir"), section: "dazvol", match: ["/tir"] },
     { href: "/org-docs", label: t("nav.orgDocs"), section: "orgdocs", specialistOnly: true },
     { href: "/reports", label: t("nav.reports"), section: "reports" },
-  ] as { href: string; label: string; section?: Section; specialistOnly?: boolean }[])
+  ] as { href: string; label: string; section?: Section; specialistOnly?: boolean; match?: string[] }[])
     // Mutaxassis menyuda faqat ruxsat berilgan bo'limlarni ko'radi (bosh sahifa ham — birinchi bo'lim).
     .filter((it) => (specialist ? !!it.section && canView(user, it.section) : !it.specialistOnly))
-    .map(({ href, label }) => ({ href, label }));
+    .map(({ href, label, match }) => ({ href, label, match }));
   const headerLinks = !member ? [accountLink] : specialist ? [
     { href: "/activity", label: t("act.title"), icon: "history" as const },
     accountLink,
@@ -89,7 +110,16 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         ) : (
           <span className="text-sm text-muted">{orgLabel}</span>
         )}
-        <span className="flex-1" />
+        {member && (
+          <div className="order-last flex w-full items-center gap-2 sm:order-none sm:w-auto sm:flex-1 sm:justify-center print:hidden">
+            <form action="/search" role="search" className="flex min-w-0 flex-1 items-center sm:max-w-sm">
+              <input name="q" type="search" placeholder={t("search.placeholder")} aria-label={t("search.title")} className="input min-h-9 rounded-r-none py-1 text-sm" />
+              <button className="btn-ghost min-h-9 rounded-l-none border-l-0 px-3 py-1" aria-label={t("common.search")}>🔍</button>
+            </form>
+            {canIncome && <QuickIncome d={pickDict(await getDict(), INCOME_KEYS)} />}
+          </div>
+        )}
+        {!member && <span className="flex-1" />}
         <HeaderLinks items={headerLinks} />
         <ThemeToggle initial={themePref} labels={{ system: t("theme.system"), light: t("theme.light"), dark: t("theme.dark") }} />
         <LangSwitch />

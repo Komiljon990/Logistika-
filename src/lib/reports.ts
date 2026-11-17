@@ -63,7 +63,11 @@ export async function tripsReport(orgId: string, from: string, to: string) {
   };
 }
 
-export type FinanceRow = { month: string; payments: Money; otherIn: Money; expenses: Money; otherOut: Money; toUntracked: Money; net: Money };
+export type FinanceRow = {
+  month: string; payments: Money; lessorIn: Money; otherIn: Money; expenses: Money; driverPay: Money; otherOut: Money; toUntracked: Money; net: Money;
+};
+const FIN_KEYS = ["payments", "lessorIn", "otherIn", "expenses", "driverPay", "otherOut", "toUntracked", "net"] as const;
+const emptyFin = (month: string): FinanceRow => ({ month, payments: {}, lessorIn: {}, otherIn: {}, expenses: {}, driverPay: {}, otherOut: {}, toUntracked: {}, net: {} });
 
 /**
  * Pul oqimi oylar bo'yicha (faqat aylanmasi yuritiladigan hisoblar): mijozlardan tushum, boshqa kirim, xarajatlar,
@@ -84,7 +88,7 @@ export async function financeReport(orgId: string, from: string, to: string) {
   const rows = new Map<string, FinanceRow>();
   const row = (month: string) => {
     let r = rows.get(month);
-    if (!r) { r = { month, payments: {}, otherIn: {}, expenses: {}, otherOut: {}, toUntracked: {}, net: {} }; rows.set(month, r); }
+    if (!r) { r = emptyFin(month); rows.set(month, r); }
     return r;
   };
   for (const m of movements) {
@@ -92,16 +96,18 @@ export async function financeReport(orgId: string, from: string, to: string) {
     const v = Math.abs(m.amount);
     if (m.kind === "payment") add(r.payments, m.currency, v);
     else if (m.kind === "entryIn" || (m.kind === "transferIn" && fromUntrackedIds.has(m.id))) add(r.otherIn, m.currency, v);
-    else if (m.kind === "expense" || m.kind === "lessorPay") add(r.expenses, m.currency, v);
+    else if (m.kind === "lessorIn") add(r.lessorIn, m.currency, v);
+    else if (m.kind === "expense") add(r.expenses, m.currency, v);
+    else if (m.kind === "driverPay") add(r.driverPay, m.currency, v);
     else if (m.kind === "entryOut") add(r.otherOut, m.currency, v);
     else if (m.kind === "transferOut" && toUntrackedIds.has(m.id)) add(r.toUntracked, m.currency, v);
     else continue; // ichki o'tkazma
     add(r.net, m.currency, m.amount);
   }
   const list = [...rows.values()].sort((a, b) => (a.month < b.month ? -1 : 1));
-  const total: FinanceRow = { month: "", payments: {}, otherIn: {}, expenses: {}, otherOut: {}, toUntracked: {}, net: {} };
+  const total = emptyFin("");
   for (const r of list) {
-    for (const k of ["payments", "otherIn", "expenses", "otherOut", "toUntracked", "net"] as const) {
+    for (const k of FIN_KEYS) {
       for (const [cur, v] of Object.entries(r[k])) add(total[k], cur, v);
     }
   }
@@ -134,6 +140,48 @@ export async function expensesReport(orgId: string, from: string, to: string) {
   }
   const rows: CategoryRow[] = [...tree.entries()].map(([name, n]) => ({ name, total: n.total, children: [...n.children.entries()].map(([cn, t]) => ({ name: cn, total: t })) }));
   return { rows, total, count: expenses.length };
+}
+
+export type LedgerReportRow = { id: string; name: string; plates: string[]; byType: Record<string, Money>; charged: Money; paid: Money; debt: Money };
+
+/**
+ * Ijarachilar (LESSOR) yoki xodim haydovchilar (STAFF) bo'yicha hisobot: davr ichida hisob turi bo'yicha
+ * hisoblangan, to'langan va bugungi umumiy qarz (barcha davr).
+ */
+export async function ledgerReport(orgId: string, from: string, to: string, side: "LESSOR" | "STAFF") {
+  const drivers = await db.driver.findMany({
+    where: { orgId, OR: [{ category: side === "LESSOR" ? "OWNER_OPERATOR" : "EMPLOYEE", status: "ACTIVE" }, { entries: { some: { side, status: "ACTIVE" } } }] },
+    orderBy: { fullName: "asc" },
+    include: {
+      entries: { where: { side, status: "ACTIVE" }, select: { kind: true, type: true, amount: true, currency: true, date: true } },
+      ownedVehicles: { where: { status: "ACTIVE" }, select: { plate: true } },
+    },
+  });
+  const total: LedgerReportRow = { id: "", name: "", plates: [], byType: {}, charged: {}, paid: {}, debt: {} };
+  const rows: LedgerReportRow[] = [];
+  for (const d of drivers) {
+    const r: LedgerReportRow = { id: d.id, name: d.fullName, plates: d.ownedVehicles.map((v) => v.plate), byType: {}, charged: {}, paid: {}, debt: {} };
+    for (const e of d.entries) {
+      const v = Number(e.amount);
+      const day = e.date.toISOString().slice(0, 10);
+      const sign = e.kind === "CHARGE" ? 1 : -1;
+      add(r.debt, e.currency, sign * v);
+      add(total.debt, e.currency, sign * v);
+      if (day < from || day > to) continue;
+      if (e.kind === "CHARGE") {
+        const k = e.type ?? "OTHER";
+        add((r.byType[k] ??= {}), e.currency, v);
+        add((total.byType[k] ??= {}), e.currency, v);
+        add(r.charged, e.currency, v);
+        add(total.charged, e.currency, v);
+      } else {
+        add(r.paid, e.currency, v);
+        add(total.paid, e.currency, v);
+      }
+    }
+    rows.push(r);
+  }
+  return { rows, total };
 }
 
 /** TIR yoki dazvol (alohida): davrdagi harakatlar soni, hozirgi holat (dazvol — qog'oz/elektron bo'yicha) va haydovchilarga berilgani. */

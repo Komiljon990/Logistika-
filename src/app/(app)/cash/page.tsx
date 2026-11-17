@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ExcelButton } from "@/components/ExcelButton";
 import { getT } from "@/i18n";
 import { formatNumber } from "@/lib/currency-core";
 import { formatDate } from "@/lib/dates";
@@ -152,7 +153,8 @@ export default async function CashPage({ searchParams }: { searchParams: Promise
           <section className="grid gap-2">
             <h2 className="text-lg font-semibold">{t("cash.movements")}{accountFilter ? ` — ${accountFilter.name}` : ""}</h2>
             <div className="card overflow-x-auto">
-              <table className="w-full text-sm">
+              <div className="flex justify-end border-b border-line px-3 py-1 print:hidden"><ExcelButton label={t("common.excel")} target="xl-cash-page" file={t("nav.cash")} /></div>
+              <table id="xl-cash-page" className="w-full text-sm">
                 <thead className="text-left text-xs text-muted">
                   <tr>
                     <th className="px-4 py-2 font-medium">{t("pay.date")}</th>

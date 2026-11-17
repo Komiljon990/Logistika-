@@ -9,7 +9,8 @@ import { tashkentToday } from "@/lib/docs";
 import { parsePeriod } from "@/lib/cash-core";
 import { PrintButton } from "@/components/PrintButton";
 import { PeriodFilter } from "../cash/PeriodFilter";
-import { PERMIT_BASE } from "./PermitsList";
+import { PERMIT_BASE, PermitTypeTabs } from "./PermitsList";
+import { ExcelButton } from "@/components/ExcelButton";
 import { permitSection } from "@/lib/permits-core";
 
 const KINDS: PermitMoveKind[] = ["RECEIVED", "ISSUED", "RETURNED", "SURRENDERED", "LOST", "DEFECT"];
@@ -36,10 +37,12 @@ export async function PermitJournal({ type, searchParams }: { type: PermitType; 
   for (const m of moves) totals.set(m.kind, (totals.get(m.kind) ?? 0) + 1);
   return (
     <div className="grid gap-6">
+      <PermitTypeTabs user={user} type={type} t={t} suffix="/journal" />
       <Link href={PERMIT_BASE[type]} className="text-sm text-accent hover:underline print:hidden">← {t(`tir.title.${type}`)}</Link>
       <div className="flex flex-wrap items-center gap-3">
         <h1 className="text-2xl font-bold">{t(`tir.title.${type}`)} — {t("tir.journal")}: {formatDate(new Date(period.from))} — {formatDate(new Date(period.to))}</h1>
         <span className="flex-1" />
+        <ExcelButton label={t("common.excel")} target="permit-journal" file={`${t(`tir.title.${type}`)} ${period.from} ${period.to}`} />
         <PrintButton label={t("common.print")} />
       </div>
       <div className="print:hidden">
@@ -59,7 +62,7 @@ export async function PermitJournal({ type, searchParams }: { type: PermitType; 
         {KINDS.map((k) => <span key={k}>{t(`tir.m.${k}`)}: <b className="tabular-nums">{totals.get(k) ?? 0}</b></span>)}
       </p>
       <div className="card overflow-x-auto">
-        <table className="w-full text-sm">
+        <table id="permit-journal" className="w-full text-sm">
           <thead className="text-left text-xs text-muted">
             <tr>
               <th className="px-3 py-2 font-medium">{t("pay.date")}</th>

@@ -47,7 +47,7 @@ export function tashkentDay(d: Date): string {
 }
 
 export type MovementRow = Movement & {
-  id: string; kind: "payment" | "expense" | "transferIn" | "transferOut" | "entryIn" | "entryOut" | "lessorPay"; currency: string;
+  id: string; kind: "payment" | "expense" | "transferIn" | "transferOut" | "entryIn" | "entryOut" | "lessorIn" | "driverPay"; currency: string;
   title: string; sub: string | null; href: string | null; createdById: string;
   /** Bir kun ichida tartib (ko'chirmada qoldiq ketma-ket hisoblanadi). */
   at: number;
@@ -60,7 +60,7 @@ export type MovementRow = Movement & {
  */
 export async function loadMovements(orgId: string, opts: { to?: string; accountId?: string } = {}): Promise<MovementRow[]> {
   const acc = opts.accountId;
-  const [payments, expenses, transfers, entries, lessorPays] = await Promise.all([
+  const [payments, expenses, transfers, entries, driverPays] = await Promise.all([
     db.payment.findMany({
       where: { orgId, status: "ACTIVE", accountId: acc ?? { not: null } },
       include: { client: { select: { name: true } }, driver: { select: { fullName: true } } },
@@ -77,10 +77,10 @@ export async function loadMovements(orgId: string, opts: { to?: string; accountI
       where: { orgId, status: "ACTIVE", ...(acc ? { accountId: acc } : {}) },
       include: { account: { select: { currency: true } } },
     }),
-    // Ijarachiga to'lov (17.11.2026) — tanlangan hisobdan chiqim.
-    db.lessorEntry.findMany({
+    // Haydovchilar bilan hisob-kitob (17.11.2026): ijarachidan to'lov — kirim, xodim haydovchiga to'lov — chiqim.
+    db.driverEntry.findMany({
       where: { orgId, status: "ACTIVE", kind: "PAYMENT", accountId: acc ?? { not: null } },
-      include: { lessor: { select: { id: true, name: true } } },
+      include: { driver: { select: { id: true, fullName: true } } },
     }),
   ]);
   const out: MovementRow[] = [];
@@ -122,10 +122,13 @@ export async function loadMovements(orgId: string, opts: { to?: string; accountI
       createdById: x.createdById, at: x.createdAt.getTime(),
     });
   }
-  for (const x of lessorPays) {
+  for (const x of driverPays) {
+    const lessor = x.side === "LESSOR";
     out.push({
-      id: x.id, kind: "lessorPay", accountId: x.accountId!, day: x.date.toISOString().slice(0, 10), amount: -Number(x.amount), currency: x.currency,
-      title: x.lessor.name, sub: [x.plate, x.note].filter(Boolean).join(" · ") || null, href: `/lessors/${x.lessor.id}`,
+      id: x.id, kind: lessor ? "lessorIn" : "driverPay", accountId: x.accountId!, day: x.date.toISOString().slice(0, 10),
+      amount: lessor ? Number(x.amount) : -Number(x.amount), currency: x.currency,
+      title: x.driver.fullName, sub: [x.plate, x.note].filter(Boolean).join(" · ") || null,
+      href: lessor ? `/lessors/${x.driver.id}` : `/settlements/drivers/${x.driver.id}`,
       createdById: x.createdById, at: x.createdAt.getTime(),
     });
   }

@@ -1,5 +1,13 @@
-/** Ijarachi bilan hisob-kitob (sof): har valyuta bo'yicha hisoblangan, to'langan va qarz. */
+/** Haydovchi bilan hisob-kitob (sof): har valyuta bo'yicha hisoblangan, to'langan va qarz. */
 export type LessorBalance = { charged: number; paid: number; debt: number };
+
+/** Hisob turlari: ijarachi (a'zolik, soliq, TIR, dazvol, boshqa) va xodim haydovchi (reys uchun, qo'shimcha). */
+export const CHARGE_TYPES = {
+  LESSOR: ["MEMBERSHIP", "TAX", "TIR", "DAZVOL", "OTHER"],
+  STAFF: ["TRIP", "BONUS", "OTHER"],
+} as const satisfies Record<"LESSOR" | "STAFF", readonly string[]>;
+
+export const LEDGER_TYPES = ["MEMBERSHIP", "TAX", "TIR", "DAZVOL", "TRIP", "BONUS", "OTHER"] as const;
 
 const r2 = (n: number) => Math.round(n * 100) / 100;
 
@@ -23,4 +31,16 @@ export function lessorStatement<E extends { kind: "CHARGE" | "PAYMENT"; amount: 
       running[e.currency] = r2((running[e.currency] ?? 0) + (e.kind === "CHARGE" ? e.amount : -e.amount));
       return { ...e, debt: running[e.currency] };
     });
+}
+
+/** Oxirgi 12 oy va keyingi 2 oy ("2026-11") — a'zolik to'lovi oyi tanlovi uchun. */
+export function monthOptions(today: string): string[] {
+  const y = Number(today.slice(0, 4));
+  const m = Number(today.slice(5, 7));
+  const out: string[] = [];
+  for (let i = 2; i >= -12; i--) {
+    const d = new Date(Date.UTC(y, m - 1 + i, 1));
+    out.push(d.toISOString().slice(0, 7));
+  }
+  return out;
 }

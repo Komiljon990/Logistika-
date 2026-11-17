@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-type Item = { href?: string; label: string; soon?: string; badge?: number };
+type Item = { href?: string; label: string; soon?: string; badge?: number; match?: string[] };
 
 export function Nav({ items }: { items: Item[] }) {
   const path = usePathname();
@@ -15,7 +15,7 @@ export function Nav({ items }: { items: Item[] }) {
             key={it.label}
             href={it.href}
             className={`whitespace-nowrap rounded-lg px-3.5 py-2.5 ${
-              (it.href === "/" ? path === "/" : path.startsWith(it.href))
+              (it.href === "/" ? path === "/" : path.startsWith(it.href) || !!it.match?.some((m) => path.startsWith(m)))
                 ? "bg-accent-soft font-semibold text-accent"
                 : "text-ink hover:bg-ground"
             }`}

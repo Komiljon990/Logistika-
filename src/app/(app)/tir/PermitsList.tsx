@@ -1,14 +1,15 @@
 import Link from "next/link";
-import { canEdit as canEditSection } from "@/lib/access";
+import { canEdit as canEditSection, canView } from "@/lib/access";
 import type { PermitFormat, PermitStatus, PermitType, Prisma } from "@prisma/client";
-import { getDict, getT } from "@/i18n";
+import { getDict, getT, type T } from "@/i18n";
 import { db } from "@/lib/db";
-import { requireSection } from "@/lib/session";
+import { requireSection, type CurrentUser } from "@/lib/session";
 import { orgScope } from "@/lib/scope";
 import { formatDate } from "@/lib/dates";
 import { tashkentToday } from "@/lib/docs";
 import { daysTo, PERMIT_STATUSES, permitSection } from "@/lib/permits-core";
 import { AckBadge, PermitActions, ReceivePanel } from "./forms";
+import { ExcelButton } from "@/components/ExcelButton";
 
 /** Har tur o'z sahifasida (17.11.2026): /tir — TIR karnetlar, /dazvol — dazvollar. */
 export const PERMIT_BASE: Record<PermitType, string> = { TIR: "/tir", DAZVOL: "/dazvol" };
@@ -24,6 +25,22 @@ const TONE: Record<PermitStatus, string> = {
   RETURNED: "border-accent text-accent",
   DEFECT: "border-bad text-bad",
 };
+
+/** "TIR / Dazvol" bo'limi ichidagi ikki menyu (17.11.2026). Mutaxassisga ruxsat berilmagani ko'rinmaydi. */
+export function PermitTypeTabs({ user, type, t, suffix = "" }: { user: CurrentUser; type: PermitType; t: T; suffix?: string }) {
+  const tabs = (["TIR", "DAZVOL"] as const).filter((x) => canView(user, permitSection(x)));
+  if (tabs.length < 2) return null;
+  return (
+    <nav className="card flex gap-1 overflow-x-auto p-1.5 text-sm font-medium print:hidden">
+      {tabs.map((x) => (
+        <Link key={x} href={`${PERMIT_BASE[x]}${suffix}`} aria-current={type === x ? "page" : undefined}
+          className={`whitespace-nowrap rounded-lg px-5 py-2 ${type === x ? "bg-accent-soft font-semibold text-accent" : "text-ink hover:bg-ground"}`}>
+          {x === "TIR" ? t("nav.tirOnly") : t("nav.dazvol")}
+        </Link>
+      ))}
+    </nav>
+  );
+}
 
 /** TIR karnetlar yoki dazvollar ro'yxati: tashkilotda, haydovchida, ishlatilgan (topshirilishi kerak), topshirilgan. */
 export async function PermitsList({ type, searchParams }: { type: PermitType; searchParams: Promise<SP> }) {
@@ -80,6 +97,7 @@ export async function PermitsList({ type, searchParams }: { type: PermitType; se
 
   return (
     <div className="grid gap-6">
+      <PermitTypeTabs user={user} type={type} t={t} />
       {canEdit ? (
         <ReceivePanel
           d={d} today={today} title={t("tir.receiveTitle")} type={type}
@@ -138,7 +156,21 @@ export async function PermitsList({ type, searchParams }: { type: PermitType; se
           <input name="q" defaultValue={q} placeholder={t("tir.searchNumber")} aria-label={t("tir.searchNumber")} className="input w-40 py-1.5 text-sm" />
           <button className="btn-ghost" aria-label={t("common.search")}>🔍</button>
         </form>
+        <ExcelButton label={t("common.excel")} target="xl-permits" file={`${t(`tir.title.${type}`)} ${t(`tir.tab.${status}`)} ${today}`} />
       </div>
+      {/* Excel uchun jadval ko'rinishi (ekranda ko'rinmaydi). */}
+      <table id="xl-permits" hidden>
+        <thead><tr><th>{t("tir.number")}</th><th>{t("tir.type")}</th><th>{t("common.status")}</th><th>{t("trip.tractor")}</th><th>{t("trip.driver")}</th><th>{t("tir.receivedAt")}</th><th>{t("tir.validUntil")}</th><th>{t("tir.issuer")}</th></tr></thead>
+        <tbody>
+          {permits.map((p) => (
+            <tr key={p.id}>
+              <td>{p.number}</td><td>{t(`tir.t.${p.type}`)}{p.format ? ` (${t(`tir.f.${p.format}`)})` : ""}</td><td>{t(`tir.s.${p.status}`)}</td>
+              <td>{p.vehicle?.plate ?? ""}</td><td>{p.driver?.fullName ?? ""}</td><td>{formatDate(p.receivedAt)}</td>
+              <td>{p.validUntil ? formatDate(p.validUntil) : ""}</td><td>{p.issuer ?? ""}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
 
       <div className="card divide-y divide-line">
         {permits.map((p) => {

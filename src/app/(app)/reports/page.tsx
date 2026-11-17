@@ -7,11 +7,13 @@ import { formatDate } from "@/lib/dates";
 import { tashkentToday } from "@/lib/docs";
 import { parsePeriod } from "@/lib/cash-core";
 import { cashEnabled } from "@/lib/cash";
-import { expensesReport, financeReport, permitsReport, tripsReport, type Money, type TripGroup } from "@/lib/reports";
+import { expensesReport, financeReport, ledgerReport, permitsReport, tripsReport, type Money, type TripGroup } from "@/lib/reports";
+import { LEDGER_TYPES, CHARGE_TYPES } from "@/lib/lessors-core";
+import { ExcelButton } from "@/components/ExcelButton";
 import { PrintButton } from "@/components/PrintButton";
 import { PeriodFilter } from "../cash/PeriodFilter";
 
-const TABS = ["trips", "finance", "expenses", "tir", "dazvol"] as const;
+const TABS = ["trips", "finance", "expenses", "lessors", "drivers", "tir", "dazvol"] as const;
 type Tab = (typeof TABS)[number];
 type SP = { r?: string; month?: string; from?: string; to?: string };
 
@@ -30,7 +32,7 @@ function M({ m, tone }: { m: Money; tone?: "good" | "bad" }) {
 function GroupTable({ t, title, rows, first }: { t: T; title: string; rows: TripGroup[]; first: string }) {
   return (
     <section className="grid gap-2">
-      <h2 className="text-lg font-semibold">{title}</h2>
+      <div className="flex items-center gap-2"><h2 className="flex-1 text-lg font-semibold">{title}</h2><ExcelButton label={t("common.excel")} file={title} /></div>
       <div className="card overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="text-left text-xs text-muted">
@@ -92,6 +94,8 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
       {tab === "trips" && <TripsTab t={t} orgId={orgId} from={period.from} to={period.to} />}
       {tab === "finance" && <FinanceTab t={t} orgId={orgId} from={period.from} to={period.to} />}
       {tab === "expenses" && <ExpensesTab t={t} orgId={orgId} from={period.from} to={period.to} />}
+      {tab === "lessors" && <LedgerTab t={t} orgId={orgId} from={period.from} to={period.to} side="LESSOR" />}
+      {tab === "drivers" && <LedgerTab t={t} orgId={orgId} from={period.from} to={period.to} side="STAFF" />}
       {tab === "tir" && <PermitsTab t={t} orgId={orgId} from={period.from} to={period.to} type="TIR" />}
       {tab === "dazvol" && <PermitsTab t={t} orgId={orgId} from={period.from} to={period.to} type="DAZVOL" />}
     </div>
@@ -119,13 +123,14 @@ async function TripsTab({ t, orgId, from, to }: { t: T; orgId: string; from: str
 async function FinanceTab({ t, orgId, from, to }: { t: T; orgId: string; from: string; to: string }) {
   const r = await financeReport(orgId, from, to);
   const cols = [
-    ["payments", "rep.f.payments", "good"], ["otherIn", "rep.f.otherIn", "good"], ["expenses", "rep.f.expenses", "bad"],
+    ["payments", "rep.f.payments", "good"], ["lessorIn", "rep.f.lessorIn", "good"], ["otherIn", "rep.f.otherIn", "good"],
+    ["expenses", "rep.f.expenses", "bad"], ["driverPay", "rep.f.driverPay", "bad"],
     ["otherOut", "rep.f.otherOut", "bad"], ["toUntracked", "rep.f.toUntracked", "bad"], ["net", "rep.f.net", undefined],
   ] as const;
   const monthName = (m: string) => `${m.slice(5, 7)}.${m.slice(0, 4)}`;
   return (
     <section className="grid gap-2">
-      <p className="text-xs text-muted">{t("rep.financeHint")}</p>
+      <div className="flex items-start gap-2"><p className="flex-1 text-xs text-muted">{t("rep.financeHint")}</p><ExcelButton label={t("common.excel")} file={`${t("rep.tab.finance")} ${from} ${to}`} /></div>
       <div className="card overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="text-left text-xs text-muted">
@@ -141,7 +146,7 @@ async function FinanceTab({ t, orgId, from, to }: { t: T; orgId: string; from: s
                 {cols.map(([k, , tone]) => <td key={k} className="px-3 py-2 text-right"><M m={row[k]} tone={tone} /></td>)}
               </tr>
             ))}
-            {r.rows.length === 0 && <tr><td colSpan={7} className="px-3 py-5 text-muted">{t("common.none")}</td></tr>}
+            {r.rows.length === 0 && <tr><td colSpan={9} className="px-3 py-5 text-muted">{t("common.none")}</td></tr>}
             {r.rows.length > 0 && (
               <tr className="border-t-2 border-line bg-ground font-semibold align-top">
                 <td className="px-3 py-2">{t("cash.total")}</td>
@@ -233,5 +238,55 @@ async function PermitsTab({ t, orgId, from, to, type }: { t: T; orgId: string; f
       </section>
       <Link href={`${base}/journal?from=${from}&to=${to}`} className="text-sm text-accent hover:underline print:hidden">{t("tir.journal")} →</Link>
     </>
+  );
+}
+
+/** Ijarachilar (LESSOR) yoki xodim haydovchilar (STAFF): davrda hisob turi bo'yicha hisoblangan, to'langan, bugungi qarz. */
+async function LedgerTab({ t, orgId, from, to, side }: { t: T; orgId: string; from: string; to: string; side: "LESSOR" | "STAFF" }) {
+  const r = await ledgerReport(orgId, from, to, side);
+  const types = LEDGER_TYPES.filter((k) => (CHARGE_TYPES[side] as readonly string[]).includes(k));
+  const base = side === "LESSOR" ? "/lessors" : "/settlements/drivers";
+  const title = side === "LESSOR" ? t("rep.tab.lessors") : t("rep.tab.drivers");
+  return (
+    <section className="grid gap-2">
+      <div className="flex items-start gap-2"><p className="flex-1 text-xs text-muted">{side === "LESSOR" ? t("rep.lessorsHint") : t("rep.driversHint")}</p><ExcelButton label={t("common.excel")} file={`${title} ${from} ${to}`} /></div>
+      <div className="card overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead className="text-left text-xs text-muted">
+            <tr>
+              <th className="px-3 py-2 font-medium">{t("drv.fullName")}</th>
+              {side === "LESSOR" && <th className="px-3 py-2 font-medium">{t("lessor.vehicles")}</th>}
+              {types.map((k) => <th key={k} className="px-3 py-2 text-right font-medium">{t(`ledger.t.${k}`)}</th>)}
+              <th className="px-3 py-2 text-right font-medium">{t("lessor.charged")}</th>
+              <th className="px-3 py-2 text-right font-medium">{t("settle.paid")}</th>
+              <th className="px-3 py-2 text-right font-medium">{side === "LESSOR" ? t("rep.debtNow") : t("rep.weOweNow")}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {r.rows.map((row) => (
+              <tr key={row.id} className="border-t border-line align-top">
+                <td className="px-3 py-2"><Link href={`${base}/${row.id}`} className="text-accent hover:underline">{row.name}</Link></td>
+                {side === "LESSOR" && <td className="px-3 py-2">{row.plates.join(", ")}</td>}
+                {types.map((k) => <td key={k} className="px-3 py-2 text-right"><M m={row.byType[k] ?? {}} /></td>)}
+                <td className="px-3 py-2 text-right"><M m={row.charged} /></td>
+                <td className="px-3 py-2 text-right"><M m={row.paid} tone="good" /></td>
+                <td className="px-3 py-2 text-right font-semibold"><M m={row.debt} /></td>
+              </tr>
+            ))}
+            {r.rows.length === 0 && <tr><td colSpan={types.length + 5} className="px-3 py-5 text-muted">{t("common.none")}</td></tr>}
+            {r.rows.length > 0 && (
+              <tr className="border-t-2 border-line bg-ground font-semibold align-top">
+                <td className="px-3 py-2">{t("cash.total")}</td>
+                {side === "LESSOR" && <td />}
+                {types.map((k) => <td key={k} className="px-3 py-2 text-right"><M m={r.total.byType[k] ?? {}} /></td>)}
+                <td className="px-3 py-2 text-right"><M m={r.total.charged} /></td>
+                <td className="px-3 py-2 text-right"><M m={r.total.paid} tone="good" /></td>
+                <td className="px-3 py-2 text-right"><M m={r.total.debt} /></td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </section>
   );
 }

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ExcelButton } from "@/components/ExcelButton";
 import { getDict, getT } from "@/i18n";
 import { db } from "@/lib/db";
 import { formatNumber } from "@/lib/currency-core";
@@ -66,7 +67,8 @@ export default async function ExpensesPage({ searchParams }: { searchParams: Pro
             </div>
           )}
           <div className="card overflow-x-auto">
-            <table className="w-full text-sm">
+            <div className="flex justify-end border-b border-line px-3 py-1 print:hidden"><ExcelButton label={t("common.excel")} target="xl-cash-expenses-page" file={t("nav.cash")} /></div>
+            <table id="xl-cash-expenses-page" className="w-full text-sm">
               <thead className="text-left text-xs text-muted">
                 <tr>
                   <th className="px-4 py-2 font-medium">{t("pay.date")}</th>

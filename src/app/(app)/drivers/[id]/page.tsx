@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { canEdit as canEditSection } from "@/lib/access";
+import { canEdit as canEditSection, canView } from "@/lib/access";
 import { notFound } from "next/navigation";
 import { getDict, getT } from "@/i18n";
 import { db } from "@/lib/db";
@@ -35,6 +35,9 @@ export default async function DriverPage({ params, searchParams }: { params: Pro
         <StatusPill status={x.status} t={t} />
         {!user.orgId && <span className="text-sm text-muted">· {x.org.name}</span>}
         <span className="flex-1" />
+        {/* Hisob-kitob (17.11.2026): o'z transportidagi — Ijarachilar, xodim — Hisob-kitob → Haydovchilar. */}
+        {x.category === "OWNER_OPERATOR" && canView(user, "lessors") && <Link href={`/lessors/${x.id}`} className="btn-ghost">{t("ledger.open")}</Link>}
+        {x.category === "EMPLOYEE" && canView(user, "settlements") && <Link href={`/settlements/drivers/${x.id}`} className="btn-ghost">{t("ledger.open")}</Link>}
         {editor && (
           <form action={toggle}>
             <button className={x.status === "ACTIVE" ? "btn-danger" : "btn-ghost"}>

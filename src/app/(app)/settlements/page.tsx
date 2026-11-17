@@ -11,6 +11,8 @@ import { ensureRates, rateMap } from "@/lib/rates";
 import { balancesByClient, loadLedger } from "@/lib/settlement";
 import { paymentAccounts } from "@/lib/cash";
 import { HandOverButton, type PayAccounts } from "./forms";
+import { SettleTabs } from "./SettleTabs";
+import { ExcelButton } from "@/components/ExcelButton";
 
 function sumBy(rows: { currency: string; value: number }[]) {
   const out: Record<string, number> = {};
@@ -57,6 +59,7 @@ export default async function SettlementsPage({ searchParams }: { searchParams: 
   return (
     <div className="grid gap-6">
       <h1 className="text-2xl font-bold">{t("settle.title")}</h1>
+      <SettleTabs t={t} active="clients" />
       <div className="grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-3">
         <div className="card p-4">
           <div className="text-xs text-muted">{t("settle.debt")}</div>
@@ -90,10 +93,11 @@ export default async function SettlementsPage({ searchParams }: { searchParams: 
         )}
         <label className="flex items-center gap-2 px-2 text-sm"><input type="checkbox" name="all" value="1" defaultChecked={!!sp.all} /> {t("settle.showAll")}</label>
         <button className="btn-ghost">{t("common.search")}</button>
+        <ExcelButton label={t("common.excel")} target="settle-clients" file={`${t("settle.title")} ${today}`} />
       </form>
 
       <div className="card overflow-x-auto">
-        <table className="w-full text-sm">
+        <table id="settle-clients" className="w-full text-sm">
           <thead className="text-left text-xs text-muted">
             <tr>
               <th className="px-4 py-2 font-medium">{t("trip.client")}</th>

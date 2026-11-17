@@ -716,6 +716,51 @@ vaqtda, telefon va kompyuter ko'rinishi, ma'lumot yaxlitligi, arxiv
   yozuvdan keyingi qarz. Yozuv bekor qilinadi (o'chirilmaydi). Hisobchi
   va menejer yuritadi. Pul oqimi hisobotida to'lovlar xarajatga kiradi.
   Modellar: `Lessor`, `LessorEntry`; `Trip.listOnly`.
+  **17.11.2026 da qayta ishlandi** — quyidagi bo'limga qarang.
+
+### Haydovchilar hisob-kitobi, kirim, qidiruv, Excel (17.11.2026)
+
+- **Ijarachilar = o'z transportidagi haydovchilar** (`Driver.category =
+  OWNER_OPERATOR`): Haydovchilar bo'limidagilar shu yerda ham ko'rinadi;
+  "Yangi ijarachi" shunday haydovchini yaratadi. Ijarachiga transport
+  biriktiriladi (`Vehicle.ownerDriverId`, transport "ijarada" bo'ladi).
+  "Hisob qo'shish": a'zolik to'lovi (tanlangan oy uchun, bir oyga bir
+  marta), soliq, TIR uchun, dazvol uchun, boshqa — sana, summa, valyuta,
+  ixtiyoriy transport va izoh bilan; ijarachining qarzi oshadi. "To'lov":
+  sana, summa, valyuta, qayerga (kassa hisobi — kirim) va izoh; qarz
+  kamayadi. "A'zolik to'lovini hammaga hisoblash" — tanlangan oy uchun
+  barcha faol ijarachilarga bir xil summa (hisoblanganlar o'tkaziladi).
+- **Hisob-kitob bo'limi ikki menyu**: "Mijozlar bilan" (avvalgidek) va
+  "Haydovchilar bilan" — xodim haydovchilar (`EMPLOYEE`). "Hisob qo'shish":
+  bajargan reysi uchun (reys tanlanadi, bitta reys bir marta) yoki
+  qo'shimcha hisob / boshqa; bizning qarzimiz oshadi. "To'lov" —
+  haydovchiga to'langan pul, tanlangan hisobdan chiqim.
+- Ikkala tur bitta model: `DriverEntry` (side LESSOR/STAFF, kind
+  CHARGE/PAYMENT, type MEMBERSHIP/TAX/TIR/DAZVOL/TRIP/BONUS/OTHER,
+  period, tripId, accountId). Yozuv bekor qilinadi (o'chirilmaydi).
+  Kassada: ijarachidan to'lov — "Kirim · ijarachidan", haydovchiga to'lov
+  — "Chiqim · haydovchiga". Pul oqimi hisobotida alohida ustunlar.
+  `Lessor`/`LessorEntry` modellari olib tashlandi (ma'lumot yo'q edi).
+- **Tashish formasi**: tyagach, prisep yoki haydovchidan bittasi tanlansa,
+  qolganlari tyagach kartochkasidagi standart bog'lamadan to'ldiriladi
+  (tahrirlashda ham). "Qayerdan/qayerga" — avval kiritilgan joylar
+  ro'yxati (ko'p ishlatilgani birinchi), 1-2 harf yozilsa filtrlanadi.
+- **Yuqori panel**: global qidiruv (tashish raqami/yo'nalishi/yuk/CMR,
+  mijoz nomi/STIR/telefon, haydovchi, davlat raqami, TIR/dazvol raqami —
+  foydalanuvchi ko'ra oladigan bo'limlardan) va "+ Kirim" tugmasi: kimdan
+  (mijoz / ijarachi / boshqa), qancha, qayerga (hisob), sana, izoh.
+  Mijozdan tushum shu valyutadagi eng eski qarzlarga avtomatik
+  taqsimlanadi (hisob turi to'lov usulini belgilaydi: bank — shartnoma,
+  naqd/karta — naqd kelishuv), ortgani avans.
+- **Hisobotlar**: "Ijarachilar" (hisob turi bo'yicha hisoblangan,
+  to'langan, bugungi qarz) va "Haydovchilar" menyulari.
+- **Excel**: bo'limlardagi jadvallar (tashishlar, mijozlar, transport,
+  haydovchilar, hisob-kitob, ijarachilar, kassa, ko'chirmalar, TIR/dazvol,
+  jurnal, hisobotlar) ekranda ko'ringan holatda (filtr/saralash bilan)
+  .xlsx faylga yuklanadi. Summalar Excelda son bo'lib qoladi, valyuta
+  formatda ko'rinadi.
+- **TIR va dazvol — bitta menyu bandi** ("TIR / Dazvol"), ichida ikki
+  menyu: TIR va Dazvol (ruxsatlar avvalgidek alohida).
 
 ## 12. Loyihada ishlash qoidalari (Claude uchun)
 

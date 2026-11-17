@@ -228,8 +228,11 @@ model Vehicle {
   pairTrailer    Vehicle?     @relation("Pair", fields: [pairTrailerId], references: [id])
   pairedTractors Vehicle[]    @relation("Pair")
   pairDriverId   String?
-  pairDriver     Driver?      @relation(fields: [pairDriverId], references: [id])
-  status         Status       @default(ACTIVE)
+  pairDriver     Driver?      @relation("PairDriver", fields: [pairDriverId], references: [id])
+  // Ijarachining (o'z transportidagi haydovchining) transporti (17.11.2026).
+  ownerDriverId  String?
+  ownerDriver    Driver?      @relation("OwnerVehicles", fields: [ownerDriverId], references: [id])
+  status        Status       @default(ACTIVE)
   note           String?
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
@@ -260,9 +263,11 @@ model Driver {
 
   documents      Document[]
   permits        Permit[]
-  pairedVehicles Vehicle[]
+  pairedVehicles Vehicle[]     @relation("PairDriver")
+  ownedVehicles  Vehicle[]     @relation("OwnerVehicles")
   trips          Trip[]
   payments       Payment[]
+  entries        DriverEntry[]
 
   @@index([orgId, status])
   @@index([telegramChatId])
@@ -408,6 +413,7 @@ model Trip {
   shipments Shipment[]
   events    TripEvent[]
   documents Document[]
+  driverEntries DriverEntry[]
 
   @@unique([orgId, number])
   @@index([orgId, status])
@@ -553,7 +559,7 @@ model CashAccount {
   updatedAt      DateTime    @updatedAt
 
   entries      CashEntry[]
-  lessorEntries LessorEntry[]
+  driverEntries DriverEntry[]
   payments     Payment[]
   expenses     Expense[]
   transfersOut CashTransfer[] @relation("TransferFrom")
@@ -623,49 +629,54 @@ model CashEntry {
   @@index([accountId])
 }
 
-/// Ijarachi (17.11.2026): transport ijarasi bo'yicha hisob-kitob yuritiladigan tomon.
-model Lessor {
-  id          String        @id @default(cuid())
-  orgId       String
-  name        String
-  phone       String?
-  inn         String?
-  note        String?
-  status      Status        @default(ACTIVE)
-  createdById String
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
-
-  entries LessorEntry[]
-
-  @@index([orgId, status])
+/// Haydovchi bilan hisob-kitob turi (17.11.2026).
+enum LedgerSide {
+  LESSOR // ijarachi (o'z transportida): u tashkilotga to'laydi — hisob uning qarzini oshiradi, to'lov — kirim
+  STAFF // xodim haydovchi: tashkilot unga to'laydi — hisob bizning qarzimizni oshiradi, to'lov — chiqim
 }
 
-enum LessorEntryKind {
-  CHARGE // hisob (ijara haqi hisoblandi — qarz oshadi)
-  PAYMENT // to'lov (qarz kamayadi; kassadagi hisobdan chiqim)
+enum LedgerKind {
+  CHARGE // hisob qo'shish
+  PAYMENT // to'lov
 }
 
-model LessorEntry {
-  id          String          @id @default(cuid())
+enum LedgerType {
+  MEMBERSHIP // a'zolik to'lovi (tanlangan oy uchun)
+  TAX // soliq
+  TIR // TIR uchun
+  DAZVOL // dazvol uchun
+  TRIP // bajarilgan reys uchun (xodim haydovchi)
+  BONUS // qo'shimcha hisob (xodim haydovchi)
+  OTHER // boshqa
+}
+
+/// Haydovchi hisob-kitobi yozuvi: ijarachilar (o'z transportidagi haydovchilar) va xodim haydovchilar.
+model DriverEntry {
+  id          String       @id @default(cuid())
   orgId       String
-  lessorId    String
-  lessor      Lessor          @relation(fields: [lessorId], references: [id])
-  kind        LessorEntryKind
-  date        DateTime        @db.Date
-  amount      Decimal         @db.Decimal(18, 2)
-  currency    String
-  vehicleId   String? // qaysi transport uchun (ixtiyoriy)
+  driverId    String
+  driver      Driver       @relation(fields: [driverId], references: [id])
+  side        LedgerSide
+  kind        LedgerKind
+  type        LedgerType? // faqat hisob uchun
+  period      String? // a'zolik to'lovi oyi: "2026-11"
+  tripId      String? // reys uchun hisob
+  trip        Trip?        @relation(fields: [tripId], references: [id])
+  vehicleId   String?
   plate       String?
-  accountId   String? // to'lov qaysi hisobdan (kassa yoqilgan bo'lsa)
-  account     CashAccount?    @relation(fields: [accountId], references: [id])
+  date        DateTime     @db.Date
+  amount      Decimal      @db.Decimal(18, 2)
+  currency    String
+  accountId   String? // to'lov qaysi hisobga (ijarachi) yoki qaysi hisobdan (xodim)
+  account     CashAccount? @relation(fields: [accountId], references: [id])
   note        String?
-  status      Status          @default(ACTIVE) // ARCHIVED = bekor qilingan
+  status      Status       @default(ACTIVE) // ARCHIVED = bekor qilingan
   createdById String
-  createdAt   DateTime        @default(now())
+  createdAt   DateTime     @default(now())
 
-  @@index([orgId, lessorId])
+  @@index([orgId, side, driverId])
   @@index([accountId])
+  @@index([tripId])
 }
 
 /// Hisoblar orasida o'tkazma (kassadan bankka, kartadan naqdga, valyuta ayirboshlash).

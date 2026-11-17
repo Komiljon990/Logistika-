@@ -4,7 +4,7 @@ import { db } from "@/lib/db";
 import { requireSection } from "@/lib/session";
 import { orgForWrite } from "@/lib/scope";
 import { activeCurrencies } from "@/lib/org-currency";
-import { loadedVehicleIds } from "@/lib/trips";
+import { loadedVehicleIds, routePlaces } from "@/lib/trips";
 import { tashkentToday } from "@/lib/docs";
 import { TripForm } from "../forms";
 
@@ -14,7 +14,7 @@ export default async function NewTripPage() {
   const orgId = orgForWrite(user);
   const [t, d] = [await getT(), await getDict()];
   const busy = await loadedVehicleIds(orgId);
-  const [vehicles, drivers, clients, currencies] = await Promise.all([
+  const [vehicles, drivers, clients, currencies, places] = await Promise.all([
     db.vehicle.findMany({
       where: { orgId, status: "ACTIVE", type: { in: ["TRACTOR", "TRAILER"] } },
       orderBy: { plate: "asc" },
@@ -23,6 +23,7 @@ export default async function NewTripPage() {
     db.driver.findMany({ where: { orgId, status: "ACTIVE" }, orderBy: { fullName: "asc" }, select: { id: true, fullName: true } }),
     db.client.findMany({ where: { orgId, status: "ACTIVE" }, orderBy: { name: "asc" }, select: { id: true, name: true } }),
     activeCurrencies(orgId),
+    routePlaces(orgId),
   ]);
   const free = vehicles.filter((v) => !busy.has(v.id));
   const trailers = free.filter((v) => v.type === "TRAILER");
@@ -55,6 +56,7 @@ export default async function NewTripPage() {
           clients={clients.map((x) => ({ id: x.id, label: x.name }))}
           currencies={currencies}
           today={tashkentToday().toISOString().slice(0, 10)}
+          places={places}
         />
       )}
     </div>

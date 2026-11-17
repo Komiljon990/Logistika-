@@ -90,7 +90,7 @@ async function hasMovements(accountId: string): Promise<boolean> {
     db.expense.count({ where: { accountId } }),
     db.cashTransfer.count({ where: { OR: [{ fromAccountId: accountId }, { toAccountId: accountId }] } }),
     db.cashEntry.count({ where: { accountId } }),
-    db.lessorEntry.count({ where: { accountId } }),
+    db.driverEntry.count({ where: { accountId } }),
   ]);
   return p + e + t + x + l > 0;
 }
