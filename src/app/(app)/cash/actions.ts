@@ -142,7 +142,15 @@ async function expenseInput(orgId: string, formData: FormData) {
   if (!cat || (cat.parent && cat.parent.status !== "ACTIVE")) return { error: "cash.error.category" as const };
   // Turkum ichida bo'limlar bo'lsa — bo'lim tanlanishi shart.
   if (!cat.parentId && cat._count.children > 0) return { error: "cash.error.subcategory" as const };
-  return { data: { date, amount, accountId: account.id, categoryId: cat.id, note: optStr(formData, "note", 300) } };
+  // Reys (ixtiyoriy): shu tashkilotniki bo'lishi kerak.
+  let tripId: string | null = null;
+  const tid = str(formData, "tripId");
+  if (tid) {
+    const trip = await db.trip.findFirst({ where: { id: tid, orgId }, select: { id: true } });
+    if (!trip) throw new ForbiddenError();
+    tripId = trip.id;
+  }
+  return { data: { date, amount, accountId: account.id, categoryId: cat.id, tripId, note: optStr(formData, "note", 300) } };
 }
 
 export async function createExpense(_prev: FormState, formData: FormData): Promise<FormState> {

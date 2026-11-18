@@ -20,7 +20,8 @@ export type RegisterState = {
 
 async function clientIp(): Promise<string | null> {
   const h = await headers();
-  return h.get("x-forwarded-for")?.split(",")[0]?.trim() || h.get("x-real-ip") || null;
+  // Cloudflare Tunnel orqali: haqiqiy IP cf-connecting-ip'da (uni mijoz soxtalashtira olmaydi).
+  return h.get("cf-connecting-ip")?.trim() || h.get("x-forwarded-for")?.split(",")[0]?.trim() || h.get("x-real-ip") || null;
 }
 
 /**

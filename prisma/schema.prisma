@@ -258,6 +258,12 @@ model Driver {
   // Telegram bot (17.11.2026): haydovchi botga o'z telefon raqamini yuborib ulanadi (raqam shu yozuvdagiga mos).
   telegramChatId   String?
   telegramLinkedAt DateTime?
+  // 18.11.2026: xodim haydovchi — har yakunlangan reys uchun avtomatik hisob (reys haqi);
+  // ijarachi — har oyning 1-sanasida avtomatik a'zolik to'lovi.
+  tripRate           Decimal? @db.Decimal(18, 2)
+  tripRateCurrency   String?
+  membershipFee      Decimal? @db.Decimal(18, 2)
+  membershipCurrency String?
   createdAt DateTime       @default(now())
   updatedAt DateTime       @updatedAt
 
@@ -414,6 +420,7 @@ model Trip {
   events    TripEvent[]
   documents Document[]
   driverEntries DriverEntry[]
+  expenses      Expense[]
 
   @@unique([orgId, number])
   @@index([orgId, status])
@@ -593,6 +600,9 @@ model Expense {
   amount      Decimal         @db.Decimal(18, 2) // hisob valyutasida
   categoryId  String // eng aniq tanlangan: bo'lim yoki (bo'limi yo'q) turkum
   category    ExpenseCategory @relation(fields: [categoryId], references: [id])
+  // 18.11.2026: xarajat qaysi reysga tegishli (reys rentabelligi hisoboti uchun), ixtiyoriy.
+  tripId      String?
+  trip        Trip?           @relation(fields: [tripId], references: [id])
   note        String?
   status      Status          @default(ACTIVE) // ARCHIVED = o'chirilgan (bekor qilingan)
   createdById String
@@ -601,6 +611,7 @@ model Expense {
 
   @@index([orgId, date])
   @@index([accountId])
+  @@index([tripId])
 }
 
 enum EntryDirection {

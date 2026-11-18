@@ -1,25 +1,18 @@
 import type { TripEventType } from "@prisma/client";
 
-/** Holatlar tartibi (bot va menejer uchun bir xil). */
-export const EVENT_ORDER: readonly TripEventType[] = [
-  "ACCEPTED", "ARRIVED_LOADING", "LOADED", "EXITED_UZ", "ARRIVED_UNLOADING", "UNLOADED", "ENTERED_UZ",
-];
-
-/** Majburiy zanjir; chegara kunlari (chiqish/kirish) faqat xorijiy tashishda. */
-const CHAIN: readonly TripEventType[] = ["ACCEPTED", "ARRIVED_LOADING", "LOADED", "ARRIVED_UNLOADING", "UNLOADED"];
+/**
+ * Holatlar tartibi (bot va menejer uchun bir xil).
+ * 18.11.2026: "O'zbekistondan chiqdi / kirdi" bosqichlari olib tashlandi — tashish butunlay xorijda
+ * bo'lishi mumkin (masalan Xitoy → Polsha). Eski yozuvlar bazada qoladi, lekin ko'rsatilmaydi va hisobga olinmaydi.
+ */
+export const EVENT_ORDER: readonly TripEventType[] = ["ACCEPTED", "ARRIVED_LOADING", "LOADED", "ARRIVED_UNLOADING", "UNLOADED"];
 
 export type DoneEvents = Partial<Record<TripEventType, Date>>;
 
-/** Hozir belgilash mumkin bo'lgan holatlar. */
+/** Hozir belgilash mumkin bo'lgan holat (zanjirdagi birinchi belgilanmagani). */
 export function nextEvents(done: DoneEvents): TripEventType[] {
-  const out: TripEventType[] = [];
-  const nextChain = CHAIN.find((t) => !done[t]);
-  if (nextChain) out.push(nextChain);
-  // O'zbekistondan chiqish: yuklangandan keyin, tushirilguncha.
-  if (done.LOADED && !done.UNLOADED && !done.EXITED_UZ) out.push("EXITED_UZ");
-  // O'zbekistonga kirish: chiqqan bo'lsa va yuk tushirilgandan keyin.
-  if (done.EXITED_UZ && done.UNLOADED && !done.ENTERED_UZ) out.push("ENTERED_UZ");
-  return out.sort((a, b) => EVENT_ORDER.indexOf(a) - EVENT_ORDER.indexOf(b));
+  const next = EVENT_ORDER.find((t) => !done[t]);
+  return next ? [next] : [];
 }
 
 /** Shu holatdan oldin bo'lishi shart bo'lgan eng so'nggi holat (vaqt tartibini tekshirish uchun). */
@@ -45,9 +38,9 @@ export function isLoaded(status: "ACTIVE" | "COMPLETED" | "CANCELLED", done: Don
   return status === "ACTIVE" && !done.UNLOADED;
 }
 
-/** Tashish yakunlanadimi: ichki — tushirilganda; xorijiy — O'zbekistonga kirganda. */
+/** Tashish yuk tushirilganda yakunlanadi. */
 export function completesTrip(done: DoneEvents): boolean {
-  return !!done.UNLOADED && (!done.EXITED_UZ || !!done.ENTERED_UZ);
+  return !!done.UNLOADED;
 }
 
 /** Hozirgi bosqich (ko'rsatish uchun): oxirgi belgilangan holat. */

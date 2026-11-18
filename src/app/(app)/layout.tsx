@@ -74,8 +74,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     { href: "/", label: t("nav.home") },
     { href: "/trips", label: t("nav.trips"), section: "trips" },
     { href: "/clients", label: t("nav.clients"), section: "clients" },
-    { href: "/settlements", label: t("nav.settlements"), section: "settlements" },
-    { href: "/lessors", label: t("nav.lessors"), section: "lessors" },
+    // Ijarachilar — Hisob-kitob ichida uchinchi menyu (17.11.2026). Faqat ijarachilarga ruxsati bor mutaxassisga alohida bo'lim sifatida ko'rinadi.
+    canView(user, "settlements") || !specialist
+      ? { href: "/settlements", label: t("nav.settlements"), section: "settlements", match: ["/lessors"] }
+      : { href: "/lessors", label: t("nav.settlements"), section: "lessors", match: ["/settlements"] },
     ...(showCash ? [{ href: "/cash", label: t("nav.cash"), section: "cash" as const }] : []),
     { href: "/vehicles", label: t("nav.vehicles"), section: "vehicles" },
     { href: "/drivers", label: t("nav.drivers"), section: "drivers" },

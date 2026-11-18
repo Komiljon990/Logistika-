@@ -1,5 +1,7 @@
 import Link from "next/link";
-import type { T } from "@/i18n";
+import type { Dict, T } from "@/i18n";
+import { QuickActions } from "../settlements/QuickActions";
+import { tashkentToday } from "@/lib/docs";
 import { db } from "@/lib/db";
 import { formatNumber } from "@/lib/currency-core";
 import { formatPhone } from "@/lib/phone";
@@ -10,7 +12,7 @@ import { ExcelButton } from "@/components/ExcelButton";
  * Haydovchilar ro'yxati hisob-kitobi bilan: ijarachilar (o'z transportidagilar) yoki xodim haydovchilar.
  * Faol haydovchilar va (arxivdagi bo'lsa ham) yozuvi borlar ko'rinadi.
  */
-export async function LedgerList({ t, orgWhere, side, q, file }: { t: T; orgWhere: { orgId?: string }; side: "LESSOR" | "STAFF"; q?: string; file: string }) {
+export async function LedgerList({ t, d, canEdit, orgWhere, side, q, file }: { t: T; d: Dict; canEdit: boolean; orgWhere: { orgId?: string }; side: "LESSOR" | "STAFF"; q?: string; file: string }) {
   const category = side === "LESSOR" ? "OWNER_OPERATOR" : "EMPLOYEE";
   const drivers = await db.driver.findMany({
     where: {
@@ -31,8 +33,17 @@ export async function LedgerList({ t, orgWhere, side, q, file }: { t: T; orgWher
   for (const { bal } of rows) for (const [cur, b] of Object.entries(bal)) totals[cur] = Math.round(((totals[cur] ?? 0) + b.debt) * 100) / 100;
   const debtLabel = side === "LESSOR" ? t("lessor.debt") : t("ledger.weOwe");
 
+  const excel = <ExcelButton label={t("common.excel")} target="ledger-list" file={file} />;
+
   return (
     <>
+      {canEdit ? (
+        <QuickActions
+          extra={excel}
+          d={d} base={base} today={tashkentToday().toISOString().slice(0, 10)} pickLabel={side === "LESSOR" ? t("quick.pickLessor") : t("quick.pickDriver")}
+          people={drivers.filter((dr) => dr.status === "ACTIVE").map((dr) => ({ id: dr.id, label: dr.fullName }))}
+        />
+      ) : <div className="flex">{excel}</div>}
       {Object.keys(totals).length > 0 && (
         <section className="flex flex-wrap gap-3">
           {Object.entries(totals).map(([cur, v]) => (
@@ -44,7 +55,6 @@ export async function LedgerList({ t, orgWhere, side, q, file }: { t: T; orgWher
         </section>
       )}
       <section className="grid gap-2">
-        <div className="flex justify-end"><ExcelButton label={t("common.excel")} target="ledger-list" file={file} /></div>
         <div className="card overflow-x-auto">
           <table id="ledger-list" className="w-full text-sm">
             <thead className="text-left text-xs text-muted">

@@ -14,7 +14,7 @@ import { AddShipmentPanel, CancelTripButton, EventForm, ShipmentEditPanel, TripE
 import { CancelChargeButton, ChargeForm } from "../../settlements/forms";
 import { payStatus, shipmentTotals } from "@/lib/settlement-core";
 import { tashkentToday } from "@/lib/docs";
-import { routePlaces } from "@/lib/trips";
+import { busyDriverIds, routePlaces } from "@/lib/trips";
 
 const PAY_STYLE = { UNPAID: "bg-bad-soft text-bad", PARTIAL: "bg-warn-soft text-warn", PAID: "bg-accent-soft text-accent" } as const;
 
@@ -51,7 +51,8 @@ export default async function TripPage({ params, searchParams }: { params: Promi
   const userName = new Map(users.map((u) => [u.id, u.fullName]));
   const canChange = editor && trip.status !== "CANCELLED";
   // Tahrirlash uchun ro'yxatlar (joriy transport/haydovchi arxivlangan bo'lsa ham ro'yxatda qoladi).
-  const [clients, currencies, tractors, trailers, drivers, places] = canChange
+  const busyDrivers = canChange && trip.status === "ACTIVE" ? await busyDriverIds(trip.orgId, db, trip.id) : new Set<string>();
+  const [clients, currencies, tractors, trailers, allDrivers, places] = canChange
     ? await Promise.all([
         db.client.findMany({ where: { orgId: trip.orgId, OR: [{ status: "ACTIVE" }, { id: { in: trip.shipments.map((s) => s.clientId) } }] }, orderBy: { name: "asc" }, select: { id: true, name: true } }),
         activeCurrencies(trip.orgId),
@@ -61,8 +62,21 @@ export default async function TripPage({ params, searchParams }: { params: Promi
         routePlaces(trip.orgId),
       ])
     : [[], [], [], [], [], []];
-  // Ichki tashishda chegara bosqichlari ko'rsatilmaydi (chiqish belgilanmagan va yuk tushirilgan bo'lsa).
-  const steps = EVENT_ORDER.filter((s) => !(s === "ENTERED_UZ" && done.UNLOADED && !done.EXITED_UZ) && !(s === "EXITED_UZ" && done.UNLOADED && !done.EXITED_UZ));
+  // Boshqa yukli tashishdagi haydovchi tanlanmaydi (joriy haydovchi qoladi).
+  const drivers = allDrivers.filter((x) => x.id === trip.driverId || !busyDrivers.has(x.id));
+  const steps = EVENT_ORDER;
+  // Reys xarajatlari va foyda (18.11.2026): kassadagi reysga bog'langan xarajatlar + haydovchiga reys haqi.
+  const [costExpenses, costDriver] = await Promise.all([
+    db.expense.findMany({ where: { tripId: trip.id, status: "ACTIVE" }, include: { account: { select: { currency: true } }, category: { include: { parent: true } } }, orderBy: { date: "asc" } }),
+    db.driverEntry.findMany({ where: { tripId: trip.id, status: "ACTIVE", side: "STAFF", kind: "CHARGE" }, select: { id: true, amount: true, currency: true } }),
+  ]);
+  const costs = { expenses: costExpenses, driver: costDriver };
+  const canCost = canEditSection(user, "cash");
+  const profit: Record<string, number> = {};
+  const addP = (cur: string, v: number) => { profit[cur] = Math.round(((profit[cur] ?? 0) + v) * 100) / 100; };
+  for (const s of trip.shipments) if (s.status === "ACTIVE") addP(s.currency, Number(s.price) + s.charges.reduce((a, c) => a + Number(c.amount), 0));
+  for (const e of costExpenses) addP(e.account.currency, -Number(e.amount));
+  for (const e of costDriver) addP(e.currency, -Number(e.amount));
 
   return (
     <div className="grid gap-6">
@@ -80,7 +94,7 @@ export default async function TripPage({ params, searchParams }: { params: Promi
         {canChange && (
           <TripEditPanel
             d={d} tripId={trip.id}
-            tractors={tractors.map((x) => ({ id: x.id, label: x.plate, pairTrailerId: x.pairTrailerId ?? "", pairDriverId: x.pairDriverId ?? "" }))} places={places} trailers={trailers.map((x) => ({ id: x.id, label: x.plate }))} drivers={drivers.map((x) => ({ id: x.id, label: x.fullName }))}
+            tractors={tractors.map((x) => ({ id: x.id, label: x.plate, pairTrailerId: x.pairTrailerId ?? "", pairDriverId: x.pairDriverId && drivers.some((r) => r.id === x.pairDriverId) ? x.pairDriverId : "" }))} places={places} trailers={trailers.map((x) => ({ id: x.id, label: x.plate }))} drivers={drivers.map((x) => ({ id: x.id, label: x.fullName }))}
             trip={{ routeFrom: trip.routeFrom, routeTo: trip.routeTo, loadDate: trip.loadDate.toISOString().slice(0, 10), cargo: trip.cargo ?? "", note: trip.note ?? "", tractorId: trip.tractorId, trailerId: trip.trailerId ?? "", driverId: trip.driverId, listOnly: trip.listOnly }}
           />
         )}
@@ -190,6 +204,37 @@ export default async function TripPage({ params, searchParams }: { params: Promi
           </section>
         ))}
       </div>
+
+      {!trip.listOnly && (costs.expenses.length > 0 || costs.driver.length > 0 || canCost) && (
+        <section className="card grid gap-3 p-5">
+          <div className="flex flex-wrap items-center gap-2">
+            <h2 className="flex-1 text-lg font-semibold">{t("trip.costs")}</h2>
+            {canCost && trip.status !== "CANCELLED" && <Link href={`/cash/expenses?trip=${trip.id}`} className="btn-ghost">+ {t("cash.addExpense")}</Link>}
+          </div>
+          {costs.expenses.length + costs.driver.length === 0 ? (
+            <p className="text-sm text-muted">{t("trip.costsNone")}</p>
+          ) : (
+            <div className="grid gap-1.5 text-sm tabular-nums">
+              {costs.expenses.map((e) => (
+                <div key={e.id} className="flex items-baseline justify-between gap-2">
+                  <Link href={`/cash/expenses/${e.id}`} className="text-accent hover:underline">{e.category.parent ? `${e.category.parent.name} › ${e.category.name}` : e.category.name}{e.note ? ` — ${e.note}` : ""}</Link>
+                  <span className="text-bad">− {formatNumber(Number(e.amount))} {e.account.currency}</span>
+                </div>
+              ))}
+              {costs.driver.map((e) => (
+                <div key={e.id} className="flex items-baseline justify-between gap-2">
+                  <span>{t("ledger.t.TRIP")} — {trip.driver.fullName}</span>
+                  <span className="text-bad">− {formatNumber(Number(e.amount))} {e.currency}</span>
+                </div>
+              ))}
+              <div className="flex flex-wrap items-baseline justify-between gap-2 border-t border-line pt-2 font-semibold">
+                <span>{t("rep.p.profit")}</span>
+                <span className="grid justify-items-end">{Object.entries(profit).map(([cur, v]) => <span key={cur} className={v < 0 ? "text-bad" : "text-accent"}>{formatNumber(v)} {cur}</span>)}</span>
+              </div>
+            </div>
+          )}
+        </section>
+      )}
 
       <Documents owner={{ kind: "trip", id: trip.id }} canEdit={editor && trip.status !== "CANCELLED"} showArchived={sp.docs === "all"} />
     </div>

@@ -1,5 +1,6 @@
 import { getDict, getT } from "@/i18n";
 import { requireSection } from "@/lib/session";
+import { SettleTabs } from "../settlements/SettleTabs";
 import { canEdit as canEditSection } from "@/lib/access";
 import { orgScope } from "@/lib/scope";
 import { tashkentToday } from "@/lib/docs";
@@ -21,13 +22,14 @@ export default async function LessorsPage({ searchParams }: { searchParams: Prom
   const currencies = canEdit ? await activeCurrencies(user.orgId!) : [];
   return (
     <div className="grid gap-6">
-      <h1 className="text-2xl font-bold">{t("lessor.title")}</h1>
+      <h1 className="text-2xl font-bold">{t("settle.title")}</h1>
+      <SettleTabs t={t} user={user} active="lessors" />
       <p className="text-sm text-muted">{t("lessor.hint")}</p>
       <form className="card flex flex-wrap items-center gap-2 p-3">
         <input name="q" defaultValue={q} placeholder={t("lessor.search")} aria-label={t("common.search")} className="input w-auto min-w-0 flex-1 basis-48" />
         <button className="btn-ghost">{t("common.search")}</button>
       </form>
-      <LedgerList t={t} orgWhere={orgScope(user)} side="LESSOR" q={q?.trim()} file={`${t("lessor.title")} ${tashkentToday().toISOString().slice(0, 10)}`} />
+      <LedgerList t={t} d={d} canEdit={canEdit} orgWhere={orgScope(user)} side="LESSOR" q={q?.trim()} file={`${t("lessor.title")} ${tashkentToday().toISOString().slice(0, 10)}`} />
       {canEdit && (
         <details className="card p-5">
           <summary className="cursor-pointer font-semibold text-accent">{t("lessor.bulkTitle")}</summary>

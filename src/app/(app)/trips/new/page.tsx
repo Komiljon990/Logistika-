@@ -4,7 +4,7 @@ import { db } from "@/lib/db";
 import { requireSection } from "@/lib/session";
 import { orgForWrite } from "@/lib/scope";
 import { activeCurrencies } from "@/lib/org-currency";
-import { loadedVehicleIds, routePlaces } from "@/lib/trips";
+import { busyDriverIds, loadedVehicleIds, routePlaces } from "@/lib/trips";
 import { tashkentToday } from "@/lib/docs";
 import { TripForm } from "../forms";
 
@@ -13,8 +13,8 @@ export default async function NewTripPage() {
   const user = await requireSection("trips", "EDIT");
   const orgId = orgForWrite(user);
   const [t, d] = [await getT(), await getDict()];
-  const busy = await loadedVehicleIds(orgId);
-  const [vehicles, drivers, clients, currencies, places] = await Promise.all([
+  const [busy, busyDrivers] = await Promise.all([loadedVehicleIds(orgId), busyDriverIds(orgId)]);
+  const [vehicles, allDrivers, clients, currencies, places] = await Promise.all([
     db.vehicle.findMany({
       where: { orgId, status: "ACTIVE", type: { in: ["TRACTOR", "TRAILER"] } },
       orderBy: { plate: "asc" },
@@ -25,6 +25,8 @@ export default async function NewTripPage() {
     activeCurrencies(orgId),
     routePlaces(orgId),
   ]);
+  // Band haydovchi (yukli faol tashishda) ro'yxatda chiqmaydi.
+  const drivers = allDrivers.filter((x) => !busyDrivers.has(x.id));
   const free = vehicles.filter((v) => !busy.has(v.id));
   const trailers = free.filter((v) => v.type === "TRAILER");
   const trailerIds = new Set(trailers.map((x) => x.id));
@@ -44,7 +46,7 @@ export default async function NewTripPage() {
     <div className="grid gap-5">
       <Link href="/trips" className="text-sm text-accent hover:underline">← {t("trip.title")}</Link>
       <h1 className="text-2xl font-bold">{t("trip.new")}</h1>
-      <p className="text-sm text-muted">{t("trip.newHint")}{busyCount > 0 && ` ${t("trip.busyCount")}: ${busyCount}.`}</p>
+      <p className="text-sm text-muted">{t("trip.newHint")}{busyCount > 0 && ` ${t("trip.busyCount")}: ${busyCount}.`}{busyDrivers.size > 0 && ` ${t("trip.busyDrivers")}: ${busyDrivers.size}.`}</p>
       {tractors.length === 0 ? (
         <p className="card px-4 py-6 text-sm text-muted">{t("trip.noFreeTractor")}</p>
       ) : (

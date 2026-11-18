@@ -39,7 +39,10 @@ export default async function DriversPage({ searchParams }: { searchParams: Prom
   const orgs = global ? await db.organization.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }) : [];
   return (
     <div className="grid gap-5">
-      <h1 className="text-2xl font-bold">{t("drv.title")}</h1>
+      <div className="flex flex-wrap items-center gap-3">
+        <h1 className="flex-1 text-2xl font-bold">{t("drv.title")}</h1>
+        {canEditSection(user, "drivers") && <Link href="/import?kind=drivers" className="btn-ghost">{t("imp.button")}</Link>}
+      </div>
       <form className="card flex flex-wrap items-center gap-2 p-3">
         <input name="q" defaultValue={sp.q} placeholder={t("common.search")} aria-label={t("common.search")} className="input w-auto min-w-0 flex-1 basis-40" />
         <select name="category" defaultValue={category ?? ""} aria-label={t("drv.category")} className="input w-auto">

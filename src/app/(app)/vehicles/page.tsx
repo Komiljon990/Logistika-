@@ -40,7 +40,10 @@ export default async function VehiclesPage({ searchParams }: { searchParams: Pro
   const canEdit = canEditSection(user, "vehicles");
   return (
     <div className="grid gap-5">
-      <h1 className="text-2xl font-bold">{t("veh.title")}</h1>
+      <div className="flex flex-wrap items-center gap-3">
+        <h1 className="flex-1 text-2xl font-bold">{t("veh.title")}</h1>
+        {canEdit && <Link href="/import?kind=vehicles" className="btn-ghost">{t("imp.button")}</Link>}
+      </div>
       <form className="card flex flex-wrap items-center gap-2 p-3">
         <input name="q" defaultValue={sp.q} placeholder={t("common.search")} aria-label={t("common.search")} className="input w-auto min-w-0 flex-1 basis-40" />
         <select name="type" defaultValue={type ?? ""} aria-label={t("veh.type")} className="input w-auto">

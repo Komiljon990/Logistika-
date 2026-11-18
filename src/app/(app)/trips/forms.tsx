@@ -1,9 +1,10 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useMemo, useState } from "react";
 import type { TripEventType } from "@prisma/client";
 import type { Dict } from "@/i18n";
 import type { FormState } from "@/lib/form";
+import { formatPlace, knownPlaces, placeLabel } from "@/lib/places-core";
 import { createTrip, addShipment, addTripEvent, cancelTrip, updateShipment, updateTrip } from "./actions";
 import { createClient, updateClient } from "../clients/actions";
 
@@ -206,10 +207,26 @@ function usePairing(tractors: TractorOption[], init: { tractorId: string; traile
   return { tractorId, trailerId, driverId, pickTractor, pickTrailer, pickDriver };
 }
 
-/** Avval kiritilgan joylar ro'yxati (qayerdan / qayerga): 1-2 harf yozilsa brauzer filtrlab ko'rsatadi. */
+/**
+ * Joylar ro'yxati (qayerdan / qayerga): avval kiritilganlari birinchi, keyin shaharlar ma'lumotnomasi —
+ * "Shahar (Davlat)" ko'rinishida. 1-2 harf yozilsa brauzer filtrlaydi (ruscha/inglizcha nomi bo'yicha ham).
+ */
 function Places({ id, places }: { id: string; places: string[] }) {
-  return <datalist id={id}>{places.map((p) => <option key={p} value={p} />)}</datalist>;
+  const options = useMemo(() => {
+    const used = new Set(places.map((p) => p.toLowerCase()));
+    const known = knownPlaces()
+      .map((p) => ({ value: placeLabel(p), label: p.aliases.join(", ") }))
+      .filter((o) => !used.has(o.value.toLowerCase()));
+    return [...places.map((p) => ({ value: p, label: "" })), ...known];
+  }, [places]);
+  return <datalist id={id}>{options.map((o) => <option key={o.value} value={o.value} label={o.label || undefined} />)}</datalist>;
 }
+
+/** Katakdan chiqqanda manzil "Shahar (Davlat)" ko'rinishiga keltiriladi (ma'lumotnomadagi shahar bo'lsa). */
+const placeBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+  const v = formatPlace(e.currentTarget.value);
+  if (v !== e.currentTarget.value) e.currentTarget.value = v;
+};
 
 export function TripForm({ d, tractors, trailers, drivers, clients, currencies, today, places = [] }: {
   d: Dict; tractors: TractorOption[]; trailers: Option[]; drivers: Option[]; clients: Option[]; currencies: string[]; today: string; places?: string[];
@@ -241,11 +258,11 @@ export function TripForm({ d, tractors, trailers, drivers, clients, currencies, 
             {drivers.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}
           </select>
         </Field>
-        <Field id="t-from" label={d["trip.from"]}>
-          <input id="t-from" name="routeFrom" required list="places" autoComplete="off" defaultValue={v?.routeFrom} className="input" />
+        <Field id="t-from" label={d["trip.from"]} hint={d["trip.placeHint"]}>
+          <input id="t-from" name="routeFrom" required list="places" autoComplete="off" defaultValue={v?.routeFrom} onBlur={placeBlur} className="input" />
         </Field>
-        <Field id="t-to" label={d["trip.to"]}>
-          <input id="t-to" name="routeTo" required list="places" autoComplete="off" defaultValue={v?.routeTo} className="input" />
+        <Field id="t-to" label={d["trip.to"]} hint={d["trip.placeHint"]}>
+          <input id="t-to" name="routeTo" required list="places" autoComplete="off" defaultValue={v?.routeTo} onBlur={placeBlur} className="input" />
           <Places id="places" places={places} />
         </Field>
         <Field id="t-date" label={d["trip.loadDate"]}>
@@ -334,8 +351,8 @@ export function TripEditPanel({ d, tripId, trip, tractors, trailers, drivers, pl
         <h2 className="flex-1 text-lg font-semibold">{d["trip.editTitle"]}</h2>
         <button type="button" className="btn-ghost" onClick={() => setOpen(false)}>✕ {d["common.close"]}</button>
       </div>
-      <Field id="te-from" label={d["trip.from"]}><input id="te-from" name="routeFrom" required list="te-places" autoComplete="off" defaultValue={val("routeFrom")} className="input" /></Field>
-      <Field id="te-to" label={d["trip.to"]}><input id="te-to" name="routeTo" required list="te-places" autoComplete="off" defaultValue={val("routeTo")} className="input" /><Places id="te-places" places={places} /></Field>
+      <Field id="te-from" label={d["trip.from"]}><input id="te-from" name="routeFrom" required list="te-places" autoComplete="off" defaultValue={val("routeFrom")} onBlur={placeBlur} className="input" /></Field>
+      <Field id="te-to" label={d["trip.to"]}><input id="te-to" name="routeTo" required list="te-places" autoComplete="off" defaultValue={val("routeTo")} onBlur={placeBlur} className="input" /><Places id="te-places" places={places} /></Field>
       <Field id="te-date" label={d["trip.loadDate"]}><input id="te-date" name="loadDate" type="date" required defaultValue={val("loadDate")} className="input" /></Field>
       <Field id="te-cargo" label={d["trip.cargo"]}><input id="te-cargo" name="cargo" defaultValue={val("cargo")} className="input" /></Field>
       <Field id="te-tractor" label={d["trip.tractor"]}>

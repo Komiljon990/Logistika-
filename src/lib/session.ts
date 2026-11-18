@@ -71,6 +71,19 @@ export async function assertWritable(user: CurrentUser) {
   if (user.readOnly) await demoBlocked();
 }
 
+/**
+ * Cookie faqat HTTPS orqali yuborilsinmi.
+ * COOKIE_SECURE="true"/"false" — majburan; "auto" (18.11.2026, internetga chiqish) — so'rovga qarab:
+ * crm.reyspro.uz (Cloudflare Tunnel, X-Forwarded-Proto: https) — Secure; lokal tarmoq (http://192.168.x.x:3000) — oddiy.
+ */
+async function secureCookie(): Promise<boolean> {
+  const v = process.env.COOKIE_SECURE;
+  if (v === "true") return true;
+  if (v === "false") return false;
+  if (v === "auto") return (await headers()).get("x-forwarded-proto")?.split(",")[0]?.trim() === "https";
+  return process.env.NODE_ENV === "production";
+}
+
 type SessionClaims = { accountId: string; v: number; userId: string; mv: number; grantId: string | null };
 
 async function writeCookie(c: SessionClaims) {
@@ -82,8 +95,7 @@ async function writeCookie(c: SessionClaims) {
     .sign(sessionSecret());
   (await cookies()).set(COOKIE, token, {
     httpOnly: true,
-    // COOKIE_SECURE="false" — HTTPS'siz lokal tarmoqdagi sinov serveri uchun.
-    secure: process.env.COOKIE_SECURE ? process.env.COOKIE_SECURE === "true" : process.env.NODE_ENV === "production",
+    secure: await secureCookie(),
     sameSite: "lax",
     path: "/",
     maxAge: MAX_AGE_SECONDS,

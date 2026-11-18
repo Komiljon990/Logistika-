@@ -34,7 +34,7 @@ const nextConfig: NextConfig = {
   distDir: process.env.NEXT_DIST_DIR || ".next",
   // Hujjat fayllari (10 MB gacha) server action orqali yuklanadi; forma maydonlari uchun ozgina zaxira.
   // Proxy ham so'rov tanasini o'qiydi va sukut bo'yicha 10 MB dan keyin kesadi — 10 MB li fayl + forma maydonlari sig'ishi uchun teng chegara.
-  experimental: { serverActions: { bodySizeLimit: "11mb" }, proxyClientMaxBodySize: "11mb" },
+  experimental: { agentUpgrade: "security", serverActions: { bodySizeLimit: "11mb" }, proxyClientMaxBodySize: "11mb" },
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },

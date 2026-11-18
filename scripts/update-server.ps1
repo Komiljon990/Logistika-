@@ -20,6 +20,8 @@ $ErrorActionPreference = 'Continue'
 # Eski versiyaning tur fayllari (o'chirilgan sahifalarga havolalar) tekshiruvni buzmasligi uchun.
 Remove-Item '.next\types' -Recurse -Force -ErrorAction SilentlyContinue
 cmd.exe /c "npm run build"
+# Next.js ba'zan birinchi yig'ishni xavfsizlik ogohlantirishi bilan to'xtatadi (fayllar chala qoladi) — bir marta qayta urinamiz.
+if ($LASTEXITCODE -ne 0) { Write-Output "Qayta urinilmoqda..."; cmd.exe /c "npm run build" }
 if ($LASTEXITCODE -ne 0) { Write-Output "XATO: yig'ish muvaffaqiyatsiz. Eski versiya qayta yoqiladi."; }
 $ErrorActionPreference = 'Stop'
 

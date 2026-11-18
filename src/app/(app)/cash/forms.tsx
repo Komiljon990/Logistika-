@@ -138,10 +138,12 @@ export function AccountStatusButton({ d, id, active }: { d: Dict; id: string; ac
 
 // ---------- Xarajat ----------
 
-export type ExpenseValues = { id: string; date: string; accountId: string; amount: string; parentId: string; categoryId: string; note: string };
+export type ExpenseValues = { id: string; date: string; accountId: string; amount: string; parentId: string; categoryId: string; note: string; tripId?: string };
 
-export function ExpenseForm({ d, accounts, categories, orgField, today, expense }: {
-  d: Dict; accounts: AccountOpt[]; categories: CategoryTree; orgField: string | null; today: string; expense?: ExpenseValues;
+export function ExpenseForm({ d, accounts, categories, orgField, today, expense, trips = [], tripId = "" }: {
+  d: Dict; accounts: AccountOpt[]; categories: CategoryTree; orgField: string | null; today: string; expense?: ExpenseValues; tripId?: string;
+  /** 18.11.2026: xarajat qaysi reysga tegishli (ixtiyoriy) — reys rentabelligi hisoboti uchun. */
+  trips?: { id: string; label: string }[];
 }) {
   const [parent, setParent] = useState(expense?.parentId ?? "");
   const [sub, setSub] = useState(expense?.categoryId && expense.categoryId !== expense.parentId ? expense.categoryId : "");
@@ -190,6 +192,15 @@ export function ExpenseForm({ d, accounts, categories, orgField, today, expense 
           <label htmlFor="e-date" className="label">{d["pay.date"]}</label>
           <input id="e-date" name="date" type="date" required max={today} defaultValue={state.values?.date ?? expense?.date ?? today} className="input" />
         </div>
+        {trips.length > 0 && (
+          <div>
+            <label htmlFor="e-trip" className="label">{d["cash.expenseTrip"]}</label>
+            <select id="e-trip" name="tripId" defaultValue={state.values?.tripId ?? expense?.tripId ?? tripId} className="input">
+              <option value="">— {d["cash.expenseNoTrip"]}</option>
+              {trips.map((x) => <option key={x.id} value={x.id}>{x.label}</option>)}
+            </select>
+          </div>
+        )}
         <div className="sm:col-span-2">
           <label htmlFor="e-note" className="label">{d["common.note"]}</label>
           <input id="e-note" name="note" maxLength={300} defaultValue={state.values?.note ?? expense?.note ?? ""} placeholder={d["cash.expenseNotePh"]} className="input" />

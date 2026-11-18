@@ -6,6 +6,7 @@ import { formatNumber } from "@/lib/currency-core";
 import { formatDate } from "@/lib/dates";
 import { tashkentToday } from "@/lib/docs";
 import { loadAccounts, loadCategories } from "@/lib/cash";
+import { tripOptions } from "@/lib/trips";
 import { cashContext } from "../../context";
 import { CashUnavailable } from "../../CashHeader";
 import { CancelExpenseButton, ExpenseForm } from "../../forms";
@@ -23,7 +24,7 @@ export default async function ExpensePage({ params, searchParams }: { params: Pr
   if (!ctx.enabled) return <div className="grid gap-6"><Link href={back} className="text-sm text-accent hover:underline">← {t("cash.tab.expenses")}</Link><CashUnavailable ctx={ctx} t={t} /></div>;
   const today = tashkentToday().toISOString().slice(0, 10);
   const editable = ctx.canEdit && e.status === "ACTIVE";
-  const [accounts, categories] = editable ? await Promise.all([loadAccounts(e.orgId), loadCategories(e.orgId)]) : [[], []];
+  const [accounts, categories, trips] = editable ? await Promise.all([loadAccounts(e.orgId), loadCategories(e.orgId), tripOptions(e.orgId, e.tripId)]) : [[], [], []];
   const title = e.category.parent ? `${e.category.parent.name} › ${e.category.name}` : e.category.name;
 
   return (
@@ -38,11 +39,11 @@ export default async function ExpensePage({ params, searchParams }: { params: Pr
       {editable ? (
         <section className="card p-5">
           <ExpenseForm
-            d={d} orgField={ctx.orgField} today={today} categories={categories}
+            d={d} orgField={ctx.orgField} today={today} categories={categories} trips={trips}
             accounts={accounts.map(({ id, kind, currency, label }) => ({ id, kind, currency, label }))}
             expense={{
               id: e.id, date: e.date.toISOString().slice(0, 10), accountId: e.accountId, amount: String(Number(e.amount)),
-              parentId: e.category.parentId ?? e.categoryId, categoryId: e.categoryId, note: e.note ?? "",
+              parentId: e.category.parentId ?? e.categoryId, categoryId: e.categoryId, note: e.note ?? "", tripId: e.tripId ?? "",
             }}
           />
         </section>

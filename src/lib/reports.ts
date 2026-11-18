@@ -63,6 +63,49 @@ export async function tripsReport(orgId: string, from: string, to: string) {
   };
 }
 
+/** Reys rentabelligi qatori (18.11.2026). */
+export type ProfitRow = {
+  id: string; number: number; route: string; plate: string; driver: string; loadDate: Date; status: string;
+  revenue: Money; expenses: Money; driverPay: Money; profit: Money;
+};
+
+/**
+ * Reys rentabelligi: daromad (yuk narxi + mijozga qo'shimcha hisoblar) − reysga bog'langan xarajatlar (kassa)
+ * − haydovchiga reys uchun hisoblangan summa. Har valyuta alohida (kurs bilan aralashtirilmaydi).
+ * Davr — yuklash sanasi bo'yicha; bekor qilingan va "faqat ro'yxat" reyslar kirmaydi.
+ */
+export async function profitReport(orgId: string, from: string, to: string) {
+  const trips = await db.trip.findMany({
+    where: { orgId, status: { not: "CANCELLED" }, listOnly: false, loadDate: { gte: new Date(from), lte: new Date(to) } },
+    orderBy: { number: "desc" },
+    include: {
+      tractor: { select: { plate: true } },
+      driver: { select: { fullName: true } },
+      shipments: { where: { status: "ACTIVE" }, select: { price: true, currency: true, charges: { where: { status: "ACTIVE" }, select: { amount: true } } } },
+      expenses: { where: { status: "ACTIVE" }, select: { amount: true, account: { select: { currency: true } } } },
+      driverEntries: { where: { status: "ACTIVE", kind: "CHARGE", side: "STAFF" }, select: { amount: true, currency: true } },
+    },
+  });
+  const total = { revenue: {} as Money, expenses: {} as Money, driverPay: {} as Money, profit: {} as Money };
+  const rows: ProfitRow[] = trips.map((tr) => {
+    const r: ProfitRow = {
+      id: tr.id, number: tr.number, route: `${tr.routeFrom} → ${tr.routeTo}`, plate: tr.tractor.plate, driver: tr.driver.fullName,
+      loadDate: tr.loadDate, status: tr.status, revenue: {}, expenses: {}, driverPay: {}, profit: {},
+    };
+    for (const s of tr.shipments) {
+      const v = Number(s.price) + s.charges.reduce((a, c) => a + Number(c.amount), 0);
+      add(r.revenue, s.currency, v);
+      add(r.profit, s.currency, v);
+    }
+    for (const e of tr.expenses) { add(r.expenses, e.account.currency, Number(e.amount)); add(r.profit, e.account.currency, -Number(e.amount)); }
+    for (const e of tr.driverEntries) { add(r.driverPay, e.currency, Number(e.amount)); add(r.profit, e.currency, -Number(e.amount)); }
+    for (const k of ["revenue", "expenses", "driverPay", "profit"] as const) for (const [cur, v] of Object.entries(r[k])) add(total[k], cur, v);
+    return r;
+  });
+  const withCosts = rows.filter((r) => Object.keys(r.expenses).length || Object.keys(r.driverPay).length).length;
+  return { rows, total, withCosts };
+}
+
 export type FinanceRow = {
   month: string; payments: Money; lessorIn: Money; otherIn: Money; expenses: Money; driverPay: Money; otherOut: Money; toUntracked: Money; net: Money;
 };

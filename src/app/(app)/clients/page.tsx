@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { ExcelButton } from "@/components/ExcelButton";
-import { canEdit as canEditSection } from "@/lib/access";
+import { canEdit as canEditSection, canView } from "@/lib/access";
+import { balancesByClient, loadLedger } from "@/lib/settlement";
+import { formatNumber } from "@/lib/currency-core";
 import type { Prisma } from "@prisma/client";
 import { getDict, getT } from "@/i18n";
 import { db } from "@/lib/db";
@@ -25,9 +27,16 @@ export default async function ClientsPage({ searchParams }: { searchParams: Prom
     include: { org: { select: { name: true } }, _count: { select: { shipments: { where: { status: "ACTIVE" } } } } },
   });
   const orgs = global ? await db.organization.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }) : [];
+  // 18.11.2026: qarz ustuni (Hisob-kitob bo'limini ko'ra oladiganlarga) — mijozlar va hisob-kitob bir joyda ko'rinadi.
+  const showDebt = canView(user, "settlements");
+  const balances = showDebt ? await loadLedger(orgScope(user, sp.org)).then(({ shipments, payments }) => balancesByClient(shipments, payments)) : null;
+  const debtOf = (id: string) => Object.entries(balances?.get(id) ?? {}).filter(([, b]) => b.debt > 0.004);
   return (
     <div className="grid gap-5">
-      <h1 className="text-2xl font-bold">{t("client.title")}</h1>
+      <div className="flex flex-wrap items-center gap-3">
+        <h1 className="flex-1 text-2xl font-bold">{t("client.title")}</h1>
+        {canEditSection(user, "clients") && <Link href="/import?kind=clients" className="btn-ghost">{t("imp.button")}</Link>}
+      </div>
       <form className="card flex flex-wrap items-center gap-2 p-3">
         <input name="q" defaultValue={sp.q} placeholder={t("client.search")} aria-label={t("common.search")} className="input w-auto min-w-0 flex-1 basis-40" />
         {global && (
@@ -50,6 +59,7 @@ export default async function ClientsPage({ searchParams }: { searchParams: Prom
               <th className="px-4 py-2 font-medium">{t("org.inn")}</th>
               <th className="px-4 py-2 font-medium">{t("org.phone")}</th>
               <th className="px-4 py-2 text-right font-medium">{t("client.shipments")}</th>
+              {showDebt && <th className="px-4 py-2 text-right font-medium">{t("settle.debtCol")}</th>}
               {global && <th className="px-4 py-2 font-medium">{t("common.org")}</th>}
             </tr>
           </thead>
@@ -63,10 +73,15 @@ export default async function ClientsPage({ searchParams }: { searchParams: Prom
                 <td className="px-4 py-2.5 tabular-nums">{c.inn ?? "—"}</td>
                 <td className="px-4 py-2.5 tabular-nums">{c.phone ?? "—"}</td>
                 <td className="px-4 py-2.5 text-right tabular-nums">{c._count.shipments}</td>
+                {showDebt && (
+                  <td className="px-4 py-2.5 text-right tabular-nums">
+                    {debtOf(c.id).length ? debtOf(c.id).map(([cur, b]) => <div key={cur} className="whitespace-nowrap font-semibold text-bad">{formatNumber(b.debt)} {cur}</div>) : <span className="text-muted">—</span>}
+                  </td>
+                )}
                 {global && <td className="px-4 py-2.5">{c.org.name}</td>}
               </tr>
             ))}
-            {clients.length === 0 && <tr><td colSpan={5} className="px-4 py-6 text-muted">{t("common.none")}</td></tr>}
+            {clients.length === 0 && <tr><td colSpan={6} className="px-4 py-6 text-muted">{t("common.none")}</td></tr>}
           </tbody>
         </table>
       </div>

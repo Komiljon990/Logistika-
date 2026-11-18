@@ -12,6 +12,8 @@ import { balancesByClient, loadLedger } from "@/lib/settlement";
 import { paymentAccounts } from "@/lib/cash";
 import { HandOverButton, type PayAccounts } from "./forms";
 import { SettleTabs } from "./SettleTabs";
+import { QuickActions } from "./QuickActions";
+import { tripNumber } from "@/lib/trips-core";
 import { ExcelButton } from "@/components/ExcelButton";
 
 function sumBy(rows: { currency: string; value: number }[]) {
@@ -32,7 +34,7 @@ export default async function SettlementsPage({ searchParams }: { searchParams: 
   const [{ shipments, payments }, rates, clients, orgs] = await Promise.all([
     loadLedger(scope),
     rateMap(today),
-    db.client.findMany({ where: scope, select: { id: true, name: true, inn: true, org: { select: { name: true } } } }),
+    db.client.findMany({ where: scope, select: { id: true, name: true, inn: true, status: true, org: { select: { name: true } } } }),
     global ? db.organization.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }) : Promise.resolve([]),
   ]);
   const balances = balancesByClient(shipments, payments);
@@ -59,7 +61,14 @@ export default async function SettlementsPage({ searchParams }: { searchParams: 
   return (
     <div className="grid gap-6">
       <h1 className="text-2xl font-bold">{t("settle.title")}</h1>
-      <SettleTabs t={t} active="clients" />
+      <SettleTabs t={t} user={user} active="clients" />
+      {canEditSection(user, "settlements") && (
+        <QuickActions
+          d={d} base="/clients" today={today} pickLabel={t("quick.pickClient")}
+          people={clients.filter((c) => c.status === "ACTIVE").sort((a, b) => a.name.localeCompare(b.name)).map((c) => ({ id: c.id, label: c.name }))}
+          shipments={shipments.map((s) => ({ id: s.id, clientId: s.clientId, currency: s.currency, label: `${tripNumber(s.tripNumber)} · ${s.routeFrom} → ${s.routeTo} · ${s.plate}` }))}
+        />
+      )}
       <div className="grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-3">
         <div className="card p-4">
           <div className="text-xs text-muted">{t("settle.debt")}</div>

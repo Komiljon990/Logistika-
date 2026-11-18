@@ -228,8 +228,8 @@ export function AdvanceForm({ d, paymentId, open, method, currency, advance, rat
   );
 }
 
-export function ChargeForm({ d, shipmentId, currency, today }: { d: Dict; shipmentId: string; currency: string; today: string }) {
-  const [open, setOpen] = useState(false);
+export function ChargeForm({ d, shipmentId, currency, today, defaultOpen = false }: { d: Dict; shipmentId: string; currency: string; today: string; defaultOpen?: boolean }) {
+  const [open, setOpen] = useState(defaultOpen);
   const [kind, setKind] = useState<"EXTRA" | "DEMURRAGE">("EXTRA");
   const [days, setDays] = useState("");
   const [daily, setDaily] = useState("");

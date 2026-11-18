@@ -12,21 +12,22 @@ describe("trip stages order", () => {
   it("starts with 'accepted' only", () => {
     expect(nextEvents({})).toEqual(["ACCEPTED"]);
   });
-  it("offers border exit after loading, alongside the next stage", () => {
+  it("no border stages: after loading comes arrival at unloading (trip may be fully abroad)", () => {
     const done: DoneEvents = { ACCEPTED: at("2026-11-01T08:00"), ARRIVED_LOADING: at("2026-11-01T10:00"), LOADED: at("2026-11-01T14:00") };
-    expect(nextEvents(done)).toEqual(["EXITED_UZ", "ARRIVED_UNLOADING"]);
+    expect(nextEvents(done)).toEqual(["ARRIVED_UNLOADING"]);
   });
-  it("offers border entry only after exit and unloading", () => {
+  it("nothing left after unloading, even if an old border-exit record exists", () => {
     const base: DoneEvents = {
       ACCEPTED: at("2026-11-01T08:00"), ARRIVED_LOADING: at("2026-11-01T10:00"), LOADED: at("2026-11-01T14:00"),
       ARRIVED_UNLOADING: at("2026-11-05T10:00"), UNLOADED: at("2026-11-05T15:00"),
     };
-    expect(nextEvents(base)).toEqual([]); // ichki tashish: hammasi tugadi
-    expect(nextEvents({ ...base, EXITED_UZ: at("2026-11-02T09:00") })).toEqual(["ENTERED_UZ"]);
+    expect(nextEvents(base)).toEqual([]);
+    expect(nextEvents({ ...base, EXITED_UZ: at("2026-11-02T09:00") })).toEqual([]);
   });
-  it("rejects skipping stages", () => {
+  it("rejects skipping stages and the removed border stages", () => {
     expect(checkEvent("LOADED", at("2026-11-01T10:00"), {}, NOW)).toEqual({ ok: false, error: "trip.error.order" });
     expect(checkEvent("ENTERED_UZ", at("2026-11-01T10:00"), { ACCEPTED: at("2026-11-01T08:00") }, NOW)).toMatchObject({ ok: false });
+    expect(checkEvent("EXITED_UZ", at("2026-11-01T15:00"), { ACCEPTED: at("2026-11-01T08:00"), ARRIVED_LOADING: at("2026-11-01T10:00"), LOADED: at("2026-11-01T14:00") }, NOW)).toMatchObject({ ok: false });
   });
   it("rejects a time before the previous stage, and the future", () => {
     const done: DoneEvents = { ACCEPTED: at("2026-11-01T08:00") };
@@ -44,14 +45,14 @@ describe("vehicle availability and completion", () => {
     expect(isLoaded("ACTIVE", { ...unloaded, EXITED_UZ: NOW })).toBe(false);
     expect(isLoaded("CANCELLED", {})).toBe(false);
   });
-  it("domestic trip completes on unloading, international on entering Uzbekistan", () => {
+  it("any trip completes on unloading", () => {
     expect(completesTrip(unloaded)).toBe(true);
-    expect(completesTrip({ ...unloaded, EXITED_UZ: NOW })).toBe(false);
-    expect(completesTrip({ ...unloaded, EXITED_UZ: NOW, ENTERED_UZ: NOW })).toBe(true);
+    expect(completesTrip({ ...unloaded, EXITED_UZ: NOW })).toBe(true);
+    expect(completesTrip({ ACCEPTED: NOW, LOADED: NOW })).toBe(false);
   });
-  it("current stage is the latest one", () => {
+  it("current stage is the latest one; old border records are ignored", () => {
     expect(currentStage({})).toBeNull();
-    expect(currentStage({ ACCEPTED: NOW, LOADED: NOW, EXITED_UZ: NOW })).toBe("EXITED_UZ");
+    expect(currentStage({ ACCEPTED: NOW, LOADED: NOW, EXITED_UZ: NOW })).toBe("LOADED");
   });
 });
 

@@ -4,7 +4,7 @@ import { useActionState, useState } from "react";
 import type { Dict } from "@/i18n";
 import type { FormState } from "@/lib/form";
 import { CHARGE_TYPES } from "@/lib/lessors-core";
-import { addDriverEntry, attachVehicle, bulkMembership, cancelDriverEntry, createLessor, detachVehicle } from "./actions";
+import { addDriverEntry, attachVehicle, bulkMembership, cancelDriverEntry, createLessor, detachVehicle, setDriverRate } from "./actions";
 
 type Side = "LESSOR" | "STAFF";
 
@@ -69,10 +69,10 @@ export function DetachVehicleButton({ d, vehicleId }: { d: Dict; vehicleId: stri
 type AccountOpt = { id: string; label: string; currency: string };
 
 /** "+ Hisob qo'shish" va "+ To'lov" tugmalari va ularning oynalari (ijarachi va xodim haydovchi uchun). */
-export function LedgerButtons({ d, driverId, side, currencies, accounts, vehicles, trips, months, today }: {
-  d: Dict; driverId: string; side: Side; currencies: string[]; accounts: AccountOpt[]; vehicles: Opt[]; trips: Opt[]; months: string[]; today: string;
+export function LedgerButtons({ d, driverId, side, initialOpen, currencies, accounts, vehicles, trips, months, today }: {
+  d: Dict; driverId: string; side: Side; initialOpen?: "CHARGE" | "PAYMENT"; currencies: string[]; accounts: AccountOpt[]; vehicles: Opt[]; trips: Opt[]; months: string[]; today: string;
 }) {
-  const [open, setOpen] = useState<"CHARGE" | "PAYMENT" | null>(null);
+  const [open, setOpen] = useState<"CHARGE" | "PAYMENT" | null>(initialOpen ?? null);
   return (
     <div className="grid gap-3">
       <div className="flex flex-wrap gap-2">
@@ -198,6 +198,31 @@ export function CancelEntryButton({ d, id }: { d: Dict; id: string }) {
   return (
     <form action={action} onSubmit={(e) => { if (!window.confirm(d["cash.deleteConfirm"])) e.preventDefault(); }} className="inline">
       <button className="text-sm text-muted hover:underline" disabled={pending}>{d["common.delete"]}</button>
+    </form>
+  );
+}
+
+/**
+ * Avtomatik hisob (18.11.2026): ijarachi — oylik a'zolik, xodim — reys haqi. Bo'sh qoldirilsa — o'chadi.
+ */
+export function RateForm({ d, driverId, side, amount, currency, currencies }: { d: Dict; driverId: string; side: Side; amount: string; currency: string; currencies: string[] }) {
+  const [state, action, pending] = useActionState(setDriverRate.bind(null, driverId, side), {} as FormState);
+  const v = state.values;
+  return (
+    <form action={action} className="flex flex-wrap items-end gap-2">
+      <div className="min-w-0 flex-1 basis-40">
+        <label htmlFor="rate-amount" className="label">{side === "LESSOR" ? d["ledger.rate.membership"] : d["ledger.rate.trip"]}</label>
+        <input id="rate-amount" name="amount" inputMode="decimal" defaultValue={v?.amount ?? amount} placeholder={d["ledger.rate.off"]} className="input tabular-nums" />
+      </div>
+      <div className="w-28">
+        <label htmlFor="rate-cur" className="label">{d["currency.code"]}</label>
+        <select id="rate-cur" name="currency" defaultValue={v?.currency ?? (currency || (currencies.includes("UZS") ? "UZS" : currencies[0]))} className="input">
+          {currencies.map((c) => <option key={c} value={c}>{c}</option>)}
+        </select>
+      </div>
+      <button className="btn-ghost" disabled={pending}>{d["common.save"]}</button>
+      <p className="w-full text-xs text-muted">{side === "LESSOR" ? d["ledger.rate.membershipHint"] : d["ledger.rate.tripHint"]}</p>
+      <div className="w-full"><Msg state={state} d={d} ok={d["common.saved"]} /></div>
     </form>
   );
 }

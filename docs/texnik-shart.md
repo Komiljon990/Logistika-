@@ -762,6 +762,40 @@ vaqtda, telefon va kompyuter ko'rinishi, ma'lumot yaxlitligi, arxiv
 - **TIR va dazvol — bitta menyu bandi** ("TIR / Dazvol"), ichida ikki
   menyu: TIR va Dazvol (ruxsatlar avvalgidek alohida).
 
+### Avtomatik hisoblar, import, internet (18.11.2026)
+
+- **Band haydovchi**: yukli faol tashishdagi haydovchi yangi tashish
+  formasida ko'rinmaydi va tanlab bo'lmaydi (server ham tekshiradi,
+  tahrirlashda ham).
+- **Manzil "Shahar (Davlat)"**: masalan "Toshkent (Uzbekistan)". 471 shahar,
+  48 davlat ma'lumotnomasi (`src/lib/places-core.ts`, o'zbekcha/ruscha/
+  inglizcha nomlar). Ma'lumotnomadagi shahar yozilsa davlat avtomatik
+  qo'shiladi; boshqa joy uchun davlat qavsda yoziladi.
+- **Tashish bosqichlari**: "O'zbekistondan chiqdi / kirdi" olib tashlandi
+  (tashish butunlay xorijda bo'lishi mumkin). Zanjir: qabul qildi →
+  yuklashga yetdi → yuklandi → tushirishga yetdi → tushirildi; tashish
+  tushirilganda yakunlanadi. Eski yozuvlar bazada qoladi.
+- **Avtomatik hisob**: xodim haydovchi — "reys haqi" (tashish
+  yakunlanganda); ijarachi — "oylik a'zolik" (har oy, joriy oydan;
+  `Driver.tripRate/membershipFee`). Server har soatda tekshiradi
+  (`AUTO_JOBS=off` — o'chirish).
+- **Telegram bot**: haydovchiga yangi reys xabari, «🚚 Reysim» — bosqichni
+  tugma bilan belgilash, «💰 Hisobim» — qarz; ijarachi/xodimga yangi hisob
+  va to'lov haqida xabar.
+- **Reys rentabelligi**: xarajatga ixtiyoriy "Reys" maydoni
+  (`Expense.tripId`); tashish kartochkasida "Xarajatlar va foyda";
+  Hisobotlar → "Reys rentabelligi" (daromad − xarajat − haydovchi haqi,
+  valyuta bo'yicha).
+- **Exceldan import** (`/import`): mijozlar, transport, haydovchilar —
+  .xlsx yoki .csv, shablon, takrorlar o'tkaziladi, tarif chegarasi.
+- **Bosh sahifa**: "Bugungi holat" — faol reyslar, mijozlar qarzi,
+  ijarachilar qarzi, haydovchilarga qarzimiz; kurslar pastda.
+  Mijozlar ro'yxatida "Qarz" ustuni.
+- **Internet**: Cloudflare Tunnel (`scripts/internet-sozlash.ps1`);
+  reyspro.uz — sayt, crm.reyspro.uz — dastur. `COOKIE_SECURE=auto` —
+  HTTPS orqali Secure cookie, lokal tarmoqda oddiy. Pochta — Brevo SMTP,
+  noreply@reyspro.uz (SPF, DKIM, DMARC — Cloudflare DNS).
+
 ## 12. Loyihada ishlash qoidalari (Claude uchun)
 
 Bu bo'lim Project ko'rsatmasiga ko'chirilishi uchun yozilgan.

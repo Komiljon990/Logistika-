@@ -175,7 +175,7 @@ export default async function ClientPage({ params }: { params: Promise<{ id: str
         </div>
 
         {formData && (
-          <aside className="card grid min-w-0 flex-[1_1_340px] gap-3 border-2 border-accent p-5">
+          <aside id="pay" className="card grid min-w-0 scroll-mt-4 flex-[1_1_340px] gap-3 border-2 border-accent p-5">
             <h2 className="text-lg font-semibold">{t("pay.receive")}</h2>
             <PaymentForm d={d} clientId={c.id} open={open} currencies={formData.currencies} drivers={formData.drivers} rates={formData.rates} today={today} accounts={accounts} />
           </aside>

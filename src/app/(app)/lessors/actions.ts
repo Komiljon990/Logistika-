@@ -15,6 +15,7 @@ import { tashkentToday } from "@/lib/docs";
 import { cashEnabled } from "@/lib/cash";
 import { CHARGE_TYPES } from "@/lib/lessors-core";
 import { fail, optStr, str, type FormState } from "@/lib/form";
+import { notifyEntry, runAutoMembership } from "@/lib/driver-ledger";
 
 /**
  * Haydovchilar bilan hisob-kitob (17.11.2026).
@@ -135,6 +136,39 @@ export async function addDriverEntry(driverId: string, side: LedgerSide, kind: L
     actorId: user.id, orgId, action: kind === "CHARGE" ? "ledger.charge" : "ledger.payment", entity: "DriverEntry", entityId: e.id,
     details: { driverId, side, type, period, tripId, amount, currency, accountId },
   });
+  // Haydovchiga botda xabar (ulangan bo'lsa): yangi hisob yoki to'lov va joriy qarz.
+  void notifyEntry(e.id);
+  revalidate(side, driverId);
+  return { ok: true };
+}
+
+/**
+ * Avtomatik hisob sozlamasi (18.11.2026).
+ * Ijarachi — oylik a'zolik summasi: har oy (joriy oydan boshlab) avtomatik hisoblanadi.
+ * Xodim haydovchi — reys haqi: tashish yakunlanganda (yuk tushirilganda) avtomatik hisoblanadi.
+ * Summa bo'sh — avtomatik hisob o'chiriladi.
+ */
+export async function setDriverRate(driverId: string, side: LedgerSide, _prev: FormState, formData: FormData): Promise<FormState> {
+  const { user, orgId } = await editor(side);
+  if (side !== "LESSOR" && side !== "STAFF") throw new ForbiddenError();
+  const driver = await db.driver.findFirst({ where: { id: driverId, orgId } });
+  if (!driver) throw new ForbiddenError();
+  const raw = str(formData, "amount");
+  let amount: number | null = null;
+  let currency: string | null = null;
+  if (raw) {
+    amount = parseAmount(raw);
+    if (amount === null || amount <= 0 || amount > 1e13) return fail("pay.error.amount", formData);
+    currency = str(formData, "currency");
+    if (!(await activeCurrencies(orgId)).includes(currency)) return fail("trip.error.currency", formData);
+  }
+  await db.driver.update({
+    where: { id: driverId },
+    data: side === "LESSOR" ? { membershipFee: amount, membershipCurrency: currency } : { tripRate: amount, tripRateCurrency: currency },
+  });
+  await audit({ actorId: user.id, orgId, action: "ledger.rate", entity: "Driver", entityId: driverId, details: { side, amount, currency } });
+  // Ijarachi: joriy oy hali hisoblanmagan bo'lsa — darhol.
+  if (side === "LESSOR" && amount) await runAutoMembership();
   revalidate(side, driverId);
   return { ok: true };
 }
@@ -164,6 +198,8 @@ export async function bulkMembership(_prev: FormState & { count?: number }, form
     })),
   });
   await audit({ actorId: user.id, orgId, action: "ledger.bulk", entity: "DriverEntry", entityId: period, details: { period, amount, currency, count: lessors.length } });
+  const created = await db.driverEntry.findMany({ where: { orgId, side: "LESSOR", type: "MEMBERSHIP", period, status: "ACTIVE", driverId: { in: lessors.map((l) => l.id) } }, select: { id: true } });
+  for (const c of created) void notifyEntry(c.id);
   revalidatePath("/lessors", "layout");
   return { ok: true, count: lessors.length };
 }

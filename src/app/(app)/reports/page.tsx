@@ -7,13 +7,13 @@ import { formatDate } from "@/lib/dates";
 import { tashkentToday } from "@/lib/docs";
 import { parsePeriod } from "@/lib/cash-core";
 import { cashEnabled } from "@/lib/cash";
-import { expensesReport, financeReport, ledgerReport, permitsReport, tripsReport, type Money, type TripGroup } from "@/lib/reports";
+import { expensesReport, financeReport, ledgerReport, permitsReport, profitReport, tripsReport, type Money, type TripGroup } from "@/lib/reports";
 import { LEDGER_TYPES, CHARGE_TYPES } from "@/lib/lessors-core";
 import { ExcelButton } from "@/components/ExcelButton";
 import { PrintButton } from "@/components/PrintButton";
 import { PeriodFilter } from "../cash/PeriodFilter";
 
-const TABS = ["trips", "finance", "expenses", "lessors", "drivers", "tir", "dazvol"] as const;
+const TABS = ["trips", "profit", "finance", "expenses", "lessors", "drivers", "tir", "dazvol"] as const;
 type Tab = (typeof TABS)[number];
 type SP = { r?: string; month?: string; from?: string; to?: string };
 
@@ -92,6 +92,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
       <h2 className="hidden text-xl font-bold print:block">{t(`rep.tab.${tab}`)}</h2>
 
       {tab === "trips" && <TripsTab t={t} orgId={orgId} from={period.from} to={period.to} />}
+      {tab === "profit" && <ProfitTab t={t} orgId={orgId} from={period.from} to={period.to} />}
       {tab === "finance" && <FinanceTab t={t} orgId={orgId} from={period.from} to={period.to} />}
       {tab === "expenses" && <ExpensesTab t={t} orgId={orgId} from={period.from} to={period.to} />}
       {tab === "lessors" && <LedgerTab t={t} orgId={orgId} from={period.from} to={period.to} side="LESSOR" />}
@@ -116,6 +117,54 @@ async function TripsTab({ t, orgId, from, to }: { t: T; orgId: string; from: str
       <GroupTable t={t} title={t("rep.byClient")} rows={r.byClient} first={t("rep.client")} />
       <GroupTable t={t} title={t("rep.byRoute")} rows={r.routes} first={t("rep.route")} />
       <Link href="/settlements" className="text-sm text-accent hover:underline print:hidden">{t("rep.debtsLink")} →</Link>
+    </>
+  );
+}
+
+async function ProfitTab({ t, orgId, from, to }: { t: T; orgId: string; from: string; to: string }) {
+  const r = await profitReport(orgId, from, to);
+  return (
+    <>
+      <section className="grid grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-3">
+        <div className="card p-4"><div className="text-xs text-muted">{t("rep.revenue")}</div><div className="text-xl font-bold"><M m={r.total.revenue} /></div></div>
+        <div className="card p-4"><div className="text-xs text-muted">{t("rep.p.expenses")}</div><div className="text-xl font-bold"><M m={r.total.expenses} tone="bad" /></div></div>
+        <div className="card p-4"><div className="text-xs text-muted">{t("rep.p.driverPay")}</div><div className="text-xl font-bold"><M m={r.total.driverPay} tone="bad" /></div></div>
+        <div className="card p-4"><div className="text-xs text-muted">{t("rep.p.profit")}</div><div className="text-xl font-bold"><M m={r.total.profit} /></div></div>
+      </section>
+      <p className="text-xs text-muted">{t("rep.p.hint")} {t("rep.p.withCosts").replace("{n}", String(r.withCosts)).replace("{m}", String(r.rows.length))}</p>
+      <section className="grid gap-2">
+        <div className="flex items-center gap-2"><h2 className="flex-1 text-lg font-semibold">{t("rep.tab.profit")}</h2><ExcelButton label={t("common.excel")} target="xl-profit" file={t("rep.tab.profit")} /></div>
+        <div className="card overflow-x-auto">
+          <table id="xl-profit" className="w-full text-sm">
+            <thead className="text-left text-xs text-muted">
+              <tr>
+                <th className="px-3 py-2 font-medium">{t("rep.trips")}</th>
+                <th className="px-3 py-2 font-medium">{t("trip.tractor")} / {t("trip.driver")}</th>
+                <th className="px-3 py-2 text-right font-medium">{t("rep.revenue")}</th>
+                <th className="px-3 py-2 text-right font-medium">{t("rep.p.expenses")}</th>
+                <th className="px-3 py-2 text-right font-medium">{t("rep.p.driverPay")}</th>
+                <th className="px-3 py-2 text-right font-medium">{t("rep.p.profit")}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {r.rows.map((x) => (
+                <tr key={x.id} className="border-t border-line align-top">
+                  <td className="px-3 py-2">
+                    <Link href={`/trips/${x.id}`} className="font-medium text-accent hover:underline">TSH-{String(x.number).padStart(4, "0")}</Link>
+                    <div className="text-xs text-muted">{x.route} · {formatDate(x.loadDate)}</div>
+                  </td>
+                  <td className="px-3 py-2">{x.plate}<div className="text-xs text-muted">{x.driver}</div></td>
+                  <td className="px-3 py-2 text-right"><M m={x.revenue} /></td>
+                  <td className="px-3 py-2 text-right"><M m={x.expenses} tone="bad" /></td>
+                  <td className="px-3 py-2 text-right"><M m={x.driverPay} tone="bad" /></td>
+                  <td className="px-3 py-2 text-right font-semibold"><M m={x.profit} /></td>
+                </tr>
+              ))}
+              {r.rows.length === 0 && <tr><td colSpan={6} className="px-3 py-5 text-muted">{t("common.none")}</td></tr>}
+            </tbody>
+          </table>
+        </div>
+      </section>
     </>
   );
 }

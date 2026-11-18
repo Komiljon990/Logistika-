@@ -14,7 +14,7 @@ import { cashEnabled, loadAccounts } from "@/lib/cash";
 import { lessorBalances, lessorStatement, monthOptions } from "@/lib/lessors-core";
 import { PrintButton } from "@/components/PrintButton";
 import { ExcelButton } from "@/components/ExcelButton";
-import { AttachVehicleForm, CancelEntryButton, DetachVehicleButton, LedgerButtons } from "./forms";
+import { AttachVehicleForm, CancelEntryButton, DetachVehicleButton, LedgerButtons, RateForm } from "./forms";
 
 const tripNo = (n: number) => `TSH-${String(n).padStart(4, "0")}`;
 const monthLabel = (m: string) => `${m.slice(5, 7)}.${m.slice(0, 4)}`;
@@ -23,7 +23,7 @@ const monthLabel = (m: string) => `${m.slice(5, 7)}.${m.slice(0, 4)}`;
  * Haydovchi hisob-kitobi sahifasi: qarz (valyuta bo'yicha), "+ Hisob qo'shish" va "+ To'lov", ko'chirma.
  * LESSOR — ijarachi (u bizga qarz), STAFF — xodim haydovchi (biz unga qarz).
  */
-export async function LedgerView({ user, driverId, side }: { user: CurrentUser; driverId: string; side: "LESSOR" | "STAFF" }) {
+export async function LedgerView({ user, driverId, side, add }: { user: CurrentUser; driverId: string; side: "LESSOR" | "STAFF"; add?: "CHARGE" | "PAYMENT" }) {
   const [t, d] = [await getT(), await getDict()];
   const dr = await db.driver.findFirst({
     where: { id: driverId, ...orgScope(user) },
@@ -56,10 +56,12 @@ export async function LedgerView({ user, driverId, side }: { user: CurrentUser; 
     : [[], [], [], []];
   const charged = new Set(dr.entries.filter((e) => e.type === "TRIP" && e.tripId).map((e) => e.tripId));
   const debtLabel = side === "LESSOR" ? t("lessor.debt") : t("ledger.weOwe");
+  const rate = side === "LESSOR" ? dr.membershipFee : dr.tripRate;
+  const rateCur = side === "LESSOR" ? dr.membershipCurrency : dr.tripRateCurrency;
 
   return (
     <div className="grid max-w-4xl gap-6">
-      <Link href={back} className="text-sm text-accent hover:underline print:hidden">← {side === "LESSOR" ? t("lessor.title") : t("ledger.driversTitle")}</Link>
+      <Link href={back} className="text-sm text-accent hover:underline print:hidden">← {t("settle.title")}: {side === "LESSOR" ? t("settle.tab.lessors") : t("settle.tab.drivers")}</Link>
       <div className="flex flex-wrap items-center gap-3">
         <h1 className="text-2xl font-bold">{dr.fullName}</h1>
         {dr.phone && <span className="tabular-nums text-muted">{formatPhone(dr.phone)}</span>}
@@ -89,6 +91,17 @@ export async function LedgerView({ user, driverId, side }: { user: CurrentUser; 
         )}
       </section>
 
+      {(canEdit || rate) && (
+        <section className="card grid gap-2 p-4 print:hidden">
+          <h2 className="font-semibold">{t("ledger.rate.title")}</h2>
+          {canEdit ? (
+            <RateForm d={d} driverId={dr.id} side={side} amount={rate ? String(Number(rate)) : ""} currency={rateCur ?? ""} currencies={currencies} />
+          ) : (
+            <p className="text-sm tabular-nums">{side === "LESSOR" ? t("ledger.rate.membership") : t("ledger.rate.trip")}: {formatNumber(Number(rate))} {rateCur}</p>
+          )}
+        </section>
+      )}
+
       <section className="grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-3">
         {Object.keys(bal).length === 0 && <p className="card p-4 text-sm text-muted">{t("lessor.noEntries")}</p>}
         {Object.entries(bal).map(([cur, b]) => (
@@ -103,7 +116,7 @@ export async function LedgerView({ user, driverId, side }: { user: CurrentUser; 
       {canEdit && (
         <div className="print:hidden">
           <LedgerButtons
-            d={d} driverId={dr.id} side={side} currencies={currencies} today={today} months={monthOptions(today)}
+            d={d} driverId={dr.id} side={side} initialOpen={add} currencies={currencies} today={today} months={monthOptions(today)}
             accounts={accounts.map((a) => ({ id: a.id, label: a.label, currency: a.currency }))}
             vehicles={vehicles.map((v) => ({ id: v.id, label: v.plate }))}
             trips={trips.map((x) => ({ id: x.id, label: `${tripNo(x.number)} · ${x.routeFrom} → ${x.routeTo} · ${formatDate(x.loadDate)}${charged.has(x.id) ? ` ✓ ${t("ledger.tripCharged")}` : ""}` }))}

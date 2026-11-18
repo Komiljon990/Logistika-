@@ -12,7 +12,10 @@ import { parseAmount } from "@/lib/currency-core";
 import { activeCurrencies } from "@/lib/org-currency";
 import { fail, optStr, str, type FormState } from "@/lib/form";
 import { EVENT_ORDER, checkEvent, completesTrip, normalizeContactPhone, parseTashkentDateTime } from "@/lib/trips-core";
-import { doneEvents, loadedVehicleIds, lockOrg } from "@/lib/trips";
+import { busyDriverIds, doneEvents, loadedVehicleIds, lockOrg } from "@/lib/trips";
+import { formatPlace } from "@/lib/places-core";
+import { autoTripCharge } from "@/lib/driver-ledger";
+import { notifyNewTrip } from "@/lib/telegram-bot";
 import type { Dict } from "@/i18n";
 
 /** Tashish, yuk va holatlarni menejer kiritadi; tashkilot sessiyadan olinadi. */
@@ -87,8 +90,8 @@ class FormError extends Error {
 
 export async function createTrip(_prev: FormState, formData: FormData): Promise<FormState> {
   const { user, orgId } = await editor();
-  const routeFrom = str(formData, "routeFrom").slice(0, 200);
-  const routeTo = str(formData, "routeTo").slice(0, 200);
+  const routeFrom = formatPlace(str(formData, "routeFrom")).slice(0, 200);
+  const routeTo = formatPlace(str(formData, "routeTo")).slice(0, 200);
   const loadDate = parseDate(formData.get("loadDate"));
   if (!routeFrom || !routeTo || !loadDate) return fail("common.required", formData);
   const listOnly = formData.get("listOnly") === "on";
@@ -112,6 +115,7 @@ export async function createTrip(_prev: FormState, formData: FormData): Promise<
       }
       const driver = await tx.driver.findFirst({ where: { id: str(formData, "driverId"), orgId, status: "ACTIVE" } });
       if (!driver) throw new FormError("trip.error.driver");
+      if ((await busyDriverIds(orgId, tx)).has(driver.id)) throw new FormError("trip.error.driverBusy");
       const client = await resolveClient(tx, formData, orgId);
       if (!client) throw new FormError("trip.error.client");
       if (client.created) newClient = client.id;
@@ -136,6 +140,8 @@ export async function createTrip(_prev: FormState, formData: FormData): Promise<
     actorId: user.id, orgId, action: "trip.create", entity: "Trip", entityId: tripId,
     details: { routeFrom, routeTo, price: String(ship.data.price), currency: ship.data.currency },
   });
+  // Haydovchiga botda: yangi reys va "Qabul qildim" tugmasi (bot ulangan bo'lsa).
+  await notifyNewTrip(tripId);
   redirect(`/trips/${tripId}`);
 }
 
@@ -178,8 +184,8 @@ export async function addShipment(tripId: string, _prev: FormState, formData: Fo
  */
 export async function updateTrip(tripId: string, _prev: FormState, formData: FormData): Promise<FormState> {
   const { user, orgId } = await editor();
-  const routeFrom = str(formData, "routeFrom").slice(0, 200);
-  const routeTo = str(formData, "routeTo").slice(0, 200);
+  const routeFrom = formatPlace(str(formData, "routeFrom")).slice(0, 200);
+  const routeTo = formatPlace(str(formData, "routeTo")).slice(0, 200);
   const loadDate = parseDate(formData.get("loadDate"));
   if (!routeFrom || !routeTo || !loadDate) return fail("common.required", formData);
   const listOnly = formData.get("listOnly") === "on";
@@ -210,7 +216,10 @@ export async function updateTrip(tripId: string, _prev: FormState, formData: For
         if (!tl) throw new ForbiddenError();
         if (busy.has(tl.id)) throw new FormError("trip.error.busy");
       }
-      if (driverId !== trip.driverId && !(await tx.driver.findFirst({ where: { id: driverId, orgId, status: "ACTIVE" } }))) throw new FormError("trip.error.driver");
+      if (driverId !== trip.driverId) {
+        if (!(await tx.driver.findFirst({ where: { id: driverId, orgId, status: "ACTIVE" } }))) throw new FormError("trip.error.driver");
+        if (trip.status === "ACTIVE" && (await busyDriverIds(orgId, tx, trip.id)).has(driverId)) throw new FormError("trip.error.driverBusy");
+      }
       await tx.trip.update({
         where: { id: tripId },
         data: { routeFrom, routeTo, loadDate, tractorId, trailerId, driverId, listOnly, cargo: optStr(formData, "cargo", 300), note: optStr(formData, "note", 500) },
@@ -224,6 +233,9 @@ export async function updateTrip(tripId: string, _prev: FormState, formData: For
     actorId: user.id, orgId, action: "trip.update", entity: "Trip", entityId: tripId,
     details: { from: before as Prisma.InputJsonValue, to: { routeFrom, routeTo, loadDate: loadDate.toISOString().slice(0, 10), listOnly } },
   });
+  // Haydovchi almashtirilgan bo'lsa — yangi haydovchiga botda xabar.
+  const newDriver = str(formData, "driverId");
+  if (newDriver && newDriver !== before.driverId) await notifyNewTrip(tripId);
   revalidatePath(`/trips/${tripId}`);
   revalidatePath("/trips");
   return { ok: true };
@@ -274,6 +286,7 @@ export async function addTripEvent(tripId: string, _prev: FormState, formData: F
   const type = str(formData, "type") as TripEventType;
   const at = parseTashkentDateTime(str(formData, "at"));
   if (!EVENT_ORDER.includes(type) || !at) return fail("common.required", formData);
+  let completed = false;
   try {
     await db.$transaction(async (tx) => {
       await lockOrg(tx, orgId);
@@ -284,13 +297,18 @@ export async function addTripEvent(tripId: string, _prev: FormState, formData: F
       const check = checkEvent(type, at, done);
       if (!check.ok) throw new FormError(check.error);
       await tx.tripEvent.create({ data: { tripId, type, at, source: "MANAGER", userId: user.id, note: optStr(formData, "note", 300) } });
-      if (completesTrip({ ...done, [type]: at })) await tx.trip.update({ where: { id: tripId }, data: { status: "COMPLETED" } });
+      if (completesTrip({ ...done, [type]: at })) {
+        await tx.trip.update({ where: { id: tripId }, data: { status: "COMPLETED" } });
+        completed = true;
+      }
     });
   } catch (e) {
     if (e instanceof FormError) return fail(e.key, formData);
     throw e;
   }
   await audit({ actorId: user.id, orgId, action: "trip.event", entity: "Trip", entityId: tripId, details: { type, at: at.toISOString(), source: "MANAGER" } });
+  // Xodim haydovchiga reys haqi (kartochkasida belgilangan bo'lsa) — avtomatik.
+  if (completed && (await autoTripCharge(tripId, user.id))) revalidatePath("/settlements/drivers", "layout");
   revalidatePath(`/trips/${tripId}`);
   return { ok: true };
 }

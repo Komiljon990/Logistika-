@@ -7,12 +7,13 @@ import { formatDate } from "@/lib/dates";
 import { tashkentToday } from "@/lib/docs";
 import { loadAccounts, loadCategories } from "@/lib/cash";
 import { parsePeriod } from "@/lib/cash-core";
+import { tripOptions } from "@/lib/trips";
 import { cashContext } from "../context";
 import { CashHeader, CashUnavailable } from "../CashHeader";
 import { PeriodFilter } from "../PeriodFilter";
 import { CancelExpenseButton, ExpenseForm } from "../forms";
 
-type SP = { org?: string; month?: string; from?: string; to?: string; account?: string; cat?: string };
+type SP = { org?: string; month?: string; from?: string; to?: string; account?: string; cat?: string; trip?: string };
 
 /** Xarajatlar: yangi xarajat (turkum › bo'lim, summa, qaysi hisobdan) va davr bo'yicha ro'yxat. */
 export default async function ExpensesPage({ searchParams }: { searchParams: Promise<SP> }) {
@@ -24,7 +25,7 @@ export default async function ExpensesPage({ searchParams }: { searchParams: Pro
 
   const today = tashkentToday().toISOString().slice(0, 10);
   const period = parsePeriod(today, sp);
-  const [accounts, categories] = await Promise.all([loadAccounts(ctx.orgId, true), loadCategories(ctx.orgId)]);
+  const [accounts, categories, trips] = await Promise.all([loadAccounts(ctx.orgId, true), loadCategories(ctx.orgId), ctx.canEdit ? tripOptions(ctx.orgId) : []]);
   const cat = categories.find((c) => c.id === sp.cat);
   const account = accounts.find((a) => a.id === sp.account);
   const expenses = await db.expense.findMany({
@@ -35,7 +36,7 @@ export default async function ExpensesPage({ searchParams }: { searchParams: Pro
       ...(cat ? { OR: [{ categoryId: cat.id }, { category: { parentId: cat.id } }] } : {}),
     },
     orderBy: [{ date: "desc" }, { createdAt: "desc" }],
-    include: { account: true, category: { include: { parent: true } } },
+    include: { account: true, category: { include: { parent: true } }, trip: { select: { id: true, number: true } } },
     take: 500,
   });
   const totals = new Map<string, number>();
@@ -86,7 +87,12 @@ export default async function ExpensesPage({ searchParams }: { searchParams: Pro
                       <Link href={`/cash/expenses/${e.id}${ctx.q ? `?${ctx.q}` : ""}`} className="font-medium text-accent hover:underline">
                         {e.category.parent ? `${e.category.parent.name} › ${e.category.name}` : e.category.name}
                       </Link>
-                      {e.note && <div className="text-xs text-muted">{e.note}</div>}
+                      {(e.note || e.trip) && (
+                        <div className="text-xs text-muted">
+                          {e.trip && <Link href={`/trips/${e.trip.id}`} className="text-accent hover:underline">TSH-{String(e.trip.number).padStart(4, "0")}</Link>}
+                          {e.trip && e.note ? " · " : ""}{e.note}
+                        </div>
+                      )}
                     </td>
                     <td className="px-4 py-2.5 text-muted">{e.account.name}</td>
                     <td className="whitespace-nowrap px-4 py-2.5 text-right font-semibold tabular-nums">{`${formatNumber(Number(e.amount))} ${e.account.currency}`}</td>
@@ -101,7 +107,7 @@ export default async function ExpensesPage({ searchParams }: { searchParams: Pro
         {ctx.canEdit && (
           <aside className="card order-first grid min-w-0 gap-3 border-2 border-accent p-5">
             <h2 className="text-lg font-semibold">{t("cash.addExpense")}</h2>
-            <ExpenseForm d={d} accounts={active} categories={categories} orgField={ctx.orgField} today={today} />
+            <ExpenseForm d={d} accounts={active} categories={categories} orgField={ctx.orgField} today={today} trips={trips} tripId={trips.some((x) => x.id === sp.trip) ? sp.trip : ""} />
           </aside>
         )}
       </div>
