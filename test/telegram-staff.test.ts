@@ -29,6 +29,7 @@ async function cleanup() {
   const orgs = await db.organization.findMany({ where: { name: { startsWith: "TG staff test" } }, select: { id: true } });
   const orgIds = orgs.map((o) => o.id);
   await db.payment.deleteMany({ where: { orgId: { in: orgIds } } });
+  await db.permit.deleteMany({ where: { orgId: { in: orgIds } } });
   await db.shipment.deleteMany({ where: { orgId: { in: orgIds } } });
   await db.tripEvent.deleteMany({ where: { trip: { orgId: { in: orgIds } } } });
   await db.trip.deleteMany({ where: { orgId: { in: orgIds } } });
@@ -104,7 +105,7 @@ describe("linking", () => {
     await contact(CHAT.dir, P.dir);
     const msg = to(CHAT.dir).at(-1)!;
     expect(msg.body.text).toContain("Rahbar: Test dir (TG staff test A)");
-    expect(msg.body.reply_markup?.keyboard?.flat().map((b) => b.text)).toEqual(["📊 Bugun", "🚚 Faol reyslar", "⚠️ Ogohlantirishlar", "🔎 Qidiruv"]);
+    expect(msg.body.reply_markup?.keyboard?.flat().map((b) => b.text)).toEqual(["📊 Bugun", "🚚 Faol reyslar", "⚠️ Ogohlantirishlar", "🔎 Qidiruv", "❓ Yordam"]);
     expect((await staffMembers(String(CHAT.dir))).map((m) => m.role)).toEqual(["DIRECTOR"]);
   });
   it("links by the membership phone when the account has no phone", async () => {
@@ -116,7 +117,9 @@ describe("linking", () => {
     const msg = to(CHAT.spec).at(-1)!;
     expect(msg.body.text).toContain("Haydovchi: Haydovchi A");
     expect(msg.body.text).toContain("Mutaxassis-1: Test spec");
-    expect(msg.body.reply_markup?.keyboard?.length).toBe(3);
+    // Haydovchi: 2 qator, xodim: 2 qator, «Yordam» bir marta.
+    expect(msg.body.reply_markup?.keyboard?.length).toBe(5);
+    expect(msg.body.reply_markup?.keyboard?.flat().filter((b) => b.text === "❓ Yordam")).toHaveLength(1);
   });
   it("refuses linking from a group chat", async () => {
     await contact(CHAT.group, P.mgrB, "group");
@@ -124,6 +127,38 @@ describe("linking", () => {
     expect(await staffMembers(String(CHAT.group))).toEqual([]);
     await contact(CHAT.mgrB, P.mgrB);
     expect(lastText(CHAT.mgrB)).toContain("Menejer: Test mgrB (TG staff test B)");
+  });
+});
+
+describe("welcome and driver buttons (19.11.2026)", () => {
+  it("unlinked /start sends the welcome photo from the app address with the contact button", async () => {
+    await say(97050, "/start");
+    const photo = sent.find((x) => x.method === "sendPhoto");
+    expect(photo?.body).toMatchObject({ chat_id: 97050, photo: "https://crm.test/bot/xush-kelibsiz.jpg" });
+    expect((photo?.body as { caption?: string }).caption).toContain("Telefon raqamni yuborish");
+  });
+  it("unlinked random text asks to link first", async () => {
+    await say(97051, "salom");
+    expect(lastText(97051)).toContain("avval ulaning");
+  });
+  it("driver sees permits on hand", async () => {
+    const drv = await db.driver.findFirstOrThrow({ where: { orgId: ids.orgA, fullName: "Haydovchi A" } });
+    await db.permit.create({ data: { orgId: ids.orgA, type: "TIR", number: "TG-TIR-1", receivedAt: new Date(Date.UTC(2026, 10, 1)), validUntil: new Date(Date.UTC(2027, 0, 5)), status: "ISSUED", vehicleId: ids.vehA, driverId: drv.id, createdById: ids.users.dir } });
+    await db.permit.create({ data: { orgId: ids.orgA, type: "TIR", number: "TG-TIR-2", receivedAt: new Date(Date.UTC(2026, 10, 1)), status: "STOCK", createdById: ids.users.dir } });
+    await say(CHAT.spec, "📄 Hujjatlarim");
+    expect(lastText(CHAT.spec)).toContain("TIR karnet № TG-TIR-1 — 05.01.2027 gacha");
+    expect(lastText(CHAT.spec)).not.toContain("TG-TIR-2");
+  });
+  it("driver gets the phone of the manager who opened the trip", async () => {
+    await say(CHAT.spec, "/menejer");
+    expect(lastText(CHAT.spec)).toContain(`TSH-0001: Test dir — ${P.dir}`);
+  });
+  it("help lists both driver and staff parts", async () => {
+    await say(CHAT.spec, "❓ Yordam");
+    expect(lastText(CHAT.spec)).toContain("Haydovchi uchun");
+    expect(lastText(CHAT.spec)).toContain("Xodim uchun");
+    await say(CHAT.dir, "/yordam");
+    expect(lastText(CHAT.dir)).not.toContain("Haydovchi uchun");
   });
 });
 
