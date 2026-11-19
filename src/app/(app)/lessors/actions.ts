@@ -16,6 +16,7 @@ import { cashEnabled } from "@/lib/cash";
 import { CHARGE_TYPES } from "@/lib/lessors-core";
 import { fail, optStr, str, type FormState } from "@/lib/form";
 import { notifyEntry, runAutoMembership } from "@/lib/driver-ledger";
+import { notifyIncome } from "@/lib/telegram-staff";
 
 /**
  * Haydovchilar bilan hisob-kitob (17.11.2026).
@@ -138,6 +139,8 @@ export async function addDriverEntry(driverId: string, side: LedgerSide, kind: L
   });
   // Haydovchiga botda xabar (ulangan bo'lsa): yangi hisob yoki to'lov va joriy qarz.
   void notifyEntry(e.id);
+  // Ijarachidan to'lov — rahbar va buxgalterga xabar (19.11.2026).
+  if (side === "LESSOR" && kind === "PAYMENT") void notifyIncome("lessor", e.id, user.id);
   revalidate(side, driverId);
   return { ok: true };
 }

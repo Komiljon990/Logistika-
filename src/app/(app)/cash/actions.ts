@@ -13,6 +13,7 @@ import { activeCurrencies } from "@/lib/org-currency";
 import { tashkentToday } from "@/lib/docs";
 import { fail, optStr, str, type FormState } from "@/lib/form";
 import { ACCOUNT_KINDS, convertTransfer, normalizeAccountNumber, normalizeCard, normalizeMfo } from "@/lib/cash-core";
+import { notifyIncome } from "@/lib/telegram-staff";
 
 /**
  * Kassa yozuvlarini hisobchi va menejer kiritadi (14.11.2026). Tashkilotga bog'langan foydalanuvchi — o'z tashkiloti;
@@ -247,6 +248,7 @@ export async function createEntry(_prev: FormState, formData: FormData): Promise
     data: { orgId, date, accountId: account.id, direction, amount, party, note: optStr(formData, "note", 300), createdById: user.id },
   });
   await audit({ actorId: user.id, orgId, action: "entry.create", entity: "CashEntry", entityId: e.id, details: { direction, amount, accountId: account.id, party } });
+  if (direction === "IN") void notifyIncome("entry", e.id, user.id);
   revalidateCash();
   return { ok: true };
 }

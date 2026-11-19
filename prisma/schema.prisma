@@ -101,12 +101,19 @@ model Account {
   // Ariza tasdiqlanganda e-mailga yuborilgan vaqtincha parol: birinchi kirishda o'z parolini o'rnatishi shart.
   mustChangePassword Boolean   @default(false)
   tempPasswordUntil  DateTime?
+  // Telegram bot (19.11.2026): xodim botga o'z telefonini yuborib ulanadi; bot faqat ko'rsatadi (o'zgartirmaydi).
+  // telegramPhone — ulanishdagi raqam: hisob yoki a'zolik telefoni o'zgarsa bog'lanish o'z-o'zidan bekor bo'ladi.
+  telegramChatId   String?
+  telegramPhone    String?
+  telegramLinkedAt DateTime?
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
   users  User[]
   codes  LoginCode[]
   grants AccessGrant[]
+
+  @@index([telegramChatId])
 }
 
 /// E-mailga yuborilgan bir martalik kod: ilk kirish / parolni tiklash (RESET) yoki e-mailni tasdiqlash (EMAIL).

@@ -7,7 +7,9 @@ import { activeMemberships } from "@/lib/login";
 import { formatPhone } from "@/lib/phone";
 import { mailConfigured, senderAddress } from "@/lib/mailer";
 import { switchOrg } from "@/app/actions";
+import { botToken, botUsername } from "@/lib/telegram";
 import { EmailForm, GrantForm, PasswordForm, RevokeButton } from "./forms";
+import { unlinkTelegram } from "./actions";
 
 /**
  * Mening hisobim: e-mail, parol, tashkilotlarim va vaqtincha parol (yordamchiga berish uchun).
@@ -16,7 +18,9 @@ import { EmailForm, GrantForm, PasswordForm, RevokeButton } from "./forms";
 export default async function AccountPage() {
   const user = await requireSession();
   const [t, d, locale] = [await getT(), await getDict(), await getLocale()];
-  const account = await db.account.findUniqueOrThrow({ where: { id: user.accountId }, select: { email: true, phone: true } });
+  const account = await db.account.findUniqueOrThrow({ where: { id: user.accountId }, select: { email: true, phone: true, telegramChatId: true, telegramLinkedAt: true } });
+  // Telegram bot (19.11.2026): tashkilot xodimi uchun, bot sozlangan bo'lsa.
+  const bot = user.orgId && !user.isDemo && botToken() ? { name: await botUsername() } : null;
   const members = (await activeMemberships(user.accountId)).filter((m) => !m.org?.isDemo || user.isDemo);
   const now = new Date();
   const grants = await db.accessGrant.findMany({ where: { accountId: user.accountId }, orderBy: { createdAt: "desc" }, take: 5 });
@@ -67,6 +71,32 @@ export default async function AccountPage() {
               </form>
             ))}
           </div>
+        </section>
+      )}
+
+      {bot && (
+        <section className="card grid gap-3 p-5">
+          <h2 className="text-lg font-semibold">{t("acc.tgTitle")}</h2>
+          {account.telegramChatId ? (
+            <div className="flex flex-wrap items-center gap-3 rounded-lg border border-accent bg-accent-soft px-4 py-3">
+              <span className="min-w-0 flex-1 text-sm">
+                <span className="font-semibold">✅ {t("acc.tgLinked")}</span>
+                {account.telegramLinkedAt && <span className="text-muted"> · {fmt.format(account.telegramLinkedAt)}</span>}
+                {bot.name && <span className="text-muted"> · @{bot.name}</span>}
+              </span>
+              {owner && (
+                <form action={unlinkTelegram}>
+                  <button className="btn-ghost">{t("acc.tgUnlink")}</button>
+                </form>
+              )}
+            </div>
+          ) : (
+            <p className="text-sm">
+              {t("acc.tgHowTo").replace("{bot}", bot.name ? `@${bot.name}` : "ReysPro")}
+              {bot.name && <> <a href={`https://t.me/${bot.name}`} target="_blank" rel="noreferrer" className="text-accent hover:underline">t.me/{bot.name}</a></>}
+            </p>
+          )}
+          <p className="text-xs text-muted">{t("acc.tgWhat")}</p>
         </section>
       )}
 

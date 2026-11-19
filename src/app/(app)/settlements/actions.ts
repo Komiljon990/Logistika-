@@ -17,6 +17,7 @@ import { lockOrg } from "@/lib/trips";
 import { fail, optStr, str, type FormState } from "@/lib/form";
 import { checkAllocations, demurrage, round2, shipmentTotals, type AllocationInput, type Method, type OpenShipment } from "@/lib/settlement-core";
 import type { Dict } from "@/i18n";
+import { notifyIncome } from "@/lib/telegram-staff";
 
 /** To'lov, qo'shimcha xarajat va prostoyni menejer kiritadi (texnik shart 2-bo'lim). */
 async function editor() {
@@ -185,6 +186,8 @@ export async function createPayment(clientId: string, _prev: FormState, formData
     actorId: user.id, orgId, action: "payment.create", entity: "Payment", entityId: paymentId,
     details: { clientId, amount, currency, method, receivedBy, driverId, accountId, allocations: alloc },
   });
+  // Rahbar va buxgalterga Telegram xabari (19.11.2026).
+  void notifyIncome("payment", paymentId, user.id);
   revalidate(clientId);
   for (const a of alloc) {
     const s = await db.shipment.findUnique({ where: { id: a.shipmentId }, select: { tripId: true } });

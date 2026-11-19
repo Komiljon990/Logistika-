@@ -796,6 +796,28 @@ vaqtda, telefon va kompyuter ko'rinishi, ma'lumot yaxlitligi, arxiv
   HTTPS orqali Secure cookie, lokal tarmoqda oddiy. Pochta — Brevo SMTP,
   noreply@reyspro.uz (SPF, DKIM, DMARC — Cloudflare DNS).
 
+### Telegram bot tashkilot xodimlari uchun (19.11.2026)
+
+- Qaror: bot xodimlarga **faqat ko'rsatadi**, kiritish va o'zgartirish faqat saytda (telefon yo'qolsa ham
+  ma'lumot o'zgarmaydi).
+- Ulanish haydovchi bilan bir xil: /start → "Telefon raqamni yuborish". Raqam hisob telefoni yoki rahbar
+  kiritgan a'zolik telefoniga mos bo'lishi kerak. Faqat shaxsiy chatda (guruhda ulanmaydi). Telefon
+  o'zgarsa, xodim bloklansa yoki tashkilot nofaol bo'lsa — bog'lanish o'z-o'zidan bekor bo'ladi. "Mening
+  hisobim"da holat va "Botdan uzish" tugmasi. Demo hisoblar ulanmaydi.
+- Har xodim saytdagi roli va bo'lim huquqlari bo'yicha ko'radi; bir nechta tashkilotda bo'lsa — har
+  tashkilot alohida (jamlanmaydi).
+- Tugmalar: «📊 Bugun» (faol reyslar, mijozlar qarzi, ijarachilar qarzi, haydovchilarga qarzimiz, kassa
+  qoldig'i), «🚚 Faol reyslar» (har biri qaysi bosqichda), «⚠️ Ogohlantirishlar», «🔎 Qidiruv» (yoki
+  shunchaki matn yozish — saytdagi global qidiruv bilan bir xil). Havolalar dastur sahifasini ochadi.
+- Har kuni 9:00 (Toshkent): muddati o'tgan va 7 kun ichida tugaydigan hujjatlar ro'yxati, 15/30 kunlik
+  soni, haydovchi rad etgan TIR/dazvol, obuna eslatmasi (rahbar, buxgalter). Aytadigan gap bo'lmasa
+  yuborilmaydi.
+- Kirim (mijoz to'lovi, ijarachidan to'lov, boshqa kirim) — rahbar va buxgalterga xabar; kiritgan
+  kishining o'ziga yuborilmaydi.
+- Ogohlantirishlar mutaxassisga botda ham yopiq (saytdagi qoida bo'yicha). Haydovchi bosqich belgilaganda
+  xodimlarga xabar — tanlanmadi (keyin qo'shish mumkin).
+- Model: `Account.telegramChatId`, `telegramPhone`, `telegramLinkedAt`. Kod: `src/lib/telegram-staff.ts`.
+
 ## 12. Loyihada ishlash qoidalari (Claude uchun)
 
 Bu bo'lim Project ko'rsatmasiga ko'chirilishi uchun yozilgan.

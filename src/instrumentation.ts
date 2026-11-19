@@ -9,5 +9,10 @@ export async function register() {
   if (process.env.AUTO_JOBS !== "off") {
     const { startLedgerScheduler } = await import("./lib/driver-ledger");
     startLedgerScheduler();
+    // 19.11.2026: botga ulangan xodimlarga har kuni 9:00 da ogohlantirishlar (token bo'lsa).
+    if (process.env.TELEGRAM_BOT_TOKEN) {
+      const { startStaffDigest } = await import("./lib/telegram-staff");
+      startStaffDigest();
+    }
   }
 }

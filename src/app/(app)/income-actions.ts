@@ -17,6 +17,7 @@ import { fail, optStr, str, type FormState } from "@/lib/form";
 import { autoAllocate, checkAllocations, shipmentTotals, type Method, type OpenShipment } from "@/lib/settlement-core";
 import { addDriverEntry } from "./lessors/actions";
 import { createEntry } from "./cash/actions";
+import { notifyIncome } from "@/lib/telegram-staff";
 
 /**
  * Yuqoridagi "+ Kirim" tugmasi (17.11.2026): tushum kimdan, qancha va qayerga tushgani bitta oynada.
@@ -116,6 +117,7 @@ async function clientIncome(formData: FormData): Promise<FormState> {
     throw e;
   }
   await audit({ actorId: user.id, orgId, action: "payment.create", entity: "Payment", entityId: paymentId, details: { clientId: client.id, amount, currency, method, accountId, quick: true } });
+  void notifyIncome("payment", paymentId, user.id);
   revalidatePath(`/clients/${client.id}`);
   revalidatePath("/settlements");
   revalidatePath("/cash", "layout");

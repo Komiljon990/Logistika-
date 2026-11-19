@@ -1,4 +1,4 @@
-import "server-only";
+// "server-only" import qilinmaydi (19.11.2026): Telegram bot (instrumentation.ts) xodimlarga shu ma'lumotlarni ko'rsatadi.
 import type { DocType } from "@prisma/client";
 import { db } from "./db";
 import { orgScope, type ScopeUser } from "./scope";

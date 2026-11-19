@@ -9,8 +9,7 @@ import { tashkentToday } from "@/lib/docs";
 import { ExpiryPill } from "@/components/ExpiryPill";
 import { loadAlerts } from "@/lib/alerts";
 import { BASE, addDays, formatNumber, lastDays, parseDay } from "@/lib/currency-core";
-import { canView } from "@/lib/access";
-import { balancesByClient, loadLedger } from "@/lib/settlement";
+import { todaySummary } from "@/lib/today";
 import { activeCurrencies } from "@/lib/org-currency";
 import { ensureRates, rateMap, rateSeries } from "@/lib/rates";
 import { RatesTable } from "./home/RatesTable";
@@ -52,26 +51,8 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
   const expiring = alerts.slice(0, 10);
   const selectedLabel = formatDate(new Date(`${selected}T00:00:00Z`));
 
-  // Bugungi ishlar (18.11.2026): faol reyslar, mijozlar qarzi, ijarachilar qarzi, haydovchilarga qarzimiz.
-  const [activeTrips, loadedTrips, ledgerSums, clientDebt] = await Promise.all([
-    canView(user, "trips") ? db.trip.count({ where: { ...scope, status: "ACTIVE" } }) : Promise.resolve(null),
-    canView(user, "trips") ? db.trip.count({ where: { ...scope, status: "ACTIVE", events: { none: { type: "UNLOADED" } } } }) : Promise.resolve(0),
-    canView(user, "lessors") || canView(user, "settlements")
-      ? db.driverEntry.groupBy({ by: ["side", "kind", "currency"], where: { ...scope, status: "ACTIVE" }, _sum: { amount: true } })
-      : Promise.resolve([]),
-    canView(user, "settlements")
-      ? loadLedger(scope).then(({ shipments, payments }) => {
-          const m: Record<string, number> = {};
-          for (const b of balancesByClient(shipments, payments).values()) for (const [cur, x] of Object.entries(b)) if (x.debt > 0) m[cur] = (m[cur] ?? 0) + x.debt;
-          return m;
-        })
-      : Promise.resolve(null),
-  ]);
-  const sideDebt = (side: "LESSOR" | "STAFF") => {
-    const m: Record<string, number> = {};
-    for (const r of ledgerSums.filter((x) => x.side === side)) m[r.currency] = Math.round(((m[r.currency] ?? 0) + (r.kind === "CHARGE" ? 1 : -1) * Number(r._sum.amount ?? 0)) * 100) / 100;
-    return Object.fromEntries(Object.entries(m).filter(([, v]) => v > 0.004));
-  };
+  // Bugungi ishlar (18.11.2026): faol reyslar, mijozlar qarzi, ijarachilar qarzi, haydovchilarga qarzimiz (Telegram bot bilan umumiy).
+  const { activeTrips, loadedTrips, clientDebt, lessorDebt, staffDebt } = await todaySummary(user);
 
   return (
     <div className="grid gap-6">
@@ -98,8 +79,8 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
             </Link>
           )}
           {clientDebt && <MoneyKpi label={t("home.clientDebt")} m={clientDebt} href="/settlements" />}
-          {canView(user, "lessors") && <MoneyKpi label={t("home.lessorDebt")} m={sideDebt("LESSOR")} href="/lessors" />}
-          {canView(user, "settlements") && <MoneyKpi label={t("home.staffDebt")} m={sideDebt("STAFF")} href="/settlements/drivers" />}
+          {lessorDebt && <MoneyKpi label={t("home.lessorDebt")} m={lessorDebt} href="/lessors" />}
+          {staffDebt && <MoneyKpi label={t("home.staffDebt")} m={staffDebt} href="/settlements/drivers" />}
         </div>
       </section>
 

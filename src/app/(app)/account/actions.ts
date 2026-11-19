@@ -8,6 +8,7 @@ import { assertWritable, reissueSession, requireOwner } from "@/lib/session";
 import { consumeCode, issueCode } from "@/lib/accounts";
 import { generateTempPassword, GRANT_HOURS, normalizeEmail } from "@/lib/auth-core";
 import { hashPassword, MIN_PASSWORD_LENGTH, verifyPassword } from "@/lib/password";
+import { unlinkStaff } from "@/lib/telegram-staff";
 import type { Dict } from "@/i18n";
 
 export type AccState = { error?: keyof Dict; ok?: boolean };
@@ -77,6 +78,15 @@ export async function createGrant(_prev: GrantState, formData: FormData): Promis
   await audit({ actorId: user.id, orgId: user.orgId, action: "account.grant_create", entity: "Account", entityId: user.accountId, details: { grantId: grant.id, mode, hours } });
   revalidatePath("/account");
   return { password, mode, expiresAt: expiresAt.toISOString() };
+}
+
+/** Telegram botdan uzish (19.11.2026): shu hisobga bot boshqa xabar yubormaydi va ma'lumot ko'rsatmaydi. */
+export async function unlinkTelegram(): Promise<void> {
+  const user = await requireOwner();
+  await assertWritable(user);
+  await unlinkStaff(user.accountId);
+  await audit({ actorId: user.id, orgId: user.orgId, action: "account.telegram_unlink", entity: "Account", entityId: user.accountId });
+  revalidatePath("/account");
 }
 
 /** "To'xtatish": faol vaqtincha parol bekor qilinadi, u bilan ochilgan sessiyalar darhol yopiladi. */

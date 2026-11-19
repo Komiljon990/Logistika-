@@ -108,7 +108,16 @@ One-off data migrations are `scripts/migrate-YYYY-MM-DD.ts` run with `npx tsx`.
 
 **i18n:** `src/i18n/uz.ts` defines `Dict` (the source of keys); `uzCyrl.ts` and `ru.ts` must have every key, non-empty (`test/i18n.test.ts`). Server code uses `getT()`; client components get the dict via `getDict()`. Locale is in the `lang` cookie.
 
-**Background jobs:** `src/instrumentation.ts` starts Telegram bot long-polling (`src/lib/telegram-bot.ts`, driver-facing bot: trip cards, stage buttons, balance) and the driver-ledger scheduler (`src/lib/driver-ledger.ts`, monthly membership fees). Disable with `TELEGRAM_POLLING=off` / `AUTO_JOBS=off`.
+**Background jobs and Telegram bot**
+- `src/instrumentation.ts` starts:
+  - Telegram bot long-polling (`TELEGRAM_POLLING=off` disables it);
+  - the driver-ledger scheduler (`driver-ledger.ts`, monthly membership fees) and the staff 9:00 digest (`AUTO_JOBS=off` disables both).
+- Bot files:
+  - `telegram-bot.ts`: update handling, the driver side (trip cards, stage buttons, balance) and contact linking;
+  - `telegram-staff.ts`: the staff side (read-only views, daily digest, income notices);
+  - `telegram-common.ts`: the shared API call and labels.
+- Everything the bot imports must **not** import `server-only`, because instrumentation runs outside the react-server condition and the import throws there. That is why `alerts.ts`, `settlement.ts`, `cash.ts`, `search.ts` and `today.ts` have no `server-only`.
+- Staff in the bot see exactly what their role and sections allow (`sectionLevel`, `orgScope`).
 
 **Mail:** `src/lib/mailer.ts` — SMTP from `SMTP_*`; with no SMTP it appends to the `MAIL_OUTBOX` file.
 
