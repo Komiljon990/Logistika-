@@ -1,8 +1,8 @@
-# ReysPro'ni internetga chiqarish va xizmatlarni ulash (18.11.2026).
+﻿# ReysPro'ni internetga chiqarish va xizmatlarni ulash (18.11.2026).
 # Administrator PowerShell'da ishga tushiring:
 #   powershell -ExecutionPolicy Bypass -File C:\logistika\scripts\internet-sozlash.ps1
 #
-# Maxfiy kalitlar (Telegram token, Brevo SMTP kaliti, Cloudflare tunnel tokeni) shu oynada yashirin kiritiladi —
+# Maxfiy kalitlar (Telegram token, Brevo SMTP kaliti, Cloudflare tunnel tokeni) shu oynada yashirin kiritiladi -
 # ular ekranda ko'rinmaydi, chatga yozilmaydi va faqat serverdagi C:\logistika\.env fayliga saqlanadi
 # (Cloudflare tokeni Windows xizmatiga yoziladi). Har bosqichni Enter bosib o'tkazib yuborish mumkin.
 $ErrorActionPreference = 'Stop'
@@ -23,7 +23,7 @@ function Read-Secret([string]$prompt) {
 function Set-EnvVar([string]$name, [string]$value) {
   $lines = [System.Collections.Generic.List[string]]::new()
   if (Test-Path $EnvFile) { foreach ($l in [IO.File]::ReadAllLines($EnvFile, $Utf8)) { $lines.Add($l) } }
-  # Next.js .env ichida "$" ni o'zgaruvchi deb tushunadi — ekranlaymiz.
+  # Next.js .env ichida "$" ni o'zgaruvchi deb tushunadi - ekranlaymiz.
   $escaped = $value.Replace('\', '\\').Replace('"', '\"').Replace('$', '\$')
   $line = "$name=`"$escaped`""
   $idx = -1
@@ -37,7 +37,7 @@ function Ask([string]$q) { return (Read-Host -Prompt $q).Trim() }
 $changed = $false
 Write-Host ""
 Write-Host "=== ReysPro: internet, Telegram bot va pochta ===" -ForegroundColor Cyan
-Write-Host "Har bosqichda Enter — o'tkazib yuborish."
+Write-Host "Har bosqichda Enter - o'tkazib yuborish."
 
 # ---------- 1. Telegram bot ----------
 Write-Host ""
@@ -60,7 +60,7 @@ $tg = $null
 
 # ---------- 2. Pochta (Brevo) ----------
 Write-Host ""
-Write-Host "2/4  Pochta (Brevo SMTP) — xatlar noreply@reyspro.uz nomidan" -ForegroundColor Yellow
+Write-Host "2/4  Pochta (Brevo SMTP) - xatlar noreply@reyspro.uz nomidan" -ForegroundColor Yellow
 Write-Host "     Brevo → SMTP & API → SMTP bo'limidagi 'Login' (masalan 8a1b2c001@smtp-brevo.com)."
 $smtpUser = Ask "     SMTP login"
 if ($smtpUser) {
@@ -69,7 +69,7 @@ if ($smtpUser) {
   if (-not $from) { $from = 'noreply@reyspro.uz' }
   if ($smtpKey) {
     $ok = $true
-    $test = Ask "     Sinov xati qaysi manzilga? (Enter — yubormaslik)"
+    $test = Ask "     Sinov xati qaysi manzilga? (Enter - yubormaslik)"
     if ($test) {
       try {
         $c = New-Object Net.Mail.SmtpClient('smtp-relay.brevo.com', 587)
@@ -79,14 +79,14 @@ if ($smtpUser) {
         $m.From = New-Object Net.Mail.MailAddress($from, 'ReysPro')
         $m.To.Add($test)
         $m.Subject = 'ReysPro: sinov xati'
-        $m.Body = "Pochta sozlandi. Bu xat 'Spam' papkasiga tushmagan bo'lsa — hammasi joyida."
+        $m.Body = "Pochta sozlandi. Bu xat 'Spam' papkasiga tushmagan bo'lsa - hammasi joyida."
         $m.BodyEncoding = [Text.Encoding]::UTF8
         $m.SubjectEncoding = [Text.Encoding]::UTF8
         $c.Send($m)
         Write-Host "     OK: sinov xati yuborildi ($test)." -ForegroundColor Green
       } catch {
         $ok = $false
-        Write-Host "     XATO: xat yuborilmadi — $($_.Exception.Message)" -ForegroundColor Red
+        Write-Host "     XATO: xat yuborilmadi - $($_.Exception.Message)" -ForegroundColor Red
         Write-Host "     Login/kalitni va Brevo'da reyspro.uz domeni tasdiqlanganini tekshiring." -ForegroundColor Red
       }
     }
@@ -146,13 +146,13 @@ if ($cft) {
 # ---------- 4. Domen manzillari ----------
 Write-Host ""
 Write-Host "4/4  Domen manzillari" -ForegroundColor Yellow
-$dom = Ask "     Domen [reyspro.uz] (Enter — reyspro.uz, 'n' — o'tkazib yuborish)"
+$dom = Ask "     Domen [reyspro.uz] (Enter - reyspro.uz, 'n' - o'tkazib yuborish)"
 if ($dom -ne 'n') {
   if (-not $dom) { $dom = 'reyspro.uz' }
   Set-EnvVar 'APP_URL' "https://crm.$dom"
   Set-EnvVar 'CRM_URL' "https://crm.$dom"
   Set-EnvVar 'SITE_HOSTS' "$dom,www.$dom"
-  # Domen orqali (HTTPS) — xavfsiz cookie; lokal tarmoqda (http://192.168.x.x:3000) ham kirish ishlaydi.
+  # Domen orqali (HTTPS) - xavfsiz cookie; lokal tarmoqda (http://192.168.x.x:3000) ham kirish ishlaydi.
   Set-EnvVar 'COOKIE_SECURE' 'auto'
   $changed = $true
   Write-Host "     Saqlandi: sayt https://$dom , dastur https://crm.$dom" -ForegroundColor Green
