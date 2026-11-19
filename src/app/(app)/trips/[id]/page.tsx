@@ -12,7 +12,7 @@ import { EVENT_ORDER, formatTashkent, nextEvents, tashkentNowInput, tripNumber }
 import { Documents } from "../../Documents";
 import { AddShipmentPanel, CancelTripButton, EventForm, ShipmentEditPanel, TripEditPanel } from "../forms";
 import { CancelChargeButton, ChargeForm } from "../../settlements/forms";
-import { payStatus, shipmentTotals } from "@/lib/settlement-core";
+import { billableAmounts, payStatus, shipmentTotals } from "@/lib/settlement-core";
 import { tashkentToday } from "@/lib/docs";
 import { busyDriverIds, routePlaces } from "@/lib/trips";
 
@@ -74,7 +74,7 @@ export default async function TripPage({ params, searchParams }: { params: Promi
   const canCost = canEditSection(user, "cash");
   const profit: Record<string, number> = {};
   const addP = (cur: string, v: number) => { profit[cur] = Math.round(((profit[cur] ?? 0) + v) * 100) / 100; };
-  for (const s of trip.shipments) if (s.status === "ACTIVE") addP(s.currency, Number(s.price) + s.charges.reduce((a, c) => a + Number(c.amount), 0));
+  for (const s of trip.shipments) if (s.status === "ACTIVE") addP(s.currency, Number(s.price) + billableAmounts(s.charges.map((c) => ({ amount: Number(c.amount), fault: c.fault }))).reduce((a, x) => a + x, 0));
   for (const e of costExpenses) addP(e.account.currency, -Number(e.amount));
   for (const e of costDriver) addP(e.currency, -Number(e.amount));
 
@@ -156,7 +156,7 @@ export default async function TripPage({ params, searchParams }: { params: Promi
             </div>
             {s.cargo && <div className="text-sm text-muted">{s.cargo}</div>}
             {!trip.listOnly && (() => {
-              const tot = shipmentTotals(Number(s.price), s.charges.map((c) => Number(c.amount)), s.allocations.map((a) => Number(a.applied)));
+              const tot = shipmentTotals(Number(s.price), billableAmounts(s.charges.map((c) => ({ amount: Number(c.amount), fault: c.fault }))), s.allocations.map((a) => Number(a.applied)));
               const st = payStatus(tot.charged, tot.paid);
               return (
                 <div className="grid gap-1.5 border-t border-line pt-3 text-sm tabular-nums">
@@ -164,10 +164,12 @@ export default async function TripPage({ params, searchParams }: { params: Promi
                   {s.charges.map((c) => (
                     <div key={c.id} className="flex items-baseline justify-between gap-2">
                       <span className="text-muted">
-                        {t(`pay.c.${c.kind}`)}{c.kind === "DEMURRAGE" && c.days ? `: ${c.days} × ${formatNumber(Number(c.dailyAmount))}` : ""}{c.description ? ` — ${c.description}` : ""}
+                        {t(`pay.c.${c.kind}`)}{c.kind === "DEMURRAGE" && c.days ? `: ${c.days} × ${formatNumber(Number(c.dailyAmount))}` : ""}{c.fault ? ` (${t(`pay.fault.${c.fault}`)})` : ""}{c.description ? ` — ${c.description}` : ""}
                         {editor && trip.status !== "CANCELLED" && <span className="ml-2"><CancelChargeButton d={d} chargeId={c.id} /></span>}
                       </span>
-                      <span>+ {formatNumber(Number(c.amount))}</span>
+                      {c.fault === "DRIVER"
+                        ? <span className="text-muted line-through" title={t("pay.fault.notBilled")}>{formatNumber(Number(c.amount))}</span>
+                        : <span>+ {formatNumber(Number(c.amount))}</span>}
                     </div>
                   ))}
                   <div className="flex justify-between"><span>{t("settle.paid")}</span><span>− {formatNumber(tot.paid)}</span></div>

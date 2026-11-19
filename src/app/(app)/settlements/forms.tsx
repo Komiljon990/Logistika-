@@ -233,6 +233,7 @@ export function ChargeForm({ d, shipmentId, currency, today, defaultOpen = false
   const [kind, setKind] = useState<"EXTRA" | "DEMURRAGE">("EXTRA");
   const [days, setDays] = useState("");
   const [daily, setDaily] = useState("");
+  const [fault, setFault] = useState<"CLIENT" | "DRIVER" | null>(null);
   const [state, action, pending] = useActionState(async (prev: FormState, fd: FormData) => {
     const r = await addCharge(shipmentId, prev, fd);
     if (r.ok) setOpen(false);
@@ -269,6 +270,17 @@ export function ChargeForm({ d, shipmentId, currency, today, defaultOpen = false
           </div>
           <span className="pb-3 text-sm">{currency}</span>
           {total != null && <p className="col-span-3 text-sm">{d["pay.c.DEMURRAGE"]}: {days} × {daily} = <strong className="tabular-nums">{fmt(total)} {currency}</strong></p>}
+          <fieldset className="col-span-3 grid gap-2">
+            <legend className="label">{d["pay.fault.label"]}</legend>
+            <div className="grid grid-cols-2 gap-2">
+              {(["CLIENT", "DRIVER"] as const).map((f) => (
+                <label key={f} className={`flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-lg bg-paper text-sm ${fault === f ? "border-2 border-accent font-semibold" : "border border-line"}`}>
+                  <input type="radio" name="fault" value={f} required checked={fault === f} onChange={() => setFault(f)} /> {d[`pay.fault.${f}`]}
+                </label>
+              ))}
+            </div>
+            {fault === "DRIVER" && <p className="text-sm text-muted">{d["pay.fault.notBilled"]}</p>}
+          </fieldset>
         </div>
       )}
       <div className="grid grid-cols-2 gap-2">

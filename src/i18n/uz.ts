@@ -407,6 +407,11 @@ export const uz = {
   "pay.error.driver": "Pulni qabul qilgan haydovchini tanlang.",
   "pay.error.pick": "Kamida bitta tashishni tanlang.",
   "pay.error.demurrage": "Prostoy uchun kunlar soni va bir kunlik summani kiriting.",
+  "pay.fault.label": "Prostoy sababi",
+  "pay.fault.CLIENT": "Mijoz aybi",
+  "pay.fault.DRIVER": "Haydovchi aybi",
+  "pay.fault.notBilled": "Haydovchi aybidagi prostoy hech kimga hisoblanmaydi: mijoz qarziga qo'shilmaydi, haydovchidan ham ushlanmaydi.",
+  "pay.error.fault": "Prostoy sababini tanlang: mijoz aybi yoki haydovchi aybi.",
 
   // 14.11.2026: kassa, sozlamalar, oxirgi amallar
   "nav.cash": "Kassa",

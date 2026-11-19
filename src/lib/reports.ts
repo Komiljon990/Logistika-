@@ -1,6 +1,7 @@
 import "server-only";
 import { db } from "./db";
 import { loadAccounts, loadMovements } from "./cash";
+import { BILLABLE_CHARGES } from "./charges";
 
 /** Valyuta bo'yicha summalar: { USD: 1200, UZS: 5_000_000 }. */
 export type Money = Record<string, number>;
@@ -21,7 +22,7 @@ export async function tripsReport(orgId: string, from: string, to: string) {
       driver: { select: { id: true, fullName: true } },
       shipments: {
         where: { status: "ACTIVE" },
-        include: { client: { select: { id: true, name: true } }, charges: { where: { status: "ACTIVE" }, select: { amount: true } } },
+        include: { client: { select: { id: true, name: true } }, charges: { where: BILLABLE_CHARGES, select: { amount: true } } },
       },
     },
   });
@@ -81,7 +82,7 @@ export async function profitReport(orgId: string, from: string, to: string) {
     include: {
       tractor: { select: { plate: true } },
       driver: { select: { fullName: true } },
-      shipments: { where: { status: "ACTIVE" }, select: { price: true, currency: true, charges: { where: { status: "ACTIVE" }, select: { amount: true } } } },
+      shipments: { where: { status: "ACTIVE" }, select: { price: true, currency: true, charges: { where: BILLABLE_CHARGES, select: { amount: true } } } },
       expenses: { where: { status: "ACTIVE" }, select: { amount: true, account: { select: { currency: true } } } },
       driverEntries: { where: { status: "ACTIVE", kind: "CHARGE", side: "STAFF" }, select: { amount: true, currency: true } },
     },

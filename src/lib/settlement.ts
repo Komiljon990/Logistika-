@@ -1,13 +1,13 @@
 // "server-only" import qilinmaydi (19.11.2026): Telegram bot (instrumentation.ts) xodimlarga shu ma'lumotlarni ko'rsatadi.
-import type { CashHolder, PaymentMethod, PaymentTerms, ChargeKind, Prisma } from "@prisma/client";
+import type { CashHolder, PaymentMethod, PaymentTerms, ChargeKind, DemurrageFault, Prisma } from "@prisma/client";
 import { db } from "./db";
 import { accountLabel } from "./cash-core";
-import { clientBalance, payStatus, round2, shipmentTotals, type CurrencyBalance, type PayStatus } from "./settlement-core";
+import { billableAmounts, clientBalance, payStatus, round2, shipmentTotals, type CurrencyBalance, type PayStatus } from "./settlement-core";
 
 export type LedgerShipment = {
   id: string; clientId: string; tripId: string; tripNumber: number; routeFrom: string; routeTo: string; plate: string;
   loadDate: Date; currency: string; terms: PaymentTerms; price: number;
-  charges: { id: string; kind: ChargeKind; description: string | null; days: number | null; dailyAmount: number | null; amount: number; date: Date }[];
+  charges: { id: string; kind: ChargeKind; description: string | null; days: number | null; dailyAmount: number | null; fault: DemurrageFault | null; amount: number; date: Date }[];
   charged: number; paid: number; remaining: number; status: PayStatus; order: number;
 };
 
@@ -49,10 +49,10 @@ export async function loadLedger(where: { orgId?: string; clientId?: string }) {
 
   const shipments: LedgerShipment[] = ships.map((s, i) => {
     const charges = s.charges.map((c) => ({
-      id: c.id, kind: c.kind, description: c.description, days: c.days,
+      id: c.id, kind: c.kind, description: c.description, days: c.days, fault: c.fault,
       dailyAmount: c.dailyAmount == null ? null : Number(c.dailyAmount), amount: Number(c.amount), date: c.date,
     }));
-    const tot = shipmentTotals(Number(s.price), charges.map((c) => c.amount), s.allocations.map((a) => Number(a.applied)));
+    const tot = shipmentTotals(Number(s.price), billableAmounts(charges), s.allocations.map((a) => Number(a.applied)));
     return {
       id: s.id, clientId: s.clientId, tripId: s.trip.id, tripNumber: s.trip.number, routeFrom: s.trip.routeFrom, routeTo: s.trip.routeTo,
       plate: s.trip.tractor.plate, loadDate: s.trip.loadDate, currency: s.currency, terms: s.terms, price: Number(s.price),

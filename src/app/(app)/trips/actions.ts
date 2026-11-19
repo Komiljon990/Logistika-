@@ -17,6 +17,7 @@ import { formatPlace } from "@/lib/places-core";
 import { autoTripCharge } from "@/lib/driver-ledger";
 import { notifyNewTrip } from "@/lib/telegram-bot";
 import type { Dict } from "@/i18n";
+import { BILLABLE_CHARGES } from "@/lib/charges";
 
 /** Tashish, yuk va holatlarni menejer kiritadi; tashkilot sessiyadan olinadi. */
 async function editor() {
@@ -252,7 +253,7 @@ export async function updateShipment(shipmentId: string, _prev: FormState, formD
     where: { id: shipmentId, orgId, status: "ACTIVE" },
     include: {
       trip: { select: { id: true, status: true, listOnly: true } },
-      charges: { where: { status: "ACTIVE" }, select: { amount: true } },
+      charges: { where: BILLABLE_CHARGES, select: { amount: true } },
       allocations: { where: { payment: { status: "ACTIVE" } }, select: { applied: true } },
     },
   });
