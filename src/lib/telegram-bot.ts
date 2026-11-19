@@ -15,6 +15,7 @@ import type { TripEventType } from "@prisma/client";
 import { EVENT_ORDER, checkEvent, completesTrip, nextEvents } from "./trips-core";
 import { EV_DONE_UZ, EV_UZ, apiBase, botToken, fmtTime, tg } from "./telegram-common";
 import { STAFF_ROWS, linkStaff, staffMembers, staffText, type StaffMember } from "./telegram-staff";
+import { syncBotProfile } from "./telegram-profile";
 
 type TgChat = { id: number; type?: string; first_name?: string; last_name?: string; username?: string; title?: string };
 type TgUpdate = {
@@ -46,6 +47,14 @@ const CONTACT_KEYBOARD = {
 
 const BTN_TRIP = "🚚 Reysim";
 const BTN_BALANCE = "💰 Hisobim";
+// 19.11.2026: qo'limdagi TIR/dazvol, menejer telefoni, yordam.
+const BTN_DOCS = "📄 Hujjatlarim";
+const BTN_MANAGER = "☎️ Menejer";
+const BTN_HELP = "❓ Yordam";
+
+const DRIVER_HELP = `«${BTN_TRIP}» — reys bosqichlarini belgilash\n«${BTN_BALANCE}» — hisob-kitob\n«${BTN_DOCS}» — qo'lingizdagi TIR/dazvol\n«${BTN_MANAGER}» — menejer telefoni`;
+const STAFF_HELP = "«📊 Bugun» — qisqa holat\n«🚚 Faol reyslar» — yo'ldagi reyslar\n«⚠️ Ogohlantirishlar» — muddati tugayotgan hujjatlar\n«🔎 Qidiruv» — yoki shunchaki davlat raqami, reys raqami yoki mijoz nomini yozing\n\nBot faqat ko'rsatadi. Kiritish va o'zgartirish — saytda.";
+const WELCOME = "Assalomu alaykum! 👋\nBu — ReysPro boti.\n\nHaydovchi yoki tashkilot xodimi bo'lsangiz, pastdagi «📱 Telefon raqamni yuborish» tugmasini bosing. Bot sizni tashkilotingizga o'zi ulaydi.";
 
 /**
  * Pastki tugmalar (19.11.2026): haydovchiga «Reysim» / «Hisobim», xodimga «Bugun», «Faol reyslar», «Ogohlantirishlar»,
@@ -53,8 +62,9 @@ const BTN_BALANCE = "💰 Hisobim";
  */
 function keyboardFor(isDriver: boolean, isStaff: boolean) {
   const rows: { text: string }[][] = [];
-  if (isDriver) rows.push([{ text: BTN_TRIP }, { text: BTN_BALANCE }]);
+  if (isDriver) rows.push([{ text: BTN_TRIP }, { text: BTN_BALANCE }], [{ text: BTN_DOCS }, { text: BTN_MANAGER }]);
   if (isStaff) for (const r of STAFF_ROWS) rows.push(r.map((text) => ({ text })));
+  if (rows.length) rows.push([{ text: BTN_HELP }]);
   return rows.length ? { keyboard: rows, resize_keyboard: true, is_persistent: true } : { remove_keyboard: true };
 }
 
@@ -78,8 +88,8 @@ async function tripCard(tripId: string): Promise<{ text: string; markup?: unknow
   if (!trip) return null;
   const done = Object.fromEntries(trip.events.map((e) => [e.type, e.at]));
   const steps = EVENT_ORDER.map((s) => (done[s] ? `✅ ${EV_DONE_UZ[s]} — ${fmtTime(done[s] as Date)}` : `▫️ ${EV_DONE_UZ[s]}`));
-  const head = `🚚 ${tripNo(trip.number)}: ${trip.routeFrom} → ${trip.routeTo}\nYuklash sanasi: ${formatDate(trip.loadDate)}\nTyagach: ${trip.tractor.plate}${trip.trailer ? `, prisep: ${trip.trailer.plate}` : ""}${trip.cargo ? `\nYuk: ${trip.cargo}` : ""}\n${trip.org.name}`;
-  if (trip.status !== "ACTIVE") return { text: `${head}\n\n${steps.join("\n")}\n\n${trip.status === "COMPLETED" ? "🏁 Reys yakunlangan." : "❌ Reys bekor qilingan."}` };
+  const head = `🚚 ${tripNo(trip.number)}: ${trip.routeFrom} → ${trip.routeTo}\n📅 Yuklash: ${formatDate(trip.loadDate)}\n🚛 Tyagach: ${trip.tractor.plate}${trip.trailer ? `, prisep: ${trip.trailer.plate}` : ""}${trip.cargo ? `\n📦 Yuk: ${trip.cargo}` : ""}\n🏢 ${trip.org.name}`;
+  if (trip.status !== "ACTIVE") return { text: `${head}\n\n${steps.join("\n")}\n\n${trip.status === "COMPLETED" ? "🏁 Reys yakunlandi. Rahmat, yo'lingiz bexatar bo'lsin!" : "❌ Reys bekor qilingan."}` };
   const next = nextEvents(done)[0];
   return {
     text: `${head}\n\n${steps.join("\n")}${next ? "\n\nBosqich bajarilganda pastdagi tugmani bosing:" : ""}`,
@@ -106,7 +116,7 @@ export async function notifyNewTrip(tripId: string): Promise<void> {
     if (!chat) return;
     const card = await tripCard(tripId);
     if (!card) return;
-    await tg("sendMessage", { chat_id: chat, text: `🆕 Sizga yangi reys tayinlandi.\n\n${card.text}`, reply_markup: card.markup ?? (await chatKeyboard(chat)) });
+    await tg("sendMessage", { chat_id: chat, text: `🆕 Sizga yangi reys tayinlandi!\n\n${card.text}`, reply_markup: card.markup ?? (await chatKeyboard(chat)) });
   } catch (e) {
     console.error("Yangi reys xabari yuborilmadi:", e instanceof Error ? e.message : e);
   }
@@ -144,7 +154,7 @@ async function driverEvent(chatId: string, tripId: string, type: string): Promis
 async function sendTrips(chatId: number) {
   const trips = await chatTrips(String(chatId));
   if (!trips.length) {
-    await tg("sendMessage", { chat_id: chatId, text: "Hozir sizda faol reys yo'q.", reply_markup: await chatKeyboard(String(chatId)) });
+    await tg("sendMessage", { chat_id: chatId, text: "Hozircha sizda faol reys yo'q. Yangi reys tayinlansa, darhol xabar beraman. 🙂", reply_markup: await chatKeyboard(String(chatId)) });
     return;
   }
   for (const t of trips) {
@@ -171,13 +181,93 @@ async function sendBalance(chatId: number) {
   await tg("sendMessage", { chat_id: chatId, text: `💰 Hisobingiz\n${parts.join("\n")}`, reply_markup: await chatKeyboard(String(chatId)) });
 }
 
+const PERMIT_FORMAT_UZ = { ELECTRONIC: " (elektron)", PAPER: " (qog'oz)" } as const;
+
+/** Haydovchi qo'lidagi (berilgan, hali qaytarilmagan) TIR/dazvollar. */
+async function sendDocs(chatId: number) {
+  const permits = await db.permit.findMany({
+    where: { status: "ISSUED", driver: { telegramChatId: String(chatId), status: "ACTIVE" } },
+    orderBy: [{ validUntil: "asc" }, { number: "asc" }],
+    select: { type: true, number: true, country: true, format: true, validUntil: true, issuedAt: true, vehicle: { select: { plate: true } }, driver: { select: { org: { select: { name: true } } } } },
+    take: 30,
+  });
+  const lines = permits.map((p) =>
+    `• ${TYPE_UZ[p.type]}${p.format ? PERMIT_FORMAT_UZ[p.format] : ""} № ${p.number}${p.country ? `, ${p.country}` : ""}` +
+    `${p.validUntil ? ` — ${formatDate(p.validUntil)} gacha` : ""}${p.vehicle ? `\n   🚛 ${p.vehicle.plate}` : ""}${p.issuedAt ? `, berilgan: ${formatDate(p.issuedAt)}` : ""} · ${p.driver?.org.name ?? ""}`);
+  await tg("sendMessage", {
+    chat_id: chatId,
+    text: lines.length ? `📄 Qo'lingizdagi hujjatlar:\n${lines.join("\n")}` : "📄 Hozir qo'lingizda TIR yoki dazvol yo'q.",
+    reply_markup: await chatKeyboard(String(chatId)),
+  });
+}
+
+/** Faol reysni ochgan menejer(lar) telefoni; reys bo'lmasa — tashkilot telefoni. */
+async function sendManager(chatId: number) {
+  const drivers = await db.driver.findMany({
+    where: { telegramChatId: String(chatId), status: "ACTIVE" },
+    select: { org: { select: { name: true, phone: true } }, trips: { where: { status: "ACTIVE" }, orderBy: { loadDate: "asc" }, take: 5, select: { number: true, createdById: true } } },
+  });
+  const userIds = [...new Set(drivers.flatMap((d) => d.trips.map((t) => t.createdById)))];
+  const users = new Map((await db.user.findMany({ where: { id: { in: userIds }, status: "ACTIVE" }, select: { id: true, fullName: true, phone: true } })).map((u) => [u.id, u]));
+  const parts: string[] = [];
+  for (const d of drivers) {
+    const lines: string[] = [];
+    for (const t of d.trips) {
+      const u = users.get(t.createdById);
+      if (u) lines.push(`🚚 ${tripNo(t.number)}: ${u.fullName}${u.phone ? ` — ${u.phone}` : ""}`);
+    }
+    if (!lines.length) lines.push(d.org.phone ? `📞 Tashkilot telefoni: ${d.org.phone}` : "Telefon kiritilmagan — rahbaringizga murojaat qiling.");
+    parts.push(`🏢 ${d.org.name}\n${[...new Set(lines)].join("\n")}`);
+  }
+  await tg("sendMessage", { chat_id: chatId, text: `☎️ Menejer bilan bog'lanish\n\n${parts.join("\n\n")}`, reply_markup: await chatKeyboard(String(chatId)) });
+}
+
+async function sendHelp(chatId: number, isDriver: boolean, isStaff: boolean) {
+  const parts = [
+    ...(isDriver ? [`🚚 Haydovchi uchun:\n${DRIVER_HELP}`] : []),
+    ...(isStaff ? [`👤 Xodim uchun:\n${STAFF_HELP}`] : []),
+  ];
+  await tg("sendMessage", {
+    chat_id: chatId,
+    text: `ℹ️ ReysPro boti\n\n${parts.join("\n\n")}\n\nMuammo bo'lsa, menejeringizga yoki rahbaringizga murojaat qiling.\nSayt: reyspro.uz`,
+    reply_markup: keyboardFor(isDriver, isStaff),
+  });
+}
+
+/**
+ * Ulanmagan foydalanuvchiga /start javobi: rasm (sayt manzili bo'lsa, Telegram uni o'zi yuklab oladi) va tugma.
+ * Rasm yuborilmasa — oddiy matn. Birinchi yuborishdan keyin Telegram file_id saqlanadi.
+ */
+async function sendWelcome(chatId: number) {
+  const base = (process.env.APP_URL || process.env.CRM_URL || "").trim().replace(/\/+$/, "");
+  if (base) {
+    const url = `${base}/bot/xush-kelibsiz.jpg`;
+    try {
+      const row = await db.appSetting.findUnique({ where: { key: "telegramWelcomePhoto" } });
+      const cached = row?.value as { url: string; fileId: string } | null;
+      const sent = await tg<{ photo?: { file_id: string }[] }>("sendPhoto", {
+        chat_id: chatId, photo: cached?.url === url ? cached.fileId : url, caption: WELCOME, reply_markup: CONTACT_KEYBOARD,
+      });
+      const fileId = sent?.photo?.at(-1)?.file_id;
+      if (fileId && cached?.fileId !== fileId) {
+        const value = { url, fileId };
+        await db.appSetting.upsert({ where: { key: "telegramWelcomePhoto" }, create: { key: "telegramWelcomePhoto", value }, update: { value } });
+      }
+      return;
+    } catch (e) {
+      console.error("[telegram] xush kelibsiz rasmi yuborilmadi:", e instanceof Error ? e.message : e);
+    }
+  }
+  await tg("sendMessage", { chat_id: chatId, text: WELCOME, reply_markup: CONTACT_KEYBOARD });
+}
+
 /** Bitta yangilanishni qayta ishlash (polling va sinovlar uchun). */
 export async function handleUpdate(u: TgUpdate): Promise<void> {
   if (u.message) {
     const m = u.message;
     if (m.contact) {
       if (!m.from || m.contact.user_id !== m.from.id) {
-        await tg("sendMessage", { chat_id: m.chat.id, text: "Faqat o'zingizning raqamingizni yuboring — pastdagi tugmani bosing.", reply_markup: CONTACT_KEYBOARD });
+        await tg("sendMessage", { chat_id: m.chat.id, text: "Iltimos, faqat o'zingizning raqamingizni yuboring — pastdagi tugmani bosing.", reply_markup: CONTACT_KEYBOARD });
         return;
       }
       // Faqat shaxsiy chat: guruhga ulansa, tashkilot ma'lumotlari guruhdagi hammaga ko'rinib qolardi.
@@ -197,7 +287,7 @@ export async function handleUpdate(u: TgUpdate): Promise<void> {
       if (!active.length && !staff.length) {
         await tg("sendMessage", {
           chat_id: m.chat.id,
-          text: "Bu raqam ReysPro'da haydovchi yoki xodim sifatida topilmadi. Rahbaringiz yoki menejeringizdan telefon raqamingizni to'g'ri kiritishini so'rang, keyin qayta /start bosing.",
+          text: "😕 Bu raqam ReysPro'da topilmadi.\n\nRahbaringiz yoki menejeringizdan telefon raqamingizni tizimga to'g'ri kiritishini so'rang. Keyin /start ni qayta bosing.",
           reply_markup: { remove_keyboard: true },
         });
         return;
@@ -207,12 +297,12 @@ export async function handleUpdate(u: TgUpdate): Promise<void> {
         ...staff.map((s) => `👤 ${s.roleTitle}: ${s.fullName} (${s.orgName})`),
       ];
       const help = [
-        ...(active.length ? [`«${BTN_TRIP}» — reys bosqichlarini belgilash, «${BTN_BALANCE}» — hisob-kitob.`] : []),
-        ...(staff.length ? ["«📊 Bugun» — qisqa holat, «🚚 Faol reyslar», «⚠️ Ogohlantirishlar», «🔎 Qidiruv» (yoki shunchaki davlat raqami, reys raqami, mijoz nomini yozing). Bot faqat ko'rsatadi — kiritish va o'zgartirish saytda."] : []),
+        ...(active.length ? [`Endi yangi reys tayinlansa, shu yerga xabar keladi.\n${DRIVER_HELP}`] : []),
+        ...(staff.length ? [STAFF_HELP] : []),
       ];
       await tg("sendMessage", {
         chat_id: m.chat.id,
-        text: `✅ Siz ReysPro'ga ulandingiz:\n${who.join("\n")}\n\n${help.join("\n")}`,
+        text: `✅ Siz ulandingiz!\n${who.join("\n")}\n\n${help.join("\n\n")}`,
         reply_markup: keyboardFor(active.length > 0, staff.length > 0),
       });
       return;
@@ -223,25 +313,30 @@ export async function handleUpdate(u: TgUpdate): Promise<void> {
     const isDriver = await isDriverChat(chatId);
     if (isDriver && (text === BTN_TRIP || text === "/reys")) { await sendTrips(m.chat.id); return; }
     if (isDriver && (text === BTN_BALANCE || text === "/hisob")) { await sendBalance(m.chat.id); return; }
+    if (isDriver && (text === BTN_DOCS || text === "/hujjat")) { await sendDocs(m.chat.id); return; }
+    if (isDriver && (text === BTN_MANAGER || text === "/menejer")) { await sendManager(m.chat.id); return; }
     // Xodim (faqat shaxsiy chatda): tugmalar va qidiruv.
     const staff = !m.chat.type || m.chat.type === "private" ? await staffMembers(chatId) : [];
+    if ((isDriver || staff.length) && (text === BTN_HELP || text === "/yordam")) { await sendHelp(m.chat.id, isDriver, staff.length > 0); return; }
     if (staff.length && !text.startsWith("/start") && (await staffText(m.chat.id, text, staff, keyboardFor(isDriver, true)))) return;
     if (text.startsWith("/start") && (isDriver || staff.length)) {
-      const help = [
-        ...(isDriver ? [`«${BTN_TRIP}» — reys bosqichlari, «${BTN_BALANCE}» — hisob-kitob.`] : []),
-        ...(staff.length ? ["«📊 Bugun», «🚚 Faol reyslar», «⚠️ Ogohlantirishlar», «🔎 Qidiruv»."] : []),
-      ];
-      await tg("sendMessage", { chat_id: m.chat.id, text: `Siz ulangansiz.\n${help.join("\n")}`, reply_markup: keyboardFor(isDriver, staff.length > 0) });
+      const help = [...(isDriver ? [DRIVER_HELP] : []), ...(staff.length ? [STAFF_HELP] : [])];
+      await tg("sendMessage", { chat_id: m.chat.id, text: `✅ Siz ulangansiz.\n\n${help.join("\n\n")}`, reply_markup: keyboardFor(isDriver, staff.length > 0) });
       return;
     }
     if (text.startsWith("/start")) {
       await rememberChat(m.chat);
-      await tg("sendMessage", {
-        chat_id: m.chat.id,
-        text: "Assalomu alaykum! Bu ReysPro boti.\nHaydovchi yoki tashkilot xodimi bo'lsangiz, ulanish uchun pastdagi «Telefon raqamni yuborish» tugmasini bosing.",
-        reply_markup: CONTACT_KEYBOARD,
-      });
+      await sendWelcome(m.chat.id);
       return;
+    }
+    // Tanilmagan matn: faqat shaxsiy chatda javob beriladi (guruhdagi har xabarga emas).
+    if (m.chat.type && m.chat.type !== "private") return;
+    if (isDriver) {
+      await tg("sendMessage", { chat_id: m.chat.id, text: "Kechirasiz, tushunmadim. Pastdagi tugmalardan foydalaning. 👇", reply_markup: await chatKeyboard(chatId, staff) });
+      return;
+    }
+    if (!staff.length) {
+      await tg("sendMessage", { chat_id: m.chat.id, text: "Botdan foydalanish uchun avval ulaning: pastdagi «📱 Telefon raqamni yuborish» tugmasini bosing.", reply_markup: CONTACT_KEYBOARD });
     }
     return;
   }
@@ -320,6 +415,7 @@ export function startPolling() {
       const me = await tg<{ username: string }>("getMe", {});
       await db.appSetting.upsert({ where: { key: "telegramBot" }, create: { key: "telegramBot", value: me.username }, update: { value: me.username } });
       await tg("deleteWebhook", {});
+      await syncBotProfile();
       console.log(`[telegram] bot @${me.username} ishga tushdi (polling)`);
     } catch (e) {
       console.error("[telegram] bot ishga tushmadi:", e);

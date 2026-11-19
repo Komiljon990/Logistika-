@@ -116,7 +116,8 @@ One-off data migrations are `scripts/migrate-YYYY-MM-DD.ts` run with `npx tsx`.
 - Bot files:
   - `telegram-bot.ts`: update handling, the driver side (trip cards, stage buttons, balance) and contact linking;
   - `telegram-staff.ts`: the staff side (read-only views, daily digest, income notices);
-  - `telegram-common.ts`: the shared API call and labels.
+  - `telegram-common.ts`: the shared API call and labels;
+  - `telegram-profile.ts`: command list and bot descriptions, written to Telegram on start (bumped by `PROFILE_VERSION`).
 - Everything the bot imports must **not** import `server-only`, because instrumentation runs outside the react-server condition and the import throws there. That is why `alerts.ts`, `settlement.ts`, `cash.ts`, `search.ts` and `today.ts` have no `server-only`.
 - Staff in the bot see exactly what their role and sections allow (`sectionLevel`, `orgScope`).
 

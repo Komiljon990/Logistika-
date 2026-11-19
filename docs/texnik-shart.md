@@ -828,6 +828,20 @@ belgilandi va qaror qayerda yozilgani ko'rsatildi.
   fayllaridagi TZ nusxasida), lekin foydalanuvchi qarori bilan hozircha
   qoldirildi. Keyin alohida bosqich sifatida qaytiladi.
 
+### Bot tugmalari, matnlari va profili (19.11.2026, ikkinchi qism)
+
+- Qaror (foydalanuvchi tanladi): bot tugmalar bilan ishlashda davom etadi; Mini App hozircha qilinmaydi.
+- Haydovchi tugmalari: «🚚 Reysim», «💰 Hisobim», «📄 Hujjatlarim» (qo'lidagi, ya'ni berilgan va hali
+  qaytarilmagan TIR/dazvol, muddati bilan), «☎️ Menejer» (faol reysni ochgan xodimning ismi va telefoni; faol
+  reys bo'lmasa — tashkilot telefoni). Hammaga «❓ Yordam».
+- /start (ulanmagan): «Xush kelibsiz» rasmi (`public/bot/xush-kelibsiz.jpg`, APP_URL orqali) va tugma.
+  Ulanmagan odam boshqa narsa yozsa — ulanishni eslatadi; haydovchi tushunarsiz matn yozsa — tugmalarga yo'naltiradi.
+- Buyruqlar (/start, /reys, /hisob, /hujjat, /menejer, /bugun, /reyslar, /ogohlantirish, /qidiruv, /yordam),
+  qisqa va to'liq tavsif (o'zbekcha va ruscha) bot ishga tushganda Telegram'ga o'zi yoziladi
+  (`src/lib/telegram-profile.ts`). Bot rasmi va tavsif rasmi BotFather'da qo'lda qo'yiladi.
+- Taklif (talab emas): keyinchalik rahbar va menejer uchun Telegram Mini App (parolsiz kirish), haydovchi uchun
+  rasm yuklash va joylashuv.
+
 ## 12. Loyihada ishlash qoidalari (Claude uchun)
 
 Bu bo'lim Project ko'rsatmasiga ko'chirilishi uchun yozilgan.
