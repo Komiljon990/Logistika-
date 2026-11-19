@@ -18,6 +18,7 @@ import { fail, optStr, str, type FormState } from "@/lib/form";
 import { checkAllocations, demurrage, round2, shipmentTotals, type AllocationInput, type Method, type OpenShipment } from "@/lib/settlement-core";
 import type { Dict } from "@/i18n";
 import { notifyIncome } from "@/lib/telegram-staff";
+import { BILLABLE_CHARGES } from "@/lib/charges";
 
 /** To'lov, qo'shimcha xarajat va prostoyni menejer kiritadi (texnik shart 2-bo'lim). */
 async function editor() {
@@ -73,7 +74,12 @@ export async function addCharge(shipmentId: string, _prev: FormState, formData: 
   let amount: number | null;
   let days: number | null = null;
   let daily: number | null = null;
+  let fault: "CLIENT" | "DRIVER" | null = null;
   if (kind === "DEMURRAGE") {
+    // Sabab majburiy (05.10.2026): mijoz aybi — mijozga hisoblanadi, haydovchi aybi — hech kimga.
+    const f = str(formData, "fault");
+    if (f !== "CLIENT" && f !== "DRIVER") return fail("pay.error.fault", formData);
+    fault = f;
     days = Number(str(formData, "days"));
     daily = parseAmount(str(formData, "dailyAmount"));
     if (!Number.isInteger(days) || days < 1 || days > 365 || daily === null || daily <= 0) return fail("pay.error.demurrage", formData);
@@ -83,9 +89,9 @@ export async function addCharge(shipmentId: string, _prev: FormState, formData: 
   }
   if (amount === null || amount <= 0 || amount > 1e12) return fail("pay.error.amount", formData);
   const c = await db.shipmentCharge.create({
-    data: { orgId, shipmentId, kind, days, dailyAmount: daily, amount, date, description: optStr(formData, "description", 200), createdById: user.id },
+    data: { orgId, shipmentId, kind, days, dailyAmount: daily, fault, amount, date, description: optStr(formData, "description", 200), createdById: user.id },
   });
-  await audit({ actorId: user.id, orgId, action: "charge.create", entity: "ShipmentCharge", entityId: c.id, details: { shipmentId, kind, amount, days, daily, currency: s.currency } });
+  await audit({ actorId: user.id, orgId, action: "charge.create", entity: "ShipmentCharge", entityId: c.id, details: { shipmentId, kind, amount, days, daily, fault, currency: s.currency } });
   revalidate(s.clientId, s.tripId);
   return { ok: true };
 }
@@ -124,7 +130,7 @@ async function openShipments(tx: Tx, orgId: string, clientId: string): Promise<M
   const ships = await tx.shipment.findMany({
     where: { orgId, clientId, status: "ACTIVE", trip: { status: { not: "CANCELLED" }, listOnly: false } },
     include: {
-      charges: { where: { status: "ACTIVE" }, select: { amount: true } },
+      charges: { where: BILLABLE_CHARGES, select: { amount: true } },
       allocations: { where: { payment: { status: "ACTIVE" } }, select: { applied: true } },
     },
     orderBy: { createdAt: "asc" },

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  methodAllowed, shipmentTotals, payStatus, demurrage, consumedFor, checkAllocations, autoAllocate, clientBalance,
+  methodAllowed, shipmentTotals, payStatus, demurrage, billableAmounts, consumedFor, checkAllocations, autoAllocate, clientBalance,
   type OpenShipment,
 } from "@/lib/settlement-core";
 
@@ -24,6 +24,16 @@ describe("shipment remaining (TZ formula)", () => {
     expect(payStatus(t.charged, t.paid)).toBe("PARTIAL");
     expect(payStatus(3250, 0)).toBe("UNPAID");
     expect(payStatus(3250, 3250)).toBe("PAID");
+  });
+  it("driver-fault demurrage is charged to nobody; old demurrage without fault stays billable", () => {
+    const charges = [
+      { amount: 150 }, // qo'shimcha xarajat
+      { amount: demurrage(2, 50), fault: "CLIENT" },
+      { amount: demurrage(3, 50), fault: "DRIVER" },
+      { amount: 40, fault: null }, // sababi yozilmagan eski prostoy
+    ];
+    expect(billableAmounts(charges)).toEqual([150, 100, 40]);
+    expect(shipmentTotals(3000, billableAmounts(charges), [3290])).toEqual({ charged: 3290, paid: 3290, remaining: 0 });
   });
   it("demurrage = days × daily", () => {
     expect(demurrage(3, 66.67)).toBe(200.01);

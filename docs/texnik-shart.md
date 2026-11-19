@@ -374,17 +374,20 @@ vaqtda, telefon va kompyuter ko'rinishi, ma'lumot yaxlitligi, arxiv
 
 ### Ochiq savollar (talab hali yakunlanmagan)
 
-| Savol                                                                                                                                                                            | Nega muhim                                             |
-|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|--------------------------------------------------------|
-| Valyuta: kurs qo'lda kiritiladimi yoki Markaziy bankdan avtomatikmi; qaysi sanadagi kurs olinadi (tashish, to'lov yoki hisobot sanasi); valyuta har yozuvda alohida tanlanadimi? | Barcha moliyaviy maydon va hisobotlarga ta'sir qiladi. |
-| Xodim-haydovchiga har tashish uchun belgilanadigan summa: har tashishda har xilmi, oy oxirida yig'ilib ish haqiga tushadimi?                                                     | Ish haqi va tashish modullari bog'lanishi.             |
-| Garajdan chiqish va qaytish kunlari: chegara shu kuni kesilmasa kun qanday sanaladi?                                                                                             | Safar kunlari hisobining chegara holatlari.            |
-| TIR jadvalining to'liq maydonlari (foydalanuvchi beradi).                                                                                                                        | TIR registri tuzilmasi.                                |
-| Prostoy sababi (mijoz yoki haydovchi aybi) kerakmi?                                                                                                                              | Hozir faqat kun × summa.                               |
-| Buxgalter huquqlari kelajakda qanday kengayadi (kiritish, tasdiqlash, darajalar)?                                                                                                | Rol tizimi.                                            |
-| Mintrans: rasmiy API, ochiq endpoint, autentifikatsiya, foydalanish shartlari (test raqami 50991MBA).                                                                            | Integratsiya mumkinligi hali tekshirilmagan.           |
-| Joylashtirish: qaysi server, zaxira nusxa, domen, fayl saqlash.                                                                                                                  | Ishchi rejimga o'tish.                                 |
-| Word hujjatdagi fikrlar (rahbar, buxgalter, menejer, haydovchilar).                                                                                                              | Struktura o'zgarishi mumkin.                           |
+19.11.2026 da qayta ko'rib chiqildi: javob berilganlari "Yopildi" deb
+belgilandi va qaror qayerda yozilgani ko'rsatildi.
+
+| Savol | Holat (19.11.2026) |
+|-------|--------------------|
+| Valyuta: kurs qo'lda yoki Markaziy bankdan; qaysi sanadagi kurs; valyuta har yozuvda alohidami? | **Yopildi.** MB kursi to'lov sanasida avtomatik qo'yiladi, shu katakning o'zida qo'lda o'zgartiriladi, ishlatilgan kurs to'lovda saqlanadi; har tashkilotning o'z valyuta ro'yxati (Qarorlar 13.11.2026, uchinchi qism 13.11.2026). |
+| Xodim-haydovchiga har tashish uchun summa: har xilmi, oyiga yig'ilib ish haqiga tushadimi? | **Qisman.** Reys haqi haydovchi hisobiga yoziladi, avtomatik ham (18.11.2026). Ish haqi (qoralama va rasmiy) hisobiga qanday yig'ilishi — ochiq, ish haqi moduli bilan birga hal qilinadi. |
+| Garajdan chiqish va qaytish kunlari: chegara shu kuni kesilmasa kun qanday sanaladi? | **Ochiq.** 18.11.2026 da chegara bosqichlari olib tashlandi (reys butunlay xorijda bo'lishi mumkin), safar kunlari hisobi esa chegara sanalariga tayanadi. 19.11.2026 qarori: safar kunlari va tarif hisobi hozircha qoldirildi; boshlashdan oldin shu savol hal qilinadi. |
+| TIR jadvalining to'liq maydonlari. | **Yopildi (qurilgan).** TIR/Dazvol moduli holatlari va jurnali bilan ishlaydi (16.11.2026). Foydalanuvchi qo'shimcha ustun bersa kengaytiriladi. |
+| Prostoy sababi (mijoz yoki haydovchi aybi) kerakmi? | **Yopildi (19.11.2026 qurildi).** 05.10.2026 dagi javob: sabab majburiy; haydovchi aybidagi prostoy hech kimga yozilmaydi (mijozga ham, haydovchidan ham). Prostoy kiritishda "Mijoz aybi / Haydovchi aybi" tanlanadi; haydovchi aybidagisi tashish kartochkasida chizilgan holda ko'rinadi, qoldiq, daromad va hisobotlarga kirmaydi. Sababi yozilmagan eski prostoylar mijoz aybi deb qoladi. |
+| Buxgalter huquqlari qanday kengayadi? | **Qisman.** Buxgalter — tashkilot a'zosi, global emas (16.11.2026). Kiritish/tasdiqlash darajalari ish haqi moduli bilan aniqlanadi. |
+| Mintrans: rasmiy API, autentifikatsiya, shartlar (test raqami 50991MBA). | **Ochiq.** Faqat rasmiy API orqali; tekshirilmagan. |
+| Joylashtirish: server, zaxira, domen, fayl saqlash. | **Yopildi (sinov/ishchi rejim).** Server — foydalanuvchi noutbuki (Windows), ma'lumotlar `D:\logistika-data`, kunlik zaxira 14 kun saqlanadi, Cloudflare Tunnel: reyspro.uz — sayt, crm.reyspro.uz — dastur (18.11.2026). Pullik serverga o'tish keyinroq. |
+| Word hujjatdagi fikrlar (rahbar, buxgalter, menejer, haydovchilar). | **Yopildi.** Foydalanuvchiga bunday hujjat noma'lum (05.10.2026) — mavjud emas deb hisoblanadi. |
 
 ### Ziddiyat va eslatmalar
 
@@ -817,6 +820,13 @@ vaqtda, telefon va kompyuter ko'rinishi, ma'lumot yaxlitligi, arxiv
 - Ogohlantirishlar mutaxassisga botda ham yopiq (saytdagi qoida bo'yicha). Haydovchi bosqich belgilaganda
   xodimlarga xabar — tanlanmadi (keyin qo'shish mumkin).
 - Model: `Account.telegramChatId`, `telegramPhone`, `telegramLinkedAt`. Kod: `src/lib/telegram-staff.ts`.
+
+### Keyinga qoldirilgan (19.11.2026)
+
+- **Haydovchi joylashuvi Telegram orqali** (Live Location) va **AI yuk
+  qidirish** bo'limi 13.11.2026 da kelishilgan (tafsiloti loyiha
+  fayllaridagi TZ nusxasida), lekin foydalanuvchi qarori bilan hozircha
+  qoldirildi. Keyin alohida bosqich sifatida qaytiladi.
 
 ### Bot tugmalari, matnlari va profili (19.11.2026, ikkinchi qism)
 

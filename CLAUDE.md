@@ -32,6 +32,7 @@ Newer dated subsections in §11 override the older §2–§9 text. Examples: Sup
 
 **Money rules**
 - Each shipment (SMR/CMR) has its own client and price. Balance = actual prices + extra charges + demurrage (prostoy = days × daily rate) − payments.
+- Demurrage needs a reason (`ShipmentCharge.fault`: CLIENT / DRIVER). Driver-fault demurrage is charged to nobody: it is shown but never enters balances, revenue or reports. Sum charges only through `BILLABLE_CHARGES` (`src/lib/charges.ts`) in queries or `billableAmounts` (settlement-core) in code. Old demurrage with no reason counts as client fault.
 - The "accounting price" is a separate field that never enters balances.
 - Client-billed extra charges and the organisation's own expenses never mix.
 - Payment terms per shipment: *Shartnoma* (bank transfer only) or *Naqd kelishuv* (cash or card). The payment method must match the terms.

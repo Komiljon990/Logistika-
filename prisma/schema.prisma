@@ -484,6 +484,13 @@ enum ChargeKind {
   DEMURRAGE // prostoy = kunlar × kunlik summa
 }
 
+/// Prostoy sababi (05.10.2026 qarori): mijoz aybi — mijozga hisoblanadi;
+/// haydovchi aybi — hech kimga hisoblanmaydi (qoldiq va daromadga kirmaydi), faqat qayd uchun.
+enum DemurrageFault {
+  CLIENT
+  DRIVER
+}
+
 /// Mijozga hisoblanadigan qo'shimcha summa; yuk qismi valyutasida. Qoldiqni oshiradi.
 model ShipmentCharge {
   id          String     @id @default(cuid())
@@ -494,6 +501,7 @@ model ShipmentCharge {
   description String?
   days        Int?
   dailyAmount Decimal?   @db.Decimal(18, 2)
+  fault       DemurrageFault? // faqat prostoyda; eski yozuvlarda bo'sh = mijoz aybi deb hisoblanadi
   amount      Decimal    @db.Decimal(18, 2)
   date        DateTime   @db.Date
   status      Status     @default(ACTIVE) // ARCHIVED = bekor qilingan
