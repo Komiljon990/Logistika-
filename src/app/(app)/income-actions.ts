@@ -18,6 +18,7 @@ import { autoAllocate, checkAllocations, shipmentTotals, type Method, type OpenS
 import { addDriverEntry } from "./lessors/actions";
 import { createEntry } from "./cash/actions";
 import { notifyIncome } from "@/lib/telegram-staff";
+import { BILLABLE_CHARGES } from "@/lib/charges";
 
 /**
  * Yuqoridagi "+ Kirim" tugmasi (17.11.2026): tushum kimdan, qancha va qayerga tushgani bitta oynada.
@@ -89,7 +90,7 @@ async function clientIncome(formData: FormData): Promise<FormState> {
       await lockOrg(tx, orgId);
       const ships = await tx.shipment.findMany({
         where: { orgId, clientId: client.id, status: "ACTIVE", trip: { status: { not: "CANCELLED" }, listOnly: false } },
-        include: { charges: { where: { status: "ACTIVE" }, select: { amount: true } }, allocations: { where: { payment: { status: "ACTIVE" } }, select: { applied: true } } },
+        include: { charges: { where: BILLABLE_CHARGES, select: { amount: true } }, allocations: { where: { payment: { status: "ACTIVE" } }, select: { applied: true } } },
         orderBy: { createdAt: "asc" },
       });
       const open = new Map<string, OpenShipment>(ships.map((s, i) => {

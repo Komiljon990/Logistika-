@@ -34,6 +34,14 @@ export function payStatus(charged: number, paid: number): PayStatus {
   return "PARTIAL";
 }
 
+/**
+ * Qoldiqqa kiradigan qo'shimcha summalar: haydovchi aybidagi prostoy hech kimga hisoblanmaydi
+ * (05.10.2026 qarori). Sababi yozilmagan eski prostoy — mijozga hisoblangan deb qoladi.
+ */
+export function billableAmounts(charges: { amount: number; fault?: string | null }[]): number[] {
+  return charges.filter((c) => c.fault !== "DRIVER").map((c) => c.amount);
+}
+
 /** Prostoy summasi = kunlar × kunlik summa. */
 export function demurrage(days: number, daily: number): number {
   return round2(days * daily);
