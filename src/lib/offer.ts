@@ -5,7 +5,7 @@ import type { Provider } from "./settings";
  * Ommaviy oferta matni (namuna — yurist ko'rib chiqishi tavsiya etiladi). Matn o'zgarsa OFFER_VERSION
  * yangilanadi: har arizada qaysi tahrir qabul qilingani saqlanadi.
  */
-export const OFFER_VERSION = "2026-11-17";
+export const OFFER_VERSION = "2026-11-21";
 
 export const som = (n: number) => `${new Intl.NumberFormat("ru-RU").format(n).replace(/ /g, " ")} so'm`;
 
