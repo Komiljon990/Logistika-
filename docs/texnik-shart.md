@@ -848,6 +848,11 @@ belgilandi va qaror qayerda yozilgani ko'rsatildi.
 - **Tarif narxlari** (foydalanuvchi qarori): 10 tagacha — oyiga 200 000 so'm, 20 tagacha — 300 000,
   20 dan ko'p — 400 000 (yillik = 10 oylik narxi: 2 / 3 / 4 mln). Platformadan 31.12.2026 gacha bepul
   foydalaniladi; 25% chegirma qoidasi o'zgarmadi. Avval yaratilgan to'lov hisoblari eski summasida qoladi.
+- **Bepul sinov davri** (foydalanuvchi qarori, 21.11.2026): 31.12.2026 gacha (shu kun ham) hamma tashkilot
+  transport cheklovisiz ishlaydi. Shu davrda tasdiqlangan ariza bo'yicha to'lov hisobi chiqmaydi, obuna
+  31.12.2026 gacha qo'yiladi; 1-dekabrdan "Sozlamalar → Obuna"da tarif tanlab uzaytiriladi, pullik davr
+  1.01.2027 dan. Sinovda tarifni oshirish yopiq. Sayt narxlari, ro'yxatdan o'tish, oferta va Obuna sahifasida
+  sinov sanasi ko'rsatiladi. Kodda: `TRIAL_UNTIL` (src/lib/billing-core.ts).
 - **Botda ovozli kiritish** (foydalanuvchi taklifi, tasdiqlangan): menejer botga ovozli xabar yuboradi,
   AI tushunib qoralama tuzadi, bot uni ko'rsatadi — **dasturga faqat «✅ Tasdiqlash» bosilganda yoziladi**.
   - Hozircha ikki tur: **mijozdan to'lov** (eng eski qarzlarga avtomatik taqsimlanadi, qolgani avans — saytdagi

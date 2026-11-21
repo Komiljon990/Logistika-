@@ -5,7 +5,7 @@ import { requirePermission } from "@/lib/session";
 import { can } from "@/lib/roles";
 import { orgForWrite } from "@/lib/scope";
 import { formatDate } from "@/lib/dates";
-import { canRenew, fitsPlan, isPlan, PLANS, planLimit, planRank, quote, RENEW_WINDOW_DAYS, upgradeQuote } from "@/lib/billing-core";
+import { canRenew, dmy, fitsPlan, inTrial, isPlan, PLANS, planLimit, planRank, quote, RENEW_WINDOW_DAYS, TRIAL_UNTIL, upgradeQuote } from "@/lib/billing-core";
 import { activeTractors, todayDate } from "@/lib/billing";
 import { planLabel, providerLines, som } from "@/lib/offer";
 import { getProvider } from "@/lib/settings";
@@ -26,10 +26,11 @@ export default async function SubscriptionPage() {
     getProvider(),
   ]);
   const today = todayDate();
-  const limit = planLimit(org.plan);
+  const trial = inTrial(today);
+  const limit = trial ? null : planLimit(org.plan);
   const current = isPlan(org.plan) && org.period && org.subStart && org.subEnd ? { plan: org.plan, period: org.period, start: org.subStart, end: org.subEnd } : null;
   const expired = !!org.subEnd && org.subEnd < today;
-  const upgrades = current && !expired
+  const upgrades = current && !expired && !trial
     ? PLANS.filter((p) => planRank(p.id) > planRank(current.plan)).flatMap((p) => {
         const q = upgradeQuote(current, p.id, today);
         return q.ok ? [{ id: p.id, label: planLabel(p.id), price: `${som(q.amount)}${q.discountPercent ? ` (−${q.discountPercent}%)` : ""}` }] : [];
@@ -43,6 +44,10 @@ export default async function SubscriptionPage() {
     <div className="grid max-w-3xl gap-6">
       <Link href="/settings" className="text-sm text-accent hover:underline">← {t("settings.title")}</Link>
       <h1 className="text-2xl font-bold">{t("sub.title")}</h1>
+
+      {trial && !org.isDemo && (
+        <p className="rounded-lg border border-accent bg-accent-soft px-4 py-3 text-sm font-semibold">{t("sub.trial").replace("{d}", dmy(TRIAL_UNTIL))}</p>
+      )}
 
       <section className="card grid gap-3 p-5">
         <dl className="grid gap-2 text-sm sm:grid-cols-[200px_1fr]">

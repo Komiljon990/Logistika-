@@ -6,7 +6,7 @@ import { audit } from "@/lib/audit";
 import { requirePermission } from "@/lib/session";
 import { orgForWrite } from "@/lib/scope";
 import { checkFile, MAX_FILE_BYTES } from "@/lib/files";
-import { canRenew, fitsPlan, isPeriod, isPlan, periodEnd, quote, renewalStart, upgradeQuote } from "@/lib/billing-core";
+import { canRenew, fitsPlan, inTrial, isPeriod, isPlan, periodEnd, quote, renewalStart, upgradeQuote } from "@/lib/billing-core";
 import { activeTractors, createInvoice, todayDate } from "@/lib/billing";
 import { planLabel, som } from "@/lib/offer";
 import { appUrl } from "@/lib/mailer";
@@ -54,6 +54,7 @@ export async function requestUpgrade(_prev: State, formData: FormData): Promise<
   const to = str(formData, "plan");
   if (!isPlan(to) || !isPlan(org.plan) || !org.period || !org.subStart || !org.subEnd) return { error: "sub.error.noSub" };
   const today = todayDate();
+  if (inTrial(today)) return { error: "sub.error.trial" };
   const q = upgradeQuote({ plan: org.plan, period: org.period, start: org.subStart, end: org.subEnd }, to, today);
   if (!q.ok) return { error: q.error === "expired" ? "sub.error.expired" : "sub.error.notHigher" };
   // Avvalgi to'lanmagan "oshirish" hisoblari bekor qilinadi — har doim bittasi.

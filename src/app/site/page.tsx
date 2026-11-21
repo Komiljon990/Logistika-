@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
-import { discountFor, PLANS, PROMO_UNTIL, quote } from "@/lib/billing-core";
+import { discountFor, dmy, inTrial, PLANS, PROMO_UNTIL, quote, TRIAL_UNTIL } from "@/lib/billing-core";
 import { planLabel, som } from "@/lib/offer";
 import { todayDate } from "@/lib/billing";
 import { POST_CATEGORIES, SECTION } from "@/lib/posts";
@@ -51,6 +51,11 @@ export default async function SiteHome() {
         <div className="grid gap-1 text-center">
           <h2 className="text-2xl font-bold">Narxlar</h2>
           <p className="text-sm text-muted">Tarif faol tyagachlar soni bo&apos;yicha. Yillik obuna — 10 oy narxida 12 oy.</p>
+          {inTrial(today) && (
+            <p className="mx-auto mt-2 rounded-lg border border-accent bg-accent-soft px-4 py-2 text-sm font-semibold">
+              {dmy(TRIAL_UNTIL)} gacha bepul sinov davri: transport cheklanmaydi, to&apos;lov yo&apos;q. Quyidagi narxlar 2027 yil 1 yanvardan amal qiladi.
+            </p>
+          )}
           {promo > 0 && (
             <p className="mx-auto mt-2 rounded-full border border-accent bg-accent-soft px-4 py-1 text-sm font-semibold">
               {PROMO_UNTIL.split("-").reverse().join(".")} gacha barcha to&apos;lovlarga {promo}% chegirma

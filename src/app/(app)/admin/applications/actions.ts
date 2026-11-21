@@ -9,7 +9,7 @@ import { linkAccount } from "@/lib/accounts";
 import { generateTempPassword } from "@/lib/auth-core";
 import { hashPassword } from "@/lib/password";
 import { seedOrgCurrencies } from "@/lib/org-currency";
-import { isPeriod, isPlan, periodEnd, quote } from "@/lib/billing-core";
+import { dmy, inTrial, isPeriod, isPlan, periodEnd, quote, TRIAL_UNTIL, trialEnd } from "@/lib/billing-core";
 import { createInvoice, todayDate } from "@/lib/billing";
 import { planLabel, som } from "@/lib/offer";
 import { getProvider } from "@/lib/settings";
@@ -22,7 +22,8 @@ const TEMP_PASSWORD_DAYS = 7;
 const fmtDate = (d: Date) => d.toISOString().slice(0, 10).split("-").reverse().join(".");
 
 /**
- * Arizani tasdiqlash: tashkilot (faol) + rahbar + birinchi obuna va to'lov hisobi. Rahbarga e-mail:
+ * Arizani tasdiqlash: tashkilot (faol) + rahbar + birinchi obuna va to'lov hisobi. Bepul sinov davrida
+ * (31.12.2026 gacha) hisob chiqmaydi: obuna sinov oxirigacha, keyingi davr — "Sozlamalar → Obuna"dan uzaytirish. Rahbarga e-mail:
  * vaqtincha parol (7 kun; birinchi kirishda o'z parolini o'rnatadi). Super Admin parolni ko'rmaydi.
  * Shaxsning ReysPro'da paroli allaqachon bo'lsa — parol yuborilmaydi, avvalgi login bilan kiradi.
  */
@@ -35,7 +36,8 @@ export async function approveApplication(id: string, _prev: ReviewState): Promis
   if ("error" in link) return { error: link.error };
 
   const today = todayDate();
-  const end = periodEnd(today, app.period);
+  const trial = inTrial(today);
+  const end = trial ? trialEnd() : periodEnd(today, app.period);
   const org = await db.organization.create({
     data: {
       name: app.orgName, inn: app.inn, phone: app.phone, email: app.email,
@@ -59,20 +61,20 @@ export async function approveApplication(id: string, _prev: ReviewState): Promis
     });
   }
   const q = quote(app.plan, app.period, today);
-  const invoice = await createInvoice({ orgId: org.id, kind: "NEW", plan: app.plan, period: app.period, start: today, end, q, actorId: admin.id });
+  const invoice = trial ? null : await createInvoice({ orgId: org.id, kind: "NEW", plan: app.plan, period: app.period, start: today, end, q, actorId: admin.id });
   await db.orgApplication.update({ where: { id }, data: { status: "APPROVED", orgId: org.id, reviewedById: admin.id, reviewedAt: new Date() } });
-  await audit({ actorId: admin.id, orgId: org.id, action: "application.approve", entity: "OrgApplication", entityId: id, details: { orgId: org.id, directorId: member.id, invoice: invoice.number } });
+  await audit({ actorId: admin.id, orgId: org.id, action: "application.approve", entity: "OrgApplication", entityId: id, details: { orgId: org.id, directorId: member.id, invoice: invoice?.number ?? null, trial } });
 
   await sendApprovalMail({
     email: app.email, name: app.directorName, orgName: app.orgName, tempPassword, contractDate: today,
-    plan: app.plan, period: app.period, end, invoiceNumber: invoice.number, amount: q.amount,
+    plan: app.plan, period: app.period, end, invoice: invoice ? { number: invoice.number, amount: q.amount } : null,
   }).catch((e) => console.error("Tasdiq xati yuborilmadi:", e));
   redirect(`/admin/orgs/${org.id}?created=1`);
 }
 
 async function sendApprovalMail(o: {
   email: string; name: string; orgName: string; tempPassword: string | null; contractDate: Date;
-  plan: string; period: "MONTHLY" | "YEARLY"; end: Date; invoiceNumber: number; amount: number;
+  plan: string; period: "MONTHLY" | "YEARLY"; end: Date; invoice: { number: number; amount: number } | null;
 }) {
   const p = await getProvider();
   const url = appUrl();
@@ -83,12 +85,18 @@ async function sendApprovalMail(o: {
         `Vaqtincha parol ${TEMP_PASSWORD_DAYS} kun amal qiladi. Birinchi kirishda o'zingiz o'ylagan yangi parolni o'rnatasiz. Parolni hech kimga aytmang.`,
       ]
     : [`Kirish manzili: ${url}/login — ReysPro'dagi avvalgi login va parolingiz bilan kiring, so'ng "${o.orgName}" tashkilotini tanlang.`];
-  const pay = [
-    `Shartnoma (ommaviy oferta) sanasi: ${fmtDate(o.contractDate)}. Tarif: ${planLabel(o.plan)}, ${o.period === "YEARLY" ? "yillik" : "oylik"}; obuna ${fmtDate(o.end)} gacha.`,
-    `To'lov hisobi № ${o.invoiceNumber}: ${som(o.amount)}. To'lov maqsadida "ReysPro, hisob № ${o.invoiceNumber}" deb yozing.`,
-    `Rekvizitlar: ${[p.name, p.inn && `STIR ${p.inn}`, p.bank, p.mfo && `MFO ${p.mfo}`, p.account && `h/r ${p.account}`].filter(Boolean).join(", ")}.`,
-    "To'lovdan keyin kvitansiyani tizimdagi Sozlamalar → Obuna bo'limiga yuklang.",
-  ];
+  const pay = o.invoice
+    ? [
+        `Shartnoma (ommaviy oferta) sanasi: ${fmtDate(o.contractDate)}. Tarif: ${planLabel(o.plan)}, ${o.period === "YEARLY" ? "yillik" : "oylik"}; obuna ${fmtDate(o.end)} gacha.`,
+        `To'lov hisobi № ${o.invoice.number}: ${som(o.invoice.amount)}. To'lov maqsadida "ReysPro, hisob № ${o.invoice.number}" deb yozing.`,
+        `Rekvizitlar: ${[p.name, p.inn && `STIR ${p.inn}`, p.bank, p.mfo && `MFO ${p.mfo}`, p.account && `h/r ${p.account}`].filter(Boolean).join(", ")}.`,
+        "To'lovdan keyin kvitansiyani tizimdagi Sozlamalar → Obuna bo'limiga yuklang.",
+      ]
+    : [
+        `Shartnoma (ommaviy oferta) sanasi: ${fmtDate(o.contractDate)}. Tanlangan tarif: ${planLabel(o.plan)}, ${o.period === "YEARLY" ? "yillik" : "oylik"}.`,
+        `${dmy(TRIAL_UNTIL)} gacha ReysPro bepul: transportlar soni cheklanmaydi, to'lov talab qilinmaydi.`,
+        "Pullik obuna 2027 yil 1 yanvardan boshlanadi. Dekabr oyida Sozlamalar → Obuna bo'limida tarifni tanlab, to'lov hisobini olasiz.",
+      ];
   const head = [`Assalomu alaykum, ${o.name}!`, `"${o.orgName}" tashkilotini ro'yxatdan o'tkazish arizangiz tasdiqlandi.`];
   const from = senderAddress();
   await sendMail({

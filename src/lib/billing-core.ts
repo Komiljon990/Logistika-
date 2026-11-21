@@ -3,6 +3,8 @@
  * - tarif faol tyagachlar soni bo'yicha: 10 tagacha, 20 tagacha, 20 dan ko'p;
  * - oylik yoki yillik; yillik = 10 oy narxi, 12 oy foydalaniladi;
  * - 31.12.2027 gacha (shu kun ham) yaratilgan to'lov hisoblariga 25% chegirma;
+ * - 31.12.2026 gacha (shu kun ham) bepul sinov davri (21.11.2026 qarori): cheklovsiz transport, to'lov hisobi
+ *   chiqmaydi; shu davrda tasdiqlangan arizaning obunasi sinov oxirigacha, keyin pullik tarif (uzaytirish orqali);
  * - obuna orasida transport kamaysa pul qaytarilmaydi; tarif oshirilsa joriy davr oxirigacha qolgan qism uchun
  *   farq to'lanadi (yillikda qolgan oylar × farq / 12; oylikda qolgan kunlar ulushi).
  */
@@ -19,6 +21,23 @@ export type PlanId = (typeof PLANS)[number]["id"];
 export const PROMO_PERCENT = 25;
 /** Chegirma oxirgi kuni (Toshkent sanasi, YYYY-MM-DD). */
 export const PROMO_UNTIL = "2027-12-31";
+
+/** Bepul sinov davrining oxirgi kuni (Toshkent sanasi, YYYY-MM-DD). */
+export const TRIAL_UNTIL = "2026-12-31";
+
+export function inTrial(today: Date): boolean {
+  return ymd(today) <= TRIAL_UNTIL;
+}
+
+/** Sinov oxirgi kuni (UTC yarim tun). */
+export function trialEnd(): Date {
+  return new Date(`${TRIAL_UNTIL}T00:00:00Z`);
+}
+
+/** "YYYY-MM-DD" → "DD.MM.YYYY". */
+export function dmy(s: string): string {
+  return s.split("-").reverse().join(".");
+}
 
 export function isPlan(v: unknown): v is PlanId {
   return PLANS.some((p) => p.id === v);

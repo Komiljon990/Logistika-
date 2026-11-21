@@ -54,3 +54,16 @@ describe("tarif chegarasi", () => {
     expect(planFor(21)).toBe("T20P");
   });
 });
+
+describe("bepul sinov davri", () => {
+  it("31.12.2026 gacha (shu kun ham)", async () => {
+    const { inTrial, trialEnd, canRenew, renewalStart } = await import("@/lib/billing-core");
+    expect(inTrial(d("2026-11-21"))).toBe(true);
+    expect(inTrial(d("2026-12-31"))).toBe(true);
+    expect(inTrial(d("2027-01-01"))).toBe(false);
+    // Sinovdagi obuna: uzaytirish 1-dekabrdan ochiladi, keyingi davr 1-yanvardan.
+    expect(canRenew(trialEnd(), d("2026-11-30"))).toBe(false);
+    expect(canRenew(trialEnd(), d("2026-12-01"))).toBe(true);
+    expect(renewalStart(trialEnd(), d("2026-12-15")).toISOString().slice(0, 10)).toBe("2027-01-01");
+  });
+});
