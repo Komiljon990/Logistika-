@@ -55,7 +55,8 @@ Newer dated subsections in §11 override the older §2–§9 text. Examples: Sup
 - Telegram bot (long polling, no public URL needed):
   - drivers link by sharing their own phone, which must match an active driver;
   - archived drivers get nothing;
-  - drivers confirm or reject TIR/Dazvol hand-overs.
+  - drivers confirm or reject TIR/Dazvol hand-overs;
+  - staff with EDIT rights can dictate a client payment or an expense by voice (21.11.2026): AI builds a draft, nothing is written until they press Confirm.
 - TIR/Dazvol: intake from the upper organisation → issue to driver (tractor + driver) → return (used / unused) → hand back. Lost and void are also tracked. Expiry is mandatory, with a warning at 30 days. Dazvol is either paper or electronic.
 - Subscription billing counts active tractors:
   - up to 10 → 200 000 so'm a month or 2 000 000 a year;
@@ -117,7 +118,8 @@ One-off data migrations are `scripts/migrate-YYYY-MM-DD.ts` run with `npx tsx`.
   - `telegram-bot.ts`: update handling, the driver side (trip cards, stage buttons, balance) and contact linking;
   - `telegram-staff.ts`: the staff side (read-only views, daily digest, income notices);
   - `telegram-common.ts`: the shared API call and labels;
-  - `telegram-profile.ts`: command list and bot descriptions, written to Telegram on start (bumped by `PROFILE_VERSION`).
+  - `telegram-profile.ts`: command list and bot descriptions, written to Telegram on start (bumped by `PROFILE_VERSION`);
+  - `telegram-voice.ts` + `voice-core.ts` + `ai.ts`: voice input (Cloudflare Workers AI: Whisper → Llama JSON → `VoiceDraft` → confirm). Payment writes go through `recordClientIncome` (`income.ts`), shared with the site's "+ Kirim". Off unless `CF_ACCOUNT_ID` and `CF_AI_TOKEN` are set (`scripts/ovoz-sozlash.ps1`).
 - Everything the bot imports must **not** import `server-only`, because instrumentation runs outside the react-server condition and the import throws there. That is why `alerts.ts`, `settlement.ts`, `cash.ts`, `search.ts` and `today.ts` have no `server-only`.
 - Staff in the bot see exactly what their role and sections allow (`sectionLevel`, `orgScope`).
 

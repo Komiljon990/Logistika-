@@ -1,5 +1,6 @@
 /**
- * Telegram bot — tashkilot xodimlari uchun (19.11.2026). Bot faqat KO'RSATADI, hech narsani o'zgartirmaydi.
+ * Telegram bot — tashkilot xodimlari uchun (19.11.2026). Bu qism faqat KO'RSATADI, hech narsani o'zgartirmaydi.
+ * (21.11.2026: ovozli kiritish — telegram-voice.ts; u ham faqat xodim tasdiqlagandan keyin yozadi.)
  *
  * - Ulanish: xodim /start → "Telefon raqamni yuborish". Raqam hisob (Account.phone) yoki faol a'zolik (User.phone)
  *   telefoniga mos kelsa, chat hisobga bog'lanadi. Telefon o'zgarsa, a'zolik bloklansa yoki tashkilot nofaol bo'lsa —
