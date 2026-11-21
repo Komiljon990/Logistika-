@@ -12,7 +12,7 @@ export async function LangSwitch() {
           key={l}
           name="lang"
           value={l}
-          className={l === locale ? "bg-accent px-2.5 py-1 text-white" : "px-2.5 py-1 hover:bg-accent-soft"}
+          className={l === locale ? "bg-accent px-2.5 py-1 text-on-accent" : "px-2.5 py-1 hover:bg-accent-soft"}
         >
           {t(KEY[l])}
         </button>

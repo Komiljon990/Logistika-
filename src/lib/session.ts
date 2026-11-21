@@ -1,43 +1,138 @@
 import "server-only";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { SignJWT, jwtVerify } from "jose";
-import type { Role } from "@prisma/client";
+import type { AccessMode, Role } from "@prisma/client";
 import { db } from "./db";
 import { can, type Permission } from "./roles";
+import { activeMemberships } from "./login";
+import { canEdit, canView, parseAccess, SECTION_HREF, SECTIONS, type Access, type Level, type Section } from "./access";
 
 const COOKIE = "session";
 const MAX_AGE_SECONDS = 60 * 60 * 24 * 7;
 
-function secret(): Uint8Array {
+export function sessionSecret(): Uint8Array {
   const s = process.env.SESSION_SECRET;
   if (!s || s.length < 32) throw new Error("SESSION_SECRET kamida 32 belgi bo'lishi kerak");
   return new TextEncoder().encode(s);
 }
 
 export type CurrentUser = {
+  /** Joriy tashkilotdagi a'zolik (User) id — barcha yozuvlarda "kim kiritdi" shu. */
   id: string;
+  accountId: string;
   fullName: string;
   phone: string;
+  /** Kirish hisobining e-maili (kod shu manzilga boradi). */
+  email: string | null;
   role: Role;
   orgId: string | null;
   orgName: string | null;
+  isDemo: boolean;
+  /** Vaqtincha parol bilan kirilgan bo'lsa: kim kirganini bilmaymiz, faqat ruxsat turi va muddati. */
+  grant: { id: string; mode: AccessMode; expiresAt: Date } | null;
+  /** Hech narsa saqlay olmaydi: demo hisob yoki "faqat ko'rish" vaqtincha paroli. */
+  readOnly: boolean;
+  memberships: number;
+  /** Vaqtincha parol bilan birinchi kirish: o'z parolini o'rnatmaguncha boshqa sahifa ochilmaydi. */
+  mustChangePassword: boolean;
+  /** Mutaxassis: bo'limlar bo'yicha ruxsat va tartib raqami (Mutaxassis-1 …). */
+  access: Access | null;
+  specialistNo: number | null;
 };
 
-export async function createSession(userId: string, sessionVersion: number) {
-  const token = await new SignJWT({ v: sessionVersion })
+/** Ma'lumotni o'zgartiradigan huquqlar: demo va "faqat ko'rish" sessiyasiga hech qachon berilmaydi. */
+const WRITE_PERMISSIONS: ReadonlySet<Permission> = new Set<Permission>([
+  "data.edit", "orgdoc.edit", "currency.manage", "vehicle.delete", "user.manage", "org.manage", "hard.delete",
+  "cash.edit", "cash.settings", "team.manage", "billing.manage",
+]);
+
+/**
+ * Faqat o'qish sessiyasi hech narsani saqlay olmaydi: amal bajarilmaydi, foydalanuvchi o'sha sahifaga
+ * "?demo=readonly" belgisi bilan qaytariladi (sahifada tushuntirish chiqadi).
+ */
+export async function demoBlocked(): Promise<never> {
+  let back = "/";
+  const ref = (await headers()).get("referer");
+  if (ref) {
+    try {
+      const u = new URL(ref);
+      // Faqat yo'l olinadi (boshqa saytga yo'naltirish imkoni yo'q).
+      u.searchParams.set("demo", "readonly");
+      back = `${u.pathname}?${u.searchParams.toString()}`;
+    } catch {
+      back = "/";
+    }
+  }
+  redirect(back.startsWith("/") && !back.startsWith("//") ? back : "/");
+}
+
+export async function assertWritable(user: CurrentUser) {
+  if (user.readOnly) await demoBlocked();
+}
+
+/**
+ * Cookie faqat HTTPS orqali yuborilsinmi.
+ * COOKIE_SECURE="true"/"false" — majburan; "auto" (18.11.2026, internetga chiqish) — so'rovga qarab:
+ * crm.reyspro.uz (Cloudflare Tunnel, X-Forwarded-Proto: https) — Secure; lokal tarmoq (http://192.168.x.x:3000) — oddiy.
+ */
+async function secureCookie(): Promise<boolean> {
+  const v = process.env.COOKIE_SECURE;
+  if (v === "true") return true;
+  if (v === "false") return false;
+  if (v === "auto") return (await headers()).get("x-forwarded-proto")?.split(",")[0]?.trim() === "https";
+  return process.env.NODE_ENV === "production";
+}
+
+type SessionClaims = { accountId: string; v: number; userId: string; mv: number; grantId: string | null };
+
+async function writeCookie(c: SessionClaims) {
+  const token = await new SignJWT({ v: c.v, m: c.userId, mv: c.mv, ...(c.grantId ? { g: c.grantId } : {}) })
     .setProtectedHeader({ alg: "HS256" })
-    .setSubject(userId)
+    .setSubject(c.accountId)
     .setIssuedAt()
     .setExpirationTime(`${MAX_AGE_SECONDS}s`)
-    .sign(secret());
+    .sign(sessionSecret());
   (await cookies()).set(COOKIE, token, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    secure: await secureCookie(),
     sameSite: "lax",
     path: "/",
     maxAge: MAX_AGE_SECONDS,
   });
+}
+
+/**
+ * Login muvaffaqiyatli bo'lgach sessiya ochadi: oxirgi tanlangan tashkilot (bo'lmasa birinchisi).
+ * `choose` — bir nechta tashkilot bor va hali tanlanmagan (tashkilot tanlash sahifasi ko'rsatiladi).
+ */
+export async function openSession(accountId: string, sessionVersion: number, grantId: string | null): Promise<{ choose: boolean } | null> {
+  const [account, members] = await Promise.all([
+    db.account.findUniqueOrThrow({ where: { id: accountId }, select: { lastUserId: true } }),
+    activeMemberships(accountId),
+  ]);
+  if (members.length === 0) return null;
+  const remembered = members.find((m) => m.id === account.lastUserId);
+  const pick = remembered ?? members[0];
+  await writeCookie({ accountId, v: sessionVersion, userId: pick.id, mv: pick.sessionVersion, grantId });
+  return { choose: members.length > 1 && !remembered };
+}
+
+/** Boshqa tashkilotga o'tish: faqat shu hisobning faol a'zoligiga. */
+export async function switchSession(user: CurrentUser, userId: string): Promise<boolean> {
+  const members = await activeMemberships(user.accountId);
+  const target = members.find((m) => m.id === userId);
+  if (!target) return false;
+  const account = await db.account.findUniqueOrThrow({ where: { id: user.accountId }, select: { sessionVersion: true } });
+  await writeCookie({ accountId: user.accountId, v: account.sessionVersion, userId: target.id, mv: target.sessionVersion, grantId: user.grant?.id ?? null });
+  if (!user.grant) await db.account.update({ where: { id: user.accountId }, data: { lastUserId: target.id } });
+  return true;
+}
+
+/** Parol o'zgargach (hisob sessionVersion oshgach) shu qurilmadagi sessiyani yangilaydi; boshqa qurilmalar chiqib ketadi. */
+export async function reissueSession(user: CurrentUser) {
+  const member = await db.user.findUniqueOrThrow({ where: { id: user.id }, include: { account: { select: { sessionVersion: true } } } });
+  await writeCookie({ accountId: user.accountId, v: member.account.sessionVersion, userId: member.id, mv: member.sessionVersion, grantId: user.grant?.id ?? null });
 }
 
 export async function destroySession() {
@@ -45,41 +140,106 @@ export async function destroySession() {
 }
 
 /**
- * Har so'rovda foydalanuvchi bazadan qayta tekshiriladi: bloklangan foydalanuvchi, bloklangan tashkilot
- * yoki paroli almashtirilgan (sessionVersion o'zgargan) sessiya darhol ishlamay qoladi.
- * Har kim alohida login bilan kiradi, sessiyalar bir-biriga bog'lanmaydi.
+ * Har so'rovda sessiya bazadan qayta tekshiriladi: bloklangan a'zolik yoki tashkilot, almashtirilgan parol
+ * (hisob sessionVersion), o'zgargan rol (a'zolik sessionVersion), to'xtatilgan yoki muddati o'tgan vaqtincha parol —
+ * sessiya darhol ishlamay qoladi.
  */
 export async function getCurrentUser(): Promise<CurrentUser | null> {
   const token = (await cookies()).get(COOKIE)?.value;
   if (!token) return null;
   let payload;
   try {
-    ({ payload } = await jwtVerify(token, secret(), { algorithms: ["HS256"] }));
+    ({ payload } = await jwtVerify(token, sessionSecret(), { algorithms: ["HS256"] }));
   } catch {
     return null;
   }
-  if (!payload.sub) return null;
-  const user = await db.user.findUnique({ where: { id: payload.sub }, include: { org: true } });
-  if (!user || user.status !== "ACTIVE" || user.sessionVersion !== payload.v) return null;
-  if (user.org && user.org.status !== "ACTIVE") return null;
+  const { sub, v, m, mv, g } = payload as { sub?: string; v?: number; m?: string; mv?: number; g?: string };
+  if (!sub || typeof m !== "string") return null;
+  const user = await db.user.findUnique({ where: { id: m }, include: { org: true, account: true } });
+  if (!user || user.accountId !== sub || user.status !== "ACTIVE") return null;
+  if (user.account.sessionVersion !== v || user.sessionVersion !== mv) return null;
+  if (user.org ? user.org.status !== "ACTIVE" : user.role !== "SUPER_ADMIN") return null;
+  const isDemo = user.isDemo || user.account.isDemo;
+  // Himoya qatlami: demo hisob faqat demo tashkilotda ishlaydi.
+  if (isDemo && !user.org?.isDemo) return null;
+
+  let grant: CurrentUser["grant"] = null;
+  if (g) {
+    const row = await db.accessGrant.findUnique({ where: { id: g } });
+    if (!row || row.accountId !== sub || row.revokedAt || row.expiresAt <= new Date()) return null;
+    grant = { id: row.id, mode: row.mode, expiresAt: row.expiresAt };
+  }
+  const memberships = await db.user.count({
+    where: { accountId: sub, status: "ACTIVE", OR: [{ orgId: null, role: "SUPER_ADMIN" }, { org: { status: "ACTIVE" } }] },
+  });
   return {
     id: user.id,
+    accountId: sub,
     fullName: user.fullName,
     phone: user.phone,
+    email: user.account.email,
     role: user.role,
     orgId: user.orgId,
     orgName: user.org?.name ?? null,
+    isDemo,
+    grant,
+    readOnly: isDemo || grant?.mode === "VIEW",
+    memberships,
+    mustChangePassword: !grant && user.account.mustChangePassword,
+    access: user.role === "SPECIALIST" ? parseAccess(user.access) : null,
+    specialistNo: user.specialistNo,
   };
 }
 
-export async function requireUser(): Promise<CurrentUser> {
+/** Istalgan kirgan foydalanuvchi (Super Admin ham). Vaqtincha parol bilan kirgan — avval o'z parolini o'rnatadi. */
+export async function requireSession(): Promise<CurrentUser> {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
+  if (user.mustChangePassword) redirect("/set-password");
   return user;
 }
 
-export async function requirePermission(permission: Permission): Promise<CurrentUser> {
+/**
+ * Tashkilot ma'lumotlari sahifalari: faqat tashkilot a'zosi. Super Admin tashkilot ma'lumotlarini ko'rmaydi
+ * (16.11.2026) — boshqaruv bo'limiga yo'naltiriladi.
+ */
+export async function requireUser(): Promise<CurrentUser> {
+  const user = await requireSession();
+  if (!user.orgId) redirect("/admin/orgs");
+  return user;
+}
+
+/** Hisob xavfsizligi (parol, e-mail, vaqtincha parollar): faqat egasi — vaqtincha parol bilan kirgan emas. */
+export async function requireOwner(): Promise<CurrentUser> {
+  const user = await requireSession();
+  if (user.grant) redirect("/account");
+  return user;
+}
+
+/**
+ * Bo'lim sahifasi yoki amali (17.11.2026). Mutaxassis — faqat rahbar belgilagan bo'lim va daraja; qolgan rollar
+ * avvalgi jadval bo'yicha. Ko'rish huquqi bo'lmasa — o'zi ko'ra oladigan birinchi bo'limga yo'naltiriladi.
+ * Tahrirlash amalini faqat-o'qish sessiyasi (demo, "ko'rish" vaqtincha paroli) bajara olmaydi.
+ */
+export async function requireSection(section: Section, level: Level = "VIEW"): Promise<CurrentUser> {
   const user = await requireUser();
-  if (!can(user.role, permission)) redirect("/");
+  const ok = level === "EDIT" ? canEdit(user, section) : canView(user, section);
+  if (!ok) redirect(homeFor(user));
+  if (level === "EDIT" && user.readOnly && (await headers()).has("next-action")) await demoBlocked();
+  return user;
+}
+
+/** Foydalanuvchining bosh sahifasi: Mutaxassis — ruxsat berilgan birinchi bo'lim. */
+export function homeFor(user: CurrentUser): string {
+  if (user.role !== "SPECIALIST") return user.orgId ? "/" : "/admin/orgs";
+  const first = SECTIONS.find((s) => canView(user, s));
+  return first ? SECTION_HREF[first] : "/account";
+}
+
+export async function requirePermission(permission: Permission): Promise<CurrentUser> {
+  const user = await requireSession();
+  if (!can(user.role, permission)) redirect(homeFor(user));
+  // Faqat o'qish sessiyasi sahifalarni (formalar bilan) ko'radi, lekin saqlash amali (server action) bajarilmaydi.
+  if (WRITE_PERMISSIONS.has(permission) && user.readOnly && (await headers()).has("next-action")) await demoBlocked();
   return user;
 }

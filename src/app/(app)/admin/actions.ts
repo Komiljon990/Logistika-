@@ -3,181 +3,110 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { Prisma, type Role, type Status } from "@prisma/client";
+import type { Status } from "@prisma/client";
 import { db } from "@/lib/db";
 import { audit } from "@/lib/audit";
 import { requirePermission } from "@/lib/session";
-import { isGlobalRole } from "@/lib/roles";
 import { normalizePhone } from "@/lib/phone";
-import { generatePassword, hashPassword, MIN_PASSWORD_LENGTH } from "@/lib/password";
-import type { Dict } from "@/i18n";
+import { normalizeEmail } from "@/lib/auth-core";
+import { fail, type FormState } from "@/lib/form";
+import { seedOrgCurrencies } from "@/lib/org-currency";
+import { addMembership, parseMember, resendInviteFor } from "@/lib/members";
 
-export type FormState = { error?: keyof Dict; ok?: boolean; newPassword?: string; values?: Record<string, string> };
+export type { FormState };
 
-/** React forma xatodan keyin tozalanadi; kiritilgan qiymatlar (parolsiz) qaytarilib qayta to'ldiriladi. */
-function fail(error: keyof Dict, formData: FormData): FormState {
-  const values: Record<string, string> = {};
-  for (const [k, v] of formData) if (typeof v === "string" && k !== "password" && !k.startsWith("$")) values[k] = v;
-  return { error, values };
-}
-
-const ROLES = ["SUPER_ADMIN", "ACCOUNTANT", "MANAGER", "DIRECTOR", "DEPUTY"] as const satisfies readonly Role[];
-const STATUSES = ["ACTIVE", "BLOCKED", "ARCHIVED"] as const satisfies readonly Status[];
+/*
+ * Super Admin (16.11.2026): faqat tashkilot va uning rahbarini kiritadi, bloklaydi. Tashkilot ma'lumotlarini
+ * ko'rmaydi, hech kimning parolini tiklamaydi. Xodimlarni (menejer, buxgalter, vakil) rahbar qo'shadi.
+ */
 
 const optional = z.string().trim().max(300).transform((v) => v || null);
+const orgSchema = z.object({ name: z.string().trim().min(1).max(200), inn: optional, address: optional });
 
-const orgSchema = z.object({
-  name: z.string().trim().min(1).max(200),
-  inn: optional,
-  phone: optional,
-  address: optional,
-});
+type OrgData = { name: string; inn: string | null; address: string | null; phone: string | null; email: string };
 
-function orgData(formData: FormData) {
-  return orgSchema.safeParse({
-    name: formData.get("name") ?? "",
-    inn: formData.get("inn") ?? "",
-    phone: formData.get("phone") ?? "",
-    address: formData.get("address") ?? "",
-  });
+function orgData(formData: FormData): { data: OrgData } | { error: "common.required" | "user.error.phone" | "code.error.email" } {
+  const parsed = orgSchema.safeParse({ name: formData.get("name") ?? "", inn: formData.get("inn") ?? "", address: formData.get("address") ?? "" });
+  if (!parsed.success) return { error: "common.required" as const };
+  const rawPhone = String(formData.get("phone") ?? "").trim();
+  const phone = rawPhone ? normalizePhone(rawPhone) : null;
+  if (rawPhone && !phone) return { error: "user.error.phone" as const };
+  const email = normalizeEmail(String(formData.get("email") ?? ""));
+  if (!email) return { error: "code.error.email" as const };
+  return { data: { ...parsed.data, phone, email } };
 }
 
+/** Yangi tashkilot + rahbar: nomi, STIR, e-mail va telefon; rahbar F.I.O.si. Rahbarga taklifnoma boradi. */
 export async function createOrg(_prev: FormState, formData: FormData): Promise<FormState> {
   const admin = await requirePermission("org.manage");
-  const parsed = orgData(formData);
-  if (!parsed.success) return fail("common.required", formData);
-  const org = await db.organization.create({ data: parsed.data });
+  const o = orgData(formData);
+  if ("error" in o) return fail(o.error, formData);
+  const m = parseMember(formData);
+  if ("error" in m) return fail(m.error, formData);
+  const org = await db.organization.create({ data: o.data });
+  await seedOrgCurrencies(org.id);
   await audit({ actorId: admin.id, orgId: org.id, action: "org.create", entity: "Organization", entityId: org.id });
-  redirect(`/admin/orgs/${org.id}`);
+  const res = await addMembership({ orgId: org.id, role: "DIRECTOR", input: m.data, actorId: admin.id, formData });
+  if (!res.ok) {
+    // Rahbar qo'shilmasa, bo'sh tashkilot qolmasin.
+    await db.orgCurrency.deleteMany({ where: { orgId: org.id } });
+    await db.auditLog.deleteMany({ where: { orgId: org.id } });
+    await db.organization.delete({ where: { id: org.id } });
+    return res;
+  }
+  redirect(`/admin/orgs/${org.id}?created=1`);
+}
+
+async function realOrg(id: string) {
+  const org = await db.organization.findUnique({ where: { id } });
+  return org && !org.isDemo ? org : null;
 }
 
 export async function updateOrg(id: string, _prev: FormState, formData: FormData): Promise<FormState> {
   const admin = await requirePermission("org.manage");
-  const parsed = orgData(formData);
-  if (!parsed.success) return fail("common.required", formData);
-  await db.organization.update({ where: { id }, data: parsed.data });
-  await audit({ actorId: admin.id, orgId: id, action: "org.update", entity: "Organization", entityId: id, details: parsed.data });
-  revalidatePath("/admin/orgs");
+  if (!(await realOrg(id))) return { error: "user.error.org" };
+  const o = orgData(formData);
+  if ("error" in o) return fail(o.error, formData);
+  await db.organization.update({ where: { id }, data: o.data });
+  await audit({ actorId: admin.id, orgId: id, action: "org.update", entity: "Organization", entityId: id, details: o.data });
+  revalidatePath(`/admin/orgs/${id}`);
   return { ok: true };
 }
 
 export async function setOrgStatus(id: string, status: Status) {
   const admin = await requirePermission("org.manage");
-  if (!STATUSES.includes(status)) return;
+  if (!["ACTIVE", "BLOCKED"].includes(status) || !(await realOrg(id))) return;
   await db.organization.update({ where: { id }, data: { status } });
   await audit({ actorId: admin.id, orgId: id, action: "org.status", entity: "Organization", entityId: id, details: { status } });
   revalidatePath(`/admin/orgs/${id}`);
 }
 
-const userSchema = z.object({
-  fullName: z.string().trim().min(1).max(200),
-  phone: z.string(),
-  role: z.enum(ROLES),
-  orgId: z.string().transform((v) => v || null),
-});
-
-type UserInput = { fullName: string; phone: string; role: Role; orgId: string | null };
-
-async function validateUser(formData: FormData): Promise<{ data: UserInput } | { error: keyof Dict }> {
-  const parsed = userSchema.safeParse({
-    fullName: formData.get("fullName") ?? "",
-    phone: formData.get("phone") ?? "",
-    role: formData.get("role"),
-    orgId: formData.get("orgId") ?? "",
-  });
-  if (!parsed.success) return { error: "common.required" };
-  const phone = normalizePhone(parsed.data.phone);
-  if (!phone) return { error: "user.error.phone" };
-  // Super Admin va Buxgalter tashkilotga bog'lanmaydi; qolgan rollarga tashkilot majburiy.
-  const orgId = isGlobalRole(parsed.data.role) ? null : parsed.data.orgId;
-  if (!isGlobalRole(parsed.data.role)) {
-    if (!orgId || !(await db.organization.findUnique({ where: { id: orgId } }))) return { error: "user.error.org" };
-  }
-  return { data: { ...parsed.data, phone, orgId } };
-}
-
-function isUniqueViolation(e: unknown) {
-  return e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002";
-}
-
-export async function createUser(_prev: FormState, formData: FormData): Promise<FormState> {
+/** Rahbar almashsa yoki ikkinchi rahbar kerak bo'lsa. */
+export async function addDirector(orgId: string, _prev: FormState, formData: FormData): Promise<FormState> {
   const admin = await requirePermission("user.manage");
-  const v = await validateUser(formData);
-  if ("error" in v) return fail(v.error, formData);
-  const password = String(formData.get("password") ?? "");
-  if (password.length < MIN_PASSWORD_LENGTH) return fail("user.error.password", formData);
-  let id: string;
-  try {
-    ({ id } = await db.user.create({ data: { ...v.data, passwordHash: await hashPassword(password) } }));
-  } catch (e) {
-    if (isUniqueViolation(e)) return fail("user.error.phoneTaken", formData);
-    throw e;
-  }
-  await audit({
-    actorId: admin.id,
-    orgId: v.data.orgId,
-    action: "user.create",
-    entity: "User",
-    entityId: id,
-    details: { role: v.data.role, phone: v.data.phone },
-  });
-  redirect(`/admin/users/${id}`);
+  const m = parseMember(formData);
+  if ("error" in m) return fail(m.error, formData);
+  const res = await addMembership({ orgId, role: "DIRECTOR", input: m.data, actorId: admin.id, formData });
+  if (res.ok) revalidatePath(`/admin/orgs/${orgId}`);
+  return res.ok ? { ok: true } : res;
 }
 
-export async function updateUser(id: string, _prev: FormState, formData: FormData): Promise<FormState> {
-  const admin = await requirePermission("user.manage");
-  const v = await validateUser(formData);
-  if ("error" in v) return fail(v.error, formData);
-  // O'z rolini o'zgartirib, tizimni Super Adminsiz qoldirmaslik uchun.
-  if (id === admin.id && v.data.role !== "SUPER_ADMIN") return fail("user.error.self", formData);
-  const before = await db.user.findUniqueOrThrow({ where: { id } });
-  try {
-    await db.user.update({
-      where: { id },
-      data: {
-        ...v.data,
-        // Rol yoki tashkilot o'zgarsa, eski sessiyalar bekor bo'ladi.
-        ...(before.role !== v.data.role || before.orgId !== v.data.orgId ? { sessionVersion: { increment: 1 } } : {}),
-      },
-    });
-  } catch (e) {
-    if (isUniqueViolation(e)) return fail("user.error.phoneTaken", formData);
-    throw e;
-  }
-  await audit({
-    actorId: admin.id,
-    orgId: v.data.orgId,
-    action: "user.update",
-    entity: "User",
-    entityId: id,
-    details: { from: { role: before.role, orgId: before.orgId, phone: before.phone }, to: v.data },
-  });
-  revalidatePath("/admin/users");
-  return { ok: true };
+async function directorRow(userId: string) {
+  const u = await db.user.findUnique({ where: { id: userId }, include: { org: true } });
+  return u && u.role === "DIRECTOR" && u.org && !u.org.isDemo ? u : null;
 }
 
-export async function setUserStatus(id: string, status: Status): Promise<FormState> {
+export async function setDirectorStatus(userId: string, active: boolean) {
   const admin = await requirePermission("user.manage");
-  if (!STATUSES.includes(status)) return {};
-  if (id === admin.id) return { error: "user.error.self" };
-  const user = await db.user.update({ where: { id }, data: { status, sessionVersion: { increment: 1 } } });
-  await audit({ actorId: admin.id, orgId: user.orgId, action: "user.status", entity: "User", entityId: id, details: { status } });
-  revalidatePath(`/admin/users/${id}`);
-  return { ok: true };
+  const u = await directorRow(userId);
+  if (!u) return;
+  await db.user.update({ where: { id: userId }, data: { status: active ? "ACTIVE" : "BLOCKED", sessionVersion: { increment: 1 } } });
+  await audit({ actorId: admin.id, orgId: u.orgId, action: "team.status", entity: "User", entityId: userId, details: { status: active ? "ACTIVE" : "BLOCKED" } });
+  revalidatePath(`/admin/orgs/${u.orgId}`);
 }
 
-export async function resetPassword(id: string): Promise<FormState> {
-  const admin = await requirePermission("user.manage");
-  const newPassword = generatePassword();
-  const user = await db.user.update({
-    where: { id },
-    data: {
-      passwordHash: await hashPassword(newPassword),
-      sessionVersion: { increment: 1 },
-      failedLogins: 0,
-      lockedUntil: null,
-    },
-  });
-  await audit({ actorId: admin.id, orgId: user.orgId, action: "user.password_reset", entity: "User", entityId: id });
-  return { ok: true, newPassword };
+export async function resendDirectorInvite(userId: string, _prev: FormState): Promise<FormState> {
+  await requirePermission("user.manage");
+  if (!(await directorRow(userId))) return { error: "user.error.forbidden" };
+  return (await resendInviteFor(userId)) ? { ok: true } : { error: "user.error.forbidden" };
 }

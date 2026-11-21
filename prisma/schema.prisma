@@ -16,6 +16,7 @@ enum Role {
   MANAGER // Menejer
   DIRECTOR // Rahbar
   DEPUTY // Ishonchli vakil
+  SPECIALIST // Mutaxassis (17.11.2026): rahbar belgilagan bo'limlar, har biri "ko'rish" yoki "tahrirlash"
 }
 
 enum Status {
@@ -27,47 +28,967 @@ enum Status {
 model Organization {
   id        String   @id @default(cuid())
   name      String
-  inn       String?  // STIR
+  inn       String? // STIR
   phone     String?
+  email     String?
   address   String?
   status    Status   @default(ACTIVE)
+  // Demo (reklama) tashkiloti: haqiqiy foydalanuvchilar ro'yxatlarida ko'rinmaydi.
+  isDemo    Boolean  @default(false)
+  // Kassa bo'limi yoqilganmi (rahbar sozlamalardan o'chirib-yoqadi).
+  cashEnabled Boolean @default(true)
+  // Obuna (17.11.2026): tarif (T10 | T20 | T20P), to'lov davri, ommaviy oferta bo'yicha shartnoma sanasi
+  // (ariza tasdiqlangan kun) va joriy obuna muddati. plan bo'sh — cheklovsiz (Super Admin qo'lda kiritgan).
+  plan          String?
+  period        BillingPeriod?
+  contractDate  DateTime?      @db.Date
+  subStart      DateTime?      @db.Date
+  subEnd        DateTime?      @db.Date
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  users User[]
+  invoices  Invoice[]
+  users     User[]
+  vehicles  Vehicle[]
+  drivers   Driver[]
+  documents  Document[]
+  files      StoredFile[]
+  currencies OrgCurrency[]
+  clients    Client[]
+  trips      Trip[]
 }
 
-model User {
-  id           String        @id @default(cuid())
-  phone        String        @unique // +998901234567 ko'rinishida
-  passwordHash String
-  fullName     String
-  role         Role
-  // SUPER_ADMIN va ACCOUNTANT uchun bo'sh, qolganlar uchun majburiy
-  orgId        String?
-  org          Organization? @relation(fields: [orgId], references: [id])
-  status       Status        @default(ACTIVE)
-  // Parol o'zgarsa yoki bloklansa eski sessiyalar bekor bo'ladi
-  sessionVersion Int         @default(0)
-  failedLogins Int           @default(0)
-  lockedUntil  DateTime?
-  lastLoginAt  DateTime?
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
+// ---------- Valyutalar va kurslar ----------
 
+/// Markaziy bank kursi: 1 birlik valyuta necha so'm (nominal hisobga olingan). Kun bo'yicha, o'zgarmaydi.
+model ExchangeRate {
+  date DateTime @db.Date
+  code String // ISO kod: USD, EUR, RUB, KZT ...
+  rate Decimal  @db.Decimal(20, 8)
+  name String? // valyuta nomi (MB ro'yxatidan)
+
+  @@id([date, code])
+  @@index([code, date])
+}
+
+/// Tashkilotning valyuta ro'yxati (13.11.2026: har tashkilotda o'zi, rahbar boshqaradi). UZS doim bor.
+model OrgCurrency {
+  id        String       @id @default(cuid())
+  orgId     String
+  org       Organization @relation(fields: [orgId], references: [id])
+  code      String
+  active    Boolean      @default(true)
+  createdAt DateTime     @default(now())
+
+  @@unique([orgId, code])
+}
+
+/// Kirish hisobi (shaxs): bitta e-mail/telefon + parol. Shaxs bir nechta tashkilotda ishlashi mumkin —
+/// har tashkilotdagi roli alohida `User` (a'zolik) yozuvi; ma'lumotlar tashkilot bo'yicha ajratilgan (16.11.2026).
+model Account {
+  id             String    @id @default(cuid())
+  email          String?   @unique // kichik harflarda; kod (ilk kirish, parol tiklash) shu manzilga yuboriladi
+  phone          String?   @unique // +998901234567; login va Telegram bot uchun
+  passwordHash   String? // null — hali parol o'rnatilmagan (e-mail kodi orqali o'rnatadi)
+  // Parol o'zgarsa eski sessiyalar bekor bo'ladi
+  sessionVersion Int       @default(0)
+  failedLogins   Int       @default(0)
+  lockedUntil    DateTime?
+  lastLoginAt    DateTime?
+  // Oxirgi tanlangan tashkilot (a'zolik), keyingi kirishda shu ochiladi
+  lastUserId     String?
+  isDemo         Boolean   @default(false)
+  // Ariza tasdiqlanganda e-mailga yuborilgan vaqtincha parol: birinchi kirishda o'z parolini o'rnatishi shart.
+  mustChangePassword Boolean   @default(false)
+  tempPasswordUntil  DateTime?
+  // Telegram bot (19.11.2026): xodim botga o'z telefonini yuborib ulanadi; bot faqat ko'rsatadi (o'zgartirmaydi).
+  // telegramPhone — ulanishdagi raqam: hisob yoki a'zolik telefoni o'zgarsa bog'lanish o'z-o'zidan bekor bo'ladi.
+  telegramChatId   String?
+  telegramPhone    String?
+  telegramLinkedAt DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  users  User[]
+  codes  LoginCode[]
+  grants AccessGrant[]
+
+  @@index([telegramChatId])
+}
+
+/// E-mailga yuborilgan bir martalik kod: ilk kirish / parolni tiklash (RESET) yoki e-mailni tasdiqlash (EMAIL).
+model LoginCode {
+  id        String    @id @default(cuid())
+  accountId String
+  account   Account   @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  purpose   String // RESET | EMAIL
+  email     String // kod yuborilgan manzil
+  codeHash  String
+  attempts  Int       @default(0)
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([accountId, createdAt])
+}
+
+enum AccessMode {
+  VIEW // faqat ko'rish
+  EDIT // ko'rish va tahrirlash
+}
+
+/// Vaqtincha parol: foydalanuvchining o'zi yaratadi va yordam beruvchiga (rahbar, Super Admin) beradi.
+/// Muddati tugasa yoki "To'xtatish" bosilsa, shu parol bilan ochilgan sessiyalar darhol ishlamay qoladi.
+model AccessGrant {
+  id           String     @id @default(cuid())
+  accountId    String
+  account      Account    @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  passwordHash String
+  mode         AccessMode
+  expiresAt    DateTime
+  revokedAt    DateTime?
+  lastUsedAt   DateTime?
+  createdAt    DateTime   @default(now())
+
+  @@index([accountId])
+}
+
+/// Tashkilotdagi a'zolik (rol). Super Admin — tashkilotsiz.
+model User {
+  id             String        @id @default(cuid())
+  accountId      String
+  account        Account       @relation(fields: [accountId], references: [id])
+  // Rahbar kiritgan aloqa ma'lumotlari (kirish hisobi e-mail bo'yicha topiladi)
+  phone          String // +998901234567 ko'rinishida yoki bo'sh
+  email          String?
+  passwordHash   String? // ESKIRGAN: parol endi Account'da (16.11.2026 ko'chirilgan)
+  fullName       String
+  role           Role
+  // Faqat SUPER_ADMIN uchun bo'sh
+  orgId          String?
+  org            Organization? @relation(fields: [orgId], references: [id])
+  status         Status        @default(ACTIVE)
+  // Rol o'zgarsa yoki bloklansa shu a'zolikdagi sessiyalar bekor bo'ladi
+  sessionVersion Int           @default(0)
+  // Demo (reklama) hisobi: hamma narsani ko'radi, hech narsani saqlay olmaydi; faqat demo tashkilotda.
+  isDemo         Boolean       @default(false)
+  // Mutaxassis: tashkilot ichidagi tartib raqami (Mutaxassis-1, -2 …) va bo'limlar bo'yicha ruxsat
+  // { "tir": "EDIT", "trips": "VIEW" } — EDIT: kiritish, tahrirlash va o'chirish; VIEW: faqat ko'rish.
+  specialistNo   Int?
+  access         Json?
+  failedLogins   Int           @default(0) // ESKIRGAN
+  lockedUntil    DateTime? // ESKIRGAN
+  lastLoginAt    DateTime?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  @@unique([accountId, orgId])
   @@index([orgId])
 }
 
 model AuditLog {
-  id         String   @id @default(cuid())
-  at         DateTime @default(now())
-  actorId    String?
-  orgId      String?
-  action     String // masalan: user.create, user.password_reset, org.block
-  entity     String
-  entityId   String
-  details    Json?
+  id       String   @id @default(cuid())
+  at       DateTime @default(now())
+  actorId  String?
+  orgId    String?
+  action   String // masalan: user.create, user.password_reset, org.block
+  entity   String
+  entityId String
+  details  Json?
 
   @@index([orgId, at])
   @@index([entity, entityId])
+}
+
+// ---------- 2-bosqich: transport, haydovchilar, hujjatlar ----------
+
+enum VehicleType {
+  TRACTOR // tyagach
+  TRAILER // prisept
+  TRAIN // paravoz
+  OTHER
+}
+
+enum Ownership {
+  OWNED // balansda
+  LEASED // ijarada
+}
+
+enum DriverCategory {
+  EMPLOYEE // xodim-haydovchi
+  OWNER_OPERATOR // o'z transportida ishlovchi
+}
+
+model Vehicle {
+  id             String       @id @default(cuid())
+  orgId          String
+  org            Organization @relation(fields: [orgId], references: [id])
+  plate          String // davlat raqami, katta harflarda, bo'shliqsiz
+  model          String?
+  type           VehicleType
+  ownership      Ownership    @default(OWNED)
+  leaseOwner     String?
+  leaseStart     DateTime?    @db.Date
+  leaseEnd       DateTime?    @db.Date
+  // Standart juftlik: tyagachga prisept va haydovchi biriktiriladi
+  pairTrailerId  String?
+  pairTrailer    Vehicle?     @relation("Pair", fields: [pairTrailerId], references: [id])
+  pairedTractors Vehicle[]    @relation("Pair")
+  pairDriverId   String?
+  pairDriver     Driver?      @relation("PairDriver", fields: [pairDriverId], references: [id])
+  // Ijarachining (o'z transportidagi haydovchining) transporti (17.11.2026).
+  ownerDriverId  String?
+  ownerDriver    Driver?      @relation("OwnerVehicles", fields: [ownerDriverId], references: [id])
+  status        Status       @default(ACTIVE)
+  note           String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  documents Document[]
+  permits   Permit[]
+  tripsAsTractor Trip[] @relation("TripTractor")
+  tripsAsTrailer Trip[] @relation("TripTrailer")
+
+  @@index([orgId, status])
+  @@index([orgId, plate])
+}
+
+model Driver {
+  id        String         @id @default(cuid())
+  orgId     String
+  org       Organization   @relation(fields: [orgId], references: [id])
+  fullName  String
+  phone     String?
+  category  DriverCategory
+  status    Status         @default(ACTIVE)
+  note      String?
+  // Telegram bot (17.11.2026): haydovchi botga o'z telefon raqamini yuborib ulanadi (raqam shu yozuvdagiga mos).
+  telegramChatId   String?
+  telegramLinkedAt DateTime?
+  // 18.11.2026: xodim haydovchi — har yakunlangan reys uchun avtomatik hisob (reys haqi);
+  // ijarachi — har oyning 1-sanasida avtomatik a'zolik to'lovi.
+  tripRate           Decimal? @db.Decimal(18, 2)
+  tripRateCurrency   String?
+  membershipFee      Decimal? @db.Decimal(18, 2)
+  membershipCurrency String?
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  documents      Document[]
+  permits        Permit[]
+  pairedVehicles Vehicle[]     @relation("PairDriver")
+  ownedVehicles  Vehicle[]     @relation("OwnerVehicles")
+  trips          Trip[]
+  payments       Payment[]
+  entries        DriverEntry[]
+
+  @@index([orgId, status])
+  @@index([telegramChatId])
+}
+
+enum DocType {
+  // transport
+  TECH_PASSPORT
+  OWNERSHIP_DOC
+  LEASE_CONTRACT
+  LICENSE
+  INSURANCE
+  PERMIT // dopusheniya
+  INSPECTION // texnik ko'rik
+  TACHOGRAPH
+  // haydovchi
+  PASSPORT
+  FOREIGN_PASSPORT
+  DRIVING_LICENSE
+  ADR
+  CERTIFICATE
+  VISA
+  // tashkilot (litsenziya va boshqa — yuqoridagi LICENSE, OTHER)
+  ORG_CERTIFICATE // guvohnoma
+  CHARTER // ustav
+  BANK_DETAILS // bank rekvizitlari
+  // tashish
+  WAYBILL // putyovka
+  CMR // CMR / SMR
+  DAZVOL
+  TIR_CARNET // TIR
+  OTHER
+}
+
+/// Hujjat = ma'lumot + ixtiyoriy fayl. Yangilansa eskisi ARCHIVED bo'ladi, yangisi prevId orqali bog'lanadi.
+/// Egasi: transport (vehicleId), haydovchi (driverId) yoki ikkalasi bo'sh bo'lsa — tashkilotning o'zi.
+model Document {
+  id          String       @id @default(cuid())
+  orgId       String
+  org         Organization @relation(fields: [orgId], references: [id])
+  vehicleId   String?
+  vehicle     Vehicle?     @relation(fields: [vehicleId], references: [id])
+  driverId    String?
+  driver      Driver?      @relation(fields: [driverId], references: [id])
+  tripId      String?
+  trip        Trip?        @relation(fields: [tripId], references: [id])
+  type        DocType
+  title       String? // "Boshqa" turidagi hujjat uchun foydalanuvchi bergan nom
+  number      String?
+  issuedAt    DateTime?    @db.Date
+  expiresAt   DateTime?    @db.Date
+  noExpiry    Boolean      @default(false) // muddatsiz (doimiy): masalan guvohnoma, doimiy litsenziya
+  note        String?
+  fileId      String?      @unique
+  file        StoredFile?  @relation(fields: [fileId], references: [id])
+  status      Status       @default(ACTIVE)
+  prevId      String?      @unique
+  prev        Document?    @relation("Versions", fields: [prevId], references: [id])
+  next        Document?    @relation("Versions")
+  createdById String
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@index([orgId, status, expiresAt])
+  @@index([vehicleId])
+  @@index([driverId])
+  @@index([tripId])
+}
+
+// ---------- Mijozlar va tashishlar ----------
+
+/// Mijoz (yuk beruvchi). Har tashkilotning o'z bazasi.
+model Client {
+  id        String       @id @default(cuid())
+  orgId     String
+  org       Organization @relation(fields: [orgId], references: [id])
+  name      String
+  inn       String? // STIR
+  phone     String?
+  address   String?
+  note      String?
+  status    Status       @default(ACTIVE)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  shipments Shipment[]
+  payments  Payment[]
+
+  @@index([orgId, status, name])
+}
+
+enum TripStatus {
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+/// Tashish holatlari ketma-ketligi (haydovchi bot orqali yoki menejer uning o'rniga belgilaydi).
+enum TripEventType {
+  ACCEPTED // qabul qildi
+  ARRIVED_LOADING // yuklash manziliga yetdi
+  LOADED // yuklandi
+  EXITED_UZ // O'zbekistondan chiqdi
+  ARRIVED_UNLOADING // tushirish manziliga yetdi
+  UNLOADED // yuk tushirildi — transport bo'shaydi
+  ENTERED_UZ // O'zbekistonga kirdi
+}
+
+enum EventSource {
+  DRIVER // Telegram bot orqali
+  MANAGER // menejer haydovchi o'rniga
+}
+
+enum PaymentTerms {
+  CONTRACT // shartnoma: faqat bank hisob raqamiga
+  CASH // naqd kelishuv: naqd pul yoki karta raqamiga
+}
+
+model Trip {
+  id          String       @id @default(cuid())
+  orgId       String
+  org         Organization @relation(fields: [orgId], references: [id])
+  number      Int // tashkilot ichida tartib raqami: TSH-0001
+  routeFrom   String
+  routeTo     String
+  tractorId   String
+  tractor     Vehicle      @relation("TripTractor", fields: [tractorId], references: [id])
+  trailerId   String?
+  trailer     Vehicle?     @relation("TripTrailer", fields: [trailerId], references: [id])
+  driverId    String
+  driver      Driver       @relation(fields: [driverId], references: [id])
+  loadDate    DateTime     @db.Date
+  cargo       String?
+  note        String?
+  // Faqat ro'yxat uchun (17.11.2026): narx, xarajat va hisob-kitob yuritilmaydi — mijoz qarzlari, to'lovlar va
+  // daromad hisobotiga kirmaydi.
+  listOnly    Boolean      @default(false)
+  status      TripStatus   @default(ACTIVE)
+  createdById String
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  shipments Shipment[]
+  events    TripEvent[]
+  documents Document[]
+  driverEntries DriverEntry[]
+  expenses      Expense[]
+
+  @@unique([orgId, number])
+  @@index([orgId, status])
+  @@index([tractorId, status])
+}
+
+model TripEvent {
+  id        String        @id @default(cuid())
+  tripId    String
+  trip      Trip          @relation(fields: [tripId], references: [id])
+  type      TripEventType
+  at        DateTime // haqiqiy vaqt (menejer kechikib kiritsa ham o'sha paytdagi vaqt)
+  source    EventSource
+  userId    String? // menejer kiritgan bo'lsa
+  note      String?
+  createdAt DateTime      @default(now())
+
+  @@unique([tripId, type])
+}
+
+/// Yuk qismi (SMR): har biri alohida mijoz, alohida narx va to'lov kelishuvi.
+model Shipment {
+  id                 String       @id @default(cuid())
+  orgId              String
+  tripId             String
+  trip               Trip         @relation(fields: [tripId], references: [id])
+  clientId           String
+  client             Client       @relation(fields: [clientId], references: [id])
+  contactName        String // mijoz tomondan mas'ul shaxs
+  contactPhone       String
+  cargo              String?
+  smrNumber          String? // CMR raqami
+  terms              PaymentTerms
+  price              Decimal      @db.Decimal(18, 2)
+  currency           String
+  accountingPrice    Decimal?     @db.Decimal(18, 2) // buxgalteriya narxi: qoldiqqa aralashmaydi
+  accountingCurrency String?
+  status             Status       @default(ACTIVE)
+  createdById        String
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+
+  charges     ShipmentCharge[]
+  allocations PaymentAllocation[]
+
+  @@index([orgId, clientId])
+  @@index([tripId])
+}
+
+// ---------- Hisob-kitob: qo'shimcha xarajat, prostoy, to'lovlar ----------
+
+enum ChargeKind {
+  EXTRA // qo'shimcha xarajat (mijozga hisoblanadi)
+  DEMURRAGE // prostoy = kunlar × kunlik summa
+}
+
+/// Prostoy sababi (05.10.2026 qarori): mijoz aybi — mijozga hisoblanadi;
+/// haydovchi aybi — hech kimga hisoblanmaydi (qoldiq va daromadga kirmaydi), faqat qayd uchun.
+enum DemurrageFault {
+  CLIENT
+  DRIVER
+}
+
+/// Mijozga hisoblanadigan qo'shimcha summa; yuk qismi valyutasida. Qoldiqni oshiradi.
+model ShipmentCharge {
+  id          String     @id @default(cuid())
+  orgId       String
+  shipmentId  String
+  shipment    Shipment   @relation(fields: [shipmentId], references: [id])
+  kind        ChargeKind
+  description String?
+  days        Int?
+  dailyAmount Decimal?   @db.Decimal(18, 2)
+  fault       DemurrageFault? // faqat prostoyda; eski yozuvlarda bo'sh = mijoz aybi deb hisoblanadi
+  amount      Decimal    @db.Decimal(18, 2)
+  date        DateTime   @db.Date
+  status      Status     @default(ACTIVE) // ARCHIVED = bekor qilingan
+  createdById String
+  createdAt   DateTime   @default(now())
+
+  @@index([shipmentId])
+}
+
+enum PaymentMethod {
+  BANK // bank hisob raqamiga (shartnoma)
+  CASH // naqd pul (naqd kelishuv)
+  CARD // karta raqamiga (naqd kelishuv); kimning kartasi — izohda
+}
+
+enum CashHolder {
+  OFFICE // ofis kassasi
+  DRIVER // haydovchi oldi, kassaga keyin topshiradi
+}
+
+/// Mijozdan kelgan to'lov. Tashishlarga taqsimlanmagan qismi — avans.
+model Payment {
+  id           String         @id @default(cuid())
+  orgId        String
+  clientId     String
+  client       Client         @relation(fields: [clientId], references: [id])
+  date         DateTime       @db.Date
+  amount       Decimal        @db.Decimal(18, 2)
+  currency     String
+  method       PaymentMethod
+  receivedBy   CashHolder?
+  driverId     String?
+  driver       Driver?        @relation(fields: [driverId], references: [id])
+  handedOverAt DateTime? // haydovchi kassaga topshirgan vaqt
+  // Tushum qaysi hisobga tushdi (bank hisob raqami, naqd kassa yoki karta). Haydovchidagi naqd — topshirilganda.
+  accountId    String?
+  account      CashAccount?   @relation(fields: [accountId], references: [id])
+  note         String?
+  status       Status         @default(ACTIVE) // ARCHIVED = bekor qilingan
+  createdById  String
+  createdAt    DateTime       @default(now())
+
+  allocations PaymentAllocation[]
+
+  @@index([orgId, clientId])
+  @@index([orgId, receivedBy, handedOverAt])
+  @@index([accountId])
+}
+
+// ---------- Kassa: hisoblar, xarajatlar, o'tkazmalar ----------
+
+enum AccountKind {
+  BANK // bank hisob raqami
+  CASH // naqd kassa
+  CARD // plastik karta
+}
+
+/// Pul turadigan joy. Qoldiq = boshlang'ich qoldiq + kirimlar − chiqimlar ± o'tkazmalar (saqlanmaydi, hisoblanadi).
+model CashAccount {
+  id             String      @id @default(cuid())
+  orgId          String
+  kind           AccountKind
+  name           String // bank nomi / kassa nomi / karta nomi
+  mfo            String? // bank MFO
+  accountNumber  String? // 20 xonali hisob raqami
+  cardNumber     String?
+  cardHolder     String? // karta kimniki
+  currency       String
+  openingBalance Decimal     @default(0) @db.Decimal(18, 2)
+  note           String?
+  // Aylanmasi yuritilmaydigan hisob (17.11.2026): masalan rahbar kartasi — unga o'tkazilgan pul ko'rinadi, lekin
+  // u yerdan qanday sarflangani kiritilmaydi. Kassa qoldig'i va aylanmasida ko'rinmaydi, tarix saqlanadi.
+  untracked      Boolean     @default(false)
+  status         Status      @default(ACTIVE)
+  createdById    String
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  entries      CashEntry[]
+  driverEntries DriverEntry[]
+  payments     Payment[]
+  expenses     Expense[]
+  transfersOut CashTransfer[] @relation("TransferFrom")
+  transfersIn  CashTransfer[] @relation("TransferTo")
+
+  @@index([orgId, status])
+}
+
+/// Xarajat turkumi (parentId bo'sh) va turkum ichidagi bo'lim (parentId — turkum). Har tashkilot o'zi sozlaydi.
+model ExpenseCategory {
+  id        String            @id @default(cuid())
+  orgId     String
+  name      String
+  parentId  String?
+  parent    ExpenseCategory?  @relation("Sub", fields: [parentId], references: [id])
+  children  ExpenseCategory[] @relation("Sub")
+  status    Status            @default(ACTIVE)
+  createdAt DateTime          @default(now())
+
+  expenses Expense[]
+
+  @@index([orgId, parentId])
+}
+
+model Expense {
+  id          String          @id @default(cuid())
+  orgId       String
+  date        DateTime        @db.Date
+  accountId   String
+  account     CashAccount     @relation(fields: [accountId], references: [id])
+  amount      Decimal         @db.Decimal(18, 2) // hisob valyutasida
+  categoryId  String // eng aniq tanlangan: bo'lim yoki (bo'limi yo'q) turkum
+  category    ExpenseCategory @relation(fields: [categoryId], references: [id])
+  // 18.11.2026: xarajat qaysi reysga tegishli (reys rentabelligi hisoboti uchun), ixtiyoriy.
+  tripId      String?
+  trip        Trip?           @relation(fields: [tripId], references: [id])
+  note        String?
+  status      Status          @default(ACTIVE) // ARCHIVED = o'chirilgan (bekor qilingan)
+  createdById String
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  @@index([orgId, date])
+  @@index([accountId])
+  @@index([tripId])
+}
+
+enum EntryDirection {
+  IN // kirim
+  OUT // chiqim
+}
+
+/// Tashishlardan tashqari kirim/chiqim (17.11.2026): ta'sischi yoki rahbar o'z yonidan qo'ygan pul, boshqa
+/// tashkilotdan yordam, qarzni qaytarish va h.k. Xarajat turkumlariga kirmaydi.
+model CashEntry {
+  id          String         @id @default(cuid())
+  orgId       String
+  date        DateTime       @db.Date
+  accountId   String
+  account     CashAccount    @relation(fields: [accountId], references: [id])
+  direction   EntryDirection
+  amount      Decimal        @db.Decimal(18, 2) // hisob valyutasida, musbat
+  party       String // kimdan / kimga (ta'sischi, tashkilot nomi)
+  note        String?
+  status      Status         @default(ACTIVE) // ARCHIVED = bekor qilingan
+  createdById String
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  @@index([orgId, date])
+  @@index([accountId])
+}
+
+/// Haydovchi bilan hisob-kitob turi (17.11.2026).
+enum LedgerSide {
+  LESSOR // ijarachi (o'z transportida): u tashkilotga to'laydi — hisob uning qarzini oshiradi, to'lov — kirim
+  STAFF // xodim haydovchi: tashkilot unga to'laydi — hisob bizning qarzimizni oshiradi, to'lov — chiqim
+}
+
+enum LedgerKind {
+  CHARGE // hisob qo'shish
+  PAYMENT // to'lov
+}
+
+enum LedgerType {
+  MEMBERSHIP // a'zolik to'lovi (tanlangan oy uchun)
+  TAX // soliq
+  TIR // TIR uchun
+  DAZVOL // dazvol uchun
+  TRIP // bajarilgan reys uchun (xodim haydovchi)
+  BONUS // qo'shimcha hisob (xodim haydovchi)
+  OTHER // boshqa
+}
+
+/// Haydovchi hisob-kitobi yozuvi: ijarachilar (o'z transportidagi haydovchilar) va xodim haydovchilar.
+model DriverEntry {
+  id          String       @id @default(cuid())
+  orgId       String
+  driverId    String
+  driver      Driver       @relation(fields: [driverId], references: [id])
+  side        LedgerSide
+  kind        LedgerKind
+  type        LedgerType? // faqat hisob uchun
+  period      String? // a'zolik to'lovi oyi: "2026-11"
+  tripId      String? // reys uchun hisob
+  trip        Trip?        @relation(fields: [tripId], references: [id])
+  vehicleId   String?
+  plate       String?
+  date        DateTime     @db.Date
+  amount      Decimal      @db.Decimal(18, 2)
+  currency    String
+  accountId   String? // to'lov qaysi hisobga (ijarachi) yoki qaysi hisobdan (xodim)
+  account     CashAccount? @relation(fields: [accountId], references: [id])
+  note        String?
+  status      Status       @default(ACTIVE) // ARCHIVED = bekor qilingan
+  createdById String
+  createdAt   DateTime     @default(now())
+
+  @@index([orgId, side, driverId])
+  @@index([accountId])
+  @@index([tripId])
+}
+
+/// Hisoblar orasida o'tkazma (kassadan bankka, kartadan naqdga, valyuta ayirboshlash).
+/// rate: 1 rateBase = rate boshqa valyuta (qimmatroq valyuta asos qilinadi: 1 USD = 12 650 UZS).
+model CashTransfer {
+  id            String      @id @default(cuid())
+  orgId         String
+  date          DateTime    @db.Date
+  fromAccountId String
+  fromAccount   CashAccount @relation("TransferFrom", fields: [fromAccountId], references: [id])
+  toAccountId   String
+  toAccount     CashAccount @relation("TransferTo", fields: [toAccountId], references: [id])
+  amount        Decimal     @db.Decimal(18, 2) // chiqqan summa (fromAccount valyutasida)
+  toAmount      Decimal     @db.Decimal(18, 2) // tushgan summa (toAccount valyutasida)
+  rate          Decimal?    @db.Decimal(20, 8)
+  rateBase      String?
+  rateManual    Boolean     @default(false)
+  note          String?
+  status        Status      @default(ACTIVE)
+  createdById   String
+  createdAt     DateTime    @default(now())
+
+  @@index([orgId, date])
+}
+
+/// To'lovning yuk qismiga taqsimlangan qismi. Valyutalar har xil bo'lishi mumkin:
+/// rate = 1 yuk valyutasi necha to'lov valyutasi (MB kursi yoki qo'lda kelishilgan).
+model PaymentAllocation {
+  id         String   @id @default(cuid())
+  paymentId  String
+  payment    Payment  @relation(fields: [paymentId], references: [id])
+  shipmentId String
+  shipment   Shipment @relation(fields: [shipmentId], references: [id])
+  applied    Decimal  @db.Decimal(18, 2) // yuk valyutasida qarzdan yopilgan summa
+  consumed   Decimal  @db.Decimal(18, 2) // to'lov valyutasida sarflangan summa
+  rate       Decimal  @db.Decimal(20, 8)
+  rateManual Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  @@index([shipmentId])
+  @@index([paymentId])
+}
+
+// ---------- TIR karnetlar va dazvollar (17.11.2026) ----------
+
+enum PermitType {
+  TIR // TIR karnet
+  DAZVOL // xalqaro tashish ruxsatnomasi
+}
+
+enum PermitFormat {
+  PAPER // qog'oz blanka
+  ELECTRONIC // elektron dazvol
+}
+
+enum PermitStatus {
+  STOCK // yangi: kirim qilingan, hali berilmagan
+  ISSUED // haydovchiga berilgan
+  USED // ishlatilgan, yuqori tashkilotga topshirilishi kerak
+  RETURNED // haydovchi ishlatmasdan qaytargan — tashkilotda, qayta berish mumkin
+  SURRENDERED // yuqori tashkilotga topshirilgan
+  LOST // yo'qolgan
+  DEFECT // brak (yaroqsiz) — topshiriladi
+}
+
+enum PermitMoveKind {
+  RECEIVED // yuqori tashkilotdan olindi (kirim)
+  ISSUED // haydovchiga berildi
+  RETURNED // haydovchi tashkilotga qaytardi
+  SURRENDERED // yuqori tashkilotga topshirildi
+  LOST
+  DEFECT // brak deb belgilandi
+}
+
+/// TIR karnet yoki dazvol: kirim → haydovchiga berish → qaytarish → yuqori tashkilotga topshirish.
+model Permit {
+  id          String       @id @default(cuid())
+  orgId       String
+  type        PermitType
+  number      String
+  country     String? // dazvol: qaysi davlat
+  format      PermitFormat? // dazvol: qog'oz yoki elektron (TIR uchun bo'sh)
+  kind        String? // dazvol turi (bir martalik, ikki tomonlama, tranzit...) yoki TIR varaqlari soni
+  issuer      String? // yuqori turuvchi tashkilot (qayerdan olingan, qayerga topshiriladi)
+  receivedAt  DateTime     @db.Date
+  validUntil  DateTime?    @db.Date
+  status      PermitStatus @default(STOCK)
+  vehicleId   String? // hozir kimda (ISSUED holatida)
+  vehicle     Vehicle?     @relation(fields: [vehicleId], references: [id])
+  driverId    String?
+  driver      Driver?      @relation(fields: [driverId], references: [id])
+  issuedAt    DateTime?    @db.Date
+  note        String?
+  createdById String
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  moves PermitMove[]
+
+  @@index([orgId, type, status])
+  @@index([orgId, number])
+}
+
+/// Harakatlar jurnali. Transport va haydovchi nomi yozilgan paytdagi holatida saqlanadi.
+model PermitMove {
+  id          String         @id @default(cuid())
+  permitId    String
+  permit      Permit         @relation(fields: [permitId], references: [id], onDelete: Cascade)
+  orgId       String
+  kind        PermitMoveKind
+  date        DateTime       @db.Date
+  vehicleId   String?
+  plate       String?
+  driverId    String?
+  driverName  String?
+  used        Boolean?
+  note        String?
+  // Haydovchining bot orqali javobi (berildi / topshirdi xabariga). null — xabar yuborilmagan (bot ulanmagan).
+  ack         DriverAck?
+  ackAt       DateTime?
+  botChatId   String?
+  botMessageId Int?
+  createdById String
+  createdAt   DateTime       @default(now())
+
+  @@index([orgId, date])
+  @@index([permitId])
+}
+
+enum DriverAck {
+  PENDING // javob kutilmoqda
+  CONFIRMED // tasdiqladi
+  REJECTED // rad etdi
+}
+
+// ---------- Ro'yxatdan o'tish, obuna va to'lovlar (17.11.2026) ----------
+
+enum BillingPeriod {
+  MONTHLY
+  YEARLY // 12 oy, narxi 10 oylik (2 oy bonus)
+}
+
+enum ApplicationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+/// Saytdagi "Ro'yxatdan o'tish" arizasi: ommaviy oferta qabul qilingach yuboriladi, Super Admin tasdiqlaydi.
+model OrgApplication {
+  id              String            @id @default(cuid())
+  orgName         String
+  inn             String
+  directorName    String
+  phone           String
+  email           String
+  plan            String
+  period          BillingPeriod
+  offerVersion    String
+  offerAcceptedAt DateTime
+  ip              String?
+  status          ApplicationStatus @default(PENDING)
+  rejectReason    String?
+  orgId           String?
+  reviewedById    String?
+  reviewedAt      DateTime?
+  createdAt       DateTime          @default(now())
+
+  @@index([status, createdAt])
+  @@index([email])
+}
+
+enum InvoiceKind {
+  NEW // birinchi obuna
+  UPGRADE // obuna orasida tarifni oshirish (qolgan davr uchun farq)
+  RENEWAL // keyingi davrga uzaytirish
+}
+
+enum InvoiceStatus {
+  UNPAID // to'lanmagan
+  REVIEW // kvitansiya yuklangan, Super Admin tekshiradi
+  PAID
+  CANCELLED
+}
+
+/// To'lov hisobi. Summa so'mda, chegirma qo'llangan holda. Kvitansiya — tashkilot fayli.
+model Invoice {
+  id              String        @id @default(cuid())
+  orgId           String
+  org             Organization  @relation(fields: [orgId], references: [id])
+  number          Int           @unique @default(autoincrement())
+  kind            InvoiceKind
+  plan            String
+  period          BillingPeriod
+  periodStart     DateTime      @db.Date
+  periodEnd       DateTime      @db.Date
+  baseAmount      Decimal       @db.Decimal(18, 2) // chegirmasiz
+  discountPercent Int           @default(0)
+  amount          Decimal       @db.Decimal(18, 2) // to'lanadigan
+  status          InvoiceStatus @default(UNPAID)
+  receiptFileId   String?       @unique
+  receiptFile     StoredFile?   @relation(fields: [receiptFileId], references: [id])
+  receiptAt       DateTime?
+  reviewedById    String?
+  reviewedAt      DateTime?
+  rejectNote      String?
+  createdById     String?
+  createdAt       DateTime      @default(now())
+
+  @@index([orgId, createdAt])
+  @@index([status])
+}
+
+/// Tizim sozlamalari (Super Admin): oferta rekvizitlari va boshqalar.
+model AppSetting {
+  key       String   @id
+  value     Json
+  updatedAt DateTime @updatedAt
+}
+
+enum PostCategory {
+  NEWS // yangiliklar
+  LAW // qonun va qarorlar
+  INFO // foydali ma'lumot
+}
+
+/// reyspro.uz sayti maqolalari (Super Admin kiritadi).
+model Post {
+  id          String       @id @default(cuid())
+  slug        String       @unique
+  category    PostCategory
+  title       String
+  summary     String?
+  body        String
+  sourceName  String?
+  sourceUrl   String?
+  published   Boolean      @default(false)
+  publishedAt DateTime?
+  createdById String?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@index([published, category, publishedAt])
+}
+
+/// Fayl hozircha bazada saqlanadi (sinov uchun eng oddiy). Keyin S3 turidagi saqlashga ko'chiriladi.
+model StoredFile {
+  id           String       @id @default(cuid())
+  orgId        String
+  org          Organization @relation(fields: [orgId], references: [id])
+  name         String
+  mime         String
+  size         Int
+  data         Bytes
+  uploadedById String
+  createdAt    DateTime     @default(now())
+
+  document Document?
+  invoice  Invoice?
+}
+
+// ---------- Telegram bot: ovozli kiritish (21.11.2026) ----------
+
+enum VoiceDraftStatus {
+  PENDING // tasdiq kutilmoqda
+  EDITING // xodim «Tuzatish»ni bosdi — keyingi ovoz/matn tuzatish sifatida olinadi
+  SAVING // «Tasdiqlash» bosildi, yozilmoqda (ikki marta bosilsa, ikkinchisi to'xtaydi)
+  SAVED // dasturga yozildi
+  CANCELLED // bekor qilindi
+}
+
+/// Menejer botga yuborgan ovozli xabardan AI tuzgan qoralama. Tasdiqlanmaguncha dasturga hech narsa yozilmaydi.
+model VoiceDraft {
+  id         String           @id @default(cuid())
+  orgId      String
+  userId     String // a'zolik (User.id) — kim aytgan
+  chatId     String
+  messageId  Int? // botning kartochka xabari (tugmalar shu yerda)
+  transcript String // ovozdan olingan matn (tuzatishlar qo'shib boriladi)
+  data       Json // ajratilgan maydonlar (voice-core.ts: VoiceDraftData)
+  status     VoiceDraftStatus @default(PENDING)
+  entity     String? // Payment / Expense
+  entityId   String?
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+
+  @@index([chatId, status])
+  @@index([userId, createdAt])
 }
