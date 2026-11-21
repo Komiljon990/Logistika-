@@ -597,9 +597,11 @@ belgilandi va qaror qayerda yozilgani ko'rsatildi.
 - Ariza tasdiqlangan kun — shartnoma (oferta) sanasi. Qabul qilingan
   oferta tahriri (OFFER_VERSION) va vaqti arizada saqlanadi.
 - Tariflar (faol tyagachlar soni bo'yicha):
-  - 10 tagacha — oyiga 100 000, yiliga 1 000 000 so'm;
-  - 20 tagacha — 200 000 / 2 000 000;
-  - 20 dan ko'p — 300 000 / 3 000 000.
+  - 10 tagacha — oyiga 200 000, yiliga 2 000 000 so'm;
+  - 20 tagacha — 300 000 / 3 000 000;
+  - 20 dan ko'p — 400 000 / 4 000 000 (narxlar 21.11.2026 da yangilandi).
+  31.12.2026 gacha platformadan bepul foydalaniladi (21.11.2026 qarori),
+  to'lovlar 2027 yildan boshlanadi.
   Yillik = 10 oy narxi, 12 oy foydalaniladi. 31.12.2027 gacha (shu kun
   ham) yaratilgan barcha to'lov hisoblariga 25% chegirma.
 - Tarif chegarasidan ortiq faol tyagach qo'shib (yoki arxivdan

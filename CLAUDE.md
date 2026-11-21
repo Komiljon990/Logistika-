@@ -58,9 +58,9 @@ Newer dated subsections in §11 override the older §2–§9 text. Examples: Sup
   - drivers confirm or reject TIR/Dazvol hand-overs.
 - TIR/Dazvol: intake from the upper organisation → issue to driver (tractor + driver) → return (used / unused) → hand back. Lost and void are also tracked. Expiry is mandatory, with a warning at 30 days. Dazvol is either paper or electronic.
 - Subscription billing counts active tractors:
-  - up to 10 → 100 000 so'm a month or 1 000 000 a year;
-  - up to 20 → 200 000 / 2 000 000;
-  - over 20 → 300 000 / 3 000 000;
+  - up to 10 → 200 000 so'm a month or 2 000 000 a year;
+  - up to 20 → 300 000 / 3 000 000;
+  - over 20 → 400 000 / 4 000 000;
   - yearly = 10 × monthly;
   - 25% off invoices created through 31.12.2027.
 - Adding a tractor beyond the plan limit is blocked. Overdue subscriptions are never auto-blocked.

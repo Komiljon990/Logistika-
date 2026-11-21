@@ -5,9 +5,9 @@ const d = (s: string) => new Date(`${s}T00:00:00Z`);
 
 describe("obuna narxi", () => {
   it("yillik = 10 oylik narxi, 25% chegirma 2027 oxirigacha", () => {
-    expect(quote("T10", "YEARLY", d("2026-11-17"))).toEqual({ baseAmount: 1_000_000, discountPercent: 25, amount: 750_000 });
-    expect(quote("T20", "MONTHLY", d("2027-12-31"))).toEqual({ baseAmount: 200_000, discountPercent: 25, amount: 150_000 });
-    expect(quote("T20P", "MONTHLY", d("2028-01-01"))).toEqual({ baseAmount: 300_000, discountPercent: 0, amount: 300_000 });
+    expect(quote("T10", "YEARLY", d("2026-11-17"))).toEqual({ baseAmount: 2_000_000, discountPercent: 25, amount: 1_500_000 });
+    expect(quote("T20", "MONTHLY", d("2027-12-31"))).toEqual({ baseAmount: 300_000, discountPercent: 25, amount: 225_000 });
+    expect(quote("T20P", "MONTHLY", d("2028-01-01"))).toEqual({ baseAmount: 400_000, discountPercent: 0, amount: 400_000 });
     expect(discountFor(d("2028-01-01"))).toBe(0);
   });
 
