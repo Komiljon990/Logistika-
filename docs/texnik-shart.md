@@ -597,9 +597,10 @@ belgilandi va qaror qayerda yozilgani ko'rsatildi.
 - Ariza tasdiqlangan kun — shartnoma (oferta) sanasi. Qabul qilingan
   oferta tahriri (OFFER_VERSION) va vaqti arizada saqlanadi.
 - Tariflar (faol tyagachlar soni bo'yicha):
-  - 10 tagacha — oyiga 100 000, yiliga 1 000 000 so'm;
-  - 20 tagacha — 200 000 / 2 000 000;
-  - 20 dan ko'p — 300 000 / 3 000 000.
+  - 10 tagacha — oyiga 200 000, yiliga 2 000 000 so'm (21.11.2026 dan);
+  - 20 tagacha — 300 000 / 3 000 000;
+  - 20 dan ko'p — 400 000 / 4 000 000.
+  (Narxlar 21.11.2026 da yangilandi; avval 100/200/300 ming edi.)
   Yillik = 10 oy narxi, 12 oy foydalaniladi. 31.12.2027 gacha (shu kun
   ham) yaratilgan barcha to'lov hisoblariga 25% chegirma.
 - Tarif chegarasidan ortiq faol tyagach qo'shib (yoki arxivdan
@@ -841,6 +842,29 @@ belgilandi va qaror qayerda yozilgani ko'rsatildi.
   (`src/lib/telegram-profile.ts`). Bot rasmi va tavsif rasmi BotFather'da qo'lda qo'yiladi.
 - Taklif (talab emas): keyinchalik rahbar va menejer uchun Telegram Mini App (parolsiz kirish), haydovchi uchun
   rasm yuklash va joylashuv.
+
+### Ovozli kiritish va yangi tarif narxlari (21.11.2026)
+
+- **Tarif narxlari** (foydalanuvchi qarori): 10 tagacha — oyiga 200 000 so'm, 20 tagacha — 300 000,
+  20 dan ko'p — 400 000 (yillik = 10 oylik narxi: 2 / 3 / 4 mln). Platformadan 31.12.2026 gacha bepul
+  foydalaniladi; 25% chegirma qoidasi o'zgarmadi. Avval yaratilgan to'lov hisoblari eski summasida qoladi.
+- **Botda ovozli kiritish** (foydalanuvchi taklifi, tasdiqlangan): menejer botga ovozli xabar yuboradi,
+  AI tushunib qoralama tuzadi, bot uni ko'rsatadi — **dasturga faqat «✅ Tasdiqlash» bosilganda yoziladi**.
+  - Hozircha ikki tur: **mijozdan to'lov** (eng eski qarzlarga avtomatik taqsimlanadi, qolgani avans — saytdagi
+    «+ Kirim» bilan bir xil) va **tashkilot xarajati** (kassa hisobi, turkum/bo'lim, ixtiyoriy reys raqami).
+  - Kim: to'lov — «Hisob-kitob» bo'limida kiritish huquqi borlar, xarajat — «Kassa» bo'limida kiritish huquqi
+    borlar (menejer, buxgalter, EDIT huquqli mutaxassis). Rahbar va o'rinbosar faqat ko'radi — saytdagidek.
+  - Kartochkada: ovozdan olingan matn, mijoz, summa, hisob, sana va boshqalar. Yetishmagan maydon bo'lsa — variant
+    tugmalari (o'xshash mijozlar, mos hisoblar, turkumlar) yoki «✏️ Tuzatish» (ovoz yoki matn: «summa 4500 dollar»).
+    «❌ Bekor» — hech narsa yozilmaydi. Qoralama 24 soatda eskiradi.
+  - Tasdiqlashda huquq, tashkilot, hisob, valyuta va sana qayta tekshiriladi; ikki marta bosilsa bir marta yoziladi;
+    auditda manba «telegram-voice». Ovozli xabar 2 daqiqagacha, bir xodimga kuniga 40 tagacha.
+  - Texnik: Cloudflare Workers AI (bepul kunlik limit) — ovoz → matn Whisper, matn → maydonlar Llama 3.3 70B.
+    `.env`: CF_ACCOUNT_ID, CF_AI_TOKEN (`scripts/ovoz-sozlash.ps1` kiritadi va ovoz sifatini sinaydi).
+- **Ochiq savol / xavf:** Whisper o'zbek tilini to'liq aniq tanimasligi mumkin (ayniqsa nomlar va raqamlar).
+  Shuning uchun matn kartochkada ko'rsatiladi va tasdiqsiz hech narsa yozilmaydi. Sifat yetarli bo'lmasa —
+  o'zbek tiliga ixtisoslashgan pullik xizmatga o'tish ko'rib chiqiladi (kod shu qismni almashtirishga tayyor).
+- Taklif (talab emas): keyingi bosqichda ovoz bilan yangi reys ochish, prostoy va qo'shimcha xarajat kiritish.
 
 ## 12. Loyihada ishlash qoidalari (Claude uchun)
 

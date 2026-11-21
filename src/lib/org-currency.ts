@@ -1,4 +1,4 @@
-import "server-only";
+// "server-only" import qilinmaydi (21.11.2026): Telegram botdagi ovozli kiritish ham valyutalarni tekshiradi.
 import { db } from "./db";
 import { BASE, DEFAULT_CURRENCIES } from "./currency-core";
 

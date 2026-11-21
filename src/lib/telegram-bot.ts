@@ -16,11 +16,15 @@ import { EVENT_ORDER, checkEvent, completesTrip, nextEvents } from "./trips-core
 import { EV_DONE_UZ, EV_UZ, apiBase, botToken, fmtTime, tg } from "./telegram-common";
 import { STAFF_ROWS, linkStaff, staffMembers, staffText, type StaffMember } from "./telegram-staff";
 import { syncBotProfile } from "./telegram-profile";
+import { staffVoice, staffVoiceText, voiceCallback } from "./telegram-voice";
 
 type TgChat = { id: number; type?: string; first_name?: string; last_name?: string; username?: string; title?: string };
 type TgUpdate = {
   update_id: number;
-  message?: { message_id: number; chat: TgChat; from?: { id: number }; text?: string; contact?: { phone_number: string; user_id?: number } };
+  message?: {
+    message_id: number; chat: TgChat; from?: { id: number }; text?: string; contact?: { phone_number: string; user_id?: number };
+    voice?: { file_id: string; duration?: number }; audio?: { file_id: string; duration?: number };
+  };
   callback_query?: { id: string; from: { id: number }; data?: string; message?: { message_id: number; chat: TgChat; text?: string } };
 };
 
@@ -53,7 +57,7 @@ const BTN_MANAGER = "☎️ Menejer";
 const BTN_HELP = "❓ Yordam";
 
 const DRIVER_HELP = `«${BTN_TRIP}» — reys bosqichlarini belgilash\n«${BTN_BALANCE}» — hisob-kitob\n«${BTN_DOCS}» — qo'lingizdagi TIR/dazvol\n«${BTN_MANAGER}» — menejer telefoni`;
-const STAFF_HELP = "«📊 Bugun» — qisqa holat\n«🚚 Faol reyslar» — yo'ldagi reyslar\n«⚠️ Ogohlantirishlar» — muddati tugayotgan hujjatlar\n«🔎 Qidiruv» — yoki shunchaki davlat raqami, reys raqami yoki mijoz nomini yozing\n\nBot faqat ko'rsatadi. Kiritish va o'zgartirish — saytda.";
+const STAFF_HELP = "«📊 Bugun» — qisqa holat\n«🚚 Faol reyslar» — yo'ldagi reyslar\n«⚠️ Ogohlantirishlar» — muddati tugayotgan hujjatlar\n«🔎 Qidiruv» — yoki shunchaki davlat raqami, reys raqami yoki mijoz nomini yozing\n\n🎙 Ovozli kiritish: mijoz to'lovi yoki xarajatni ovoz bilan ayting (masalan «Alfa Trans 5000 dollar to'ladi, bankka» yoki «42-reysga 300 dollar yoqilg'i, kassadan»). Bot qoralamani ko'rsatadi — tasdiqlasangizgina dasturga yoziladi.";
 const WELCOME = "Assalomu alaykum! 👋\nBu — ReysPro boti.\n\nHaydovchi yoki tashkilot xodimi bo'lsangiz, pastdagi «📱 Telefon raqamni yuborish» tugmasini bosing. Bot sizni tashkilotingizga o'zi ulaydi.";
 
 /**
@@ -307,6 +311,15 @@ export async function handleUpdate(u: TgUpdate): Promise<void> {
       });
       return;
     }
+    // Ovozli kiritish (21.11.2026): faqat xodim, faqat shaxsiy chat.
+    const voice = m.voice ?? m.audio;
+    if (voice) {
+      if (m.chat.type && m.chat.type !== "private") return;
+      const staff = await staffMembers(String(m.chat.id));
+      if (staff.length) await staffVoice(m.chat.id, voice, staff);
+      else if (await isDriverChat(String(m.chat.id))) await tg("sendMessage", { chat_id: m.chat.id, text: "Ovozli xabarni menejerga to'g'ridan-to'g'ri yuboring. Bot orqali — pastdagi tugmalar. 👇" });
+      return;
+    }
     const text = m.text?.trim();
     if (!text) return;
     const chatId = String(m.chat.id);
@@ -318,6 +331,8 @@ export async function handleUpdate(u: TgUpdate): Promise<void> {
     // Xodim (faqat shaxsiy chatda): tugmalar va qidiruv.
     const staff = !m.chat.type || m.chat.type === "private" ? await staffMembers(chatId) : [];
     if ((isDriver || staff.length) && (text === BTN_HELP || text === "/yordam")) { await sendHelp(m.chat.id, isDriver, staff.length > 0); return; }
+    // «✏️ Tuzatish» bosilgan bo'lsa — matn qoralamani tuzatadi (tugma va buyruqlar emas).
+    if (staff.length && !text.startsWith("/") && !STAFF_ROWS.flat().includes(text) && text !== BTN_HELP && (await staffVoiceText(m.chat.id, text, staff))) return;
     if (staff.length && !text.startsWith("/start") && (await staffText(m.chat.id, text, staff, keyboardFor(isDriver, true)))) return;
     if (text.startsWith("/start") && (isDriver || staff.length)) {
       const help = [...(isDriver ? [DRIVER_HELP] : []), ...(staff.length ? [STAFF_HELP] : [])];
@@ -342,6 +357,11 @@ export async function handleUpdate(u: TgUpdate): Promise<void> {
   }
   const q = u.callback_query;
   if (q?.data && q.message) {
+    if (q.data.startsWith("vd:")) {
+      const staff = q.message.chat.type && q.message.chat.type !== "private" ? [] : await staffMembers(String(q.message.chat.id));
+      if (!(await voiceCallback({ id: q.id, data: q.data, message: q.message }, staff))) await tg("answerCallbackQuery", { callback_query_id: q.id });
+      return;
+    }
     const ev = /^ev:([a-z0-9]+):([A-Z_]+)$/.exec(q.data);
     if (ev) {
       const chat = String(q.message.chat.id);
@@ -426,7 +446,9 @@ export function startPolling() {
         const updates = await tg<TgUpdate[]>("getUpdates", { offset, timeout: 50, allowed_updates: ["message", "callback_query"] }, 65_000);
         for (const u of updates) {
           offset = u.update_id + 1;
-          await handleUpdate(u).catch((e) => console.error("[telegram] yangilanish xatosi:", e));
+          // Ovozli xabar (AI) bir necha soniya oladi — boshqa xabarlarni kutdirmaslik uchun fonda.
+          const job = handleUpdate(u).catch((e) => console.error("[telegram] yangilanish xatosi:", e));
+          if (!u.message?.voice && !u.message?.audio) await job;
         }
       } catch (e) {
         const code = (e as { code?: number }).code;

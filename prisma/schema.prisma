@@ -963,3 +963,32 @@ model StoredFile {
   document Document?
   invoice  Invoice?
 }
+
+// ---------- Telegram bot: ovozli kiritish (21.11.2026) ----------
+
+enum VoiceDraftStatus {
+  PENDING // tasdiq kutilmoqda
+  EDITING // xodim «Tuzatish»ni bosdi — keyingi ovoz/matn tuzatish sifatida olinadi
+  SAVING // «Tasdiqlash» bosildi, yozilmoqda (ikki marta bosilsa, ikkinchisi to'xtaydi)
+  SAVED // dasturga yozildi
+  CANCELLED // bekor qilindi
+}
+
+/// Menejer botga yuborgan ovozli xabardan AI tuzgan qoralama. Tasdiqlanmaguncha dasturga hech narsa yozilmaydi.
+model VoiceDraft {
+  id         String           @id @default(cuid())
+  orgId      String
+  userId     String // a'zolik (User.id) — kim aytgan
+  chatId     String
+  messageId  Int? // botning kartochka xabari (tugmalar shu yerda)
+  transcript String // ovozdan olingan matn (tuzatishlar qo'shib boriladi)
+  data       Json // ajratilgan maydonlar (voice-core.ts: VoiceDraftData)
+  status     VoiceDraftStatus @default(PENDING)
+  entity     String? // Payment / Expense
+  entityId   String?
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+
+  @@index([chatId, status])
+  @@index([userId, createdAt])
+}

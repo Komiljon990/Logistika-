@@ -619,7 +619,7 @@ export const uz = {
   "acc.tgLinked": "Ulangan",
   "acc.tgUnlink": "Botdan uzish",
   "acc.tgHowTo": "Ulanish: Telegram'da {bot} ni oching, /start bosing va «Telefon raqamni yuborish» tugmasi bilan raqamingizni yuboring. Raqam ReysPro'dagi telefoningizga mos bo'lishi kerak.",
-  "acc.tgWhat": "Bot faqat ko'rsatadi: bugungi holat, faol reyslar, ogohlantirishlar, qidiruv; har kuni 9:00 da muddati tugayotgan hujjatlar; rahbar va buxgalterga — kirimlar. Kiritish va o'zgartirish faqat saytda.",
+  "acc.tgWhat": "Bot faqat ko'rsatadi: bugungi holat, faol reyslar, ogohlantirishlar, qidiruv; har kuni 9:00 da muddati tugayotgan hujjatlar; rahbar va buxgalterga — kirimlar. Ovoz bilan mijoz to'lovi yoki xarajat aytsangiz — bot qoralama ko'rsatadi, tasdiqlasangizgina yoziladi. Boshqa kiritish va o'zgartirish — saytda.",
   "acc.revoked": "to'xtatilgan",
   "acc.expired": "muddati tugagan",
   "acc.currentPassword": "Joriy parol",

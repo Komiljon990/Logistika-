@@ -1,5 +1,5 @@
 /**
- * Obuna qoidalari (17.11.2026, sof — bazasiz):
+ * Obuna qoidalari (17.11.2026, narxlar 21.11.2026 da yangilangan; sof — bazasiz):
  * - tarif faol tyagachlar soni bo'yicha: 10 tagacha, 20 tagacha, 20 dan ko'p;
  * - oylik yoki yillik; yillik = 10 oy narxi, 12 oy foydalaniladi;
  * - 31.12.2027 gacha (shu kun ham) yaratilgan to'lov hisoblariga 25% chegirma;
@@ -9,9 +9,9 @@
 export type BillingPeriod = "MONTHLY" | "YEARLY";
 
 export const PLANS = [
-  { id: "T10", limit: 10, monthly: 100_000, yearly: 1_000_000 },
-  { id: "T20", limit: 20, monthly: 200_000, yearly: 2_000_000 },
-  { id: "T20P", limit: null, monthly: 300_000, yearly: 3_000_000 },
+  { id: "T10", limit: 10, monthly: 200_000, yearly: 2_000_000 },
+  { id: "T20", limit: 20, monthly: 300_000, yearly: 3_000_000 },
+  { id: "T20P", limit: null, monthly: 400_000, yearly: 4_000_000 },
 ] as const;
 
 export type PlanId = (typeof PLANS)[number]["id"];
