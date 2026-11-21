@@ -1,7 +1,7 @@
 import "server-only";
 import type { BillingPeriod, Invoice, InvoiceKind } from "@prisma/client";
 import { db } from "./db";
-import { isPlan, planLimit, type PlanId } from "./billing-core";
+import { inTrial, isPlan, planLimit, type PlanId } from "./billing-core";
 
 /** Bugungi Toshkent sanasi (UTC yarim tun) — obuna davrlari sanalar bilan hisoblanadi. */
 export function todayDate(now = new Date()): Date {
@@ -15,11 +15,11 @@ export function activeTractors(orgId: string) {
 
 /**
  * Yana `add` ta faol tyagach tarifga sig'adimi. Tarif belgilanmagan (Super Admin qo'lda yaratgan) tashkilot cheklanmaydi.
- * Demo tashkilot ham cheklanmaydi.
+ * Demo tashkilot ham, bepul sinov davrida (31.12.2026 gacha) hamma tashkilot ham cheklanmaydi.
  */
 export async function tractorCapacity(orgId: string, add = 1): Promise<{ ok: true } | { ok: false; limit: number }> {
   const org = await db.organization.findUniqueOrThrow({ where: { id: orgId }, select: { plan: true, isDemo: true } });
-  const limit = org.isDemo ? null : planLimit(org.plan);
+  const limit = org.isDemo || inTrial(todayDate()) ? null : planLimit(org.plan);
   if (limit === null) return { ok: true };
   return (await activeTractors(orgId)) + add <= limit ? { ok: true } : { ok: false, limit };
 }

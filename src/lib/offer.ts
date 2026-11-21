@@ -1,4 +1,4 @@
-import { PLANS, PROMO_PERCENT, PROMO_UNTIL } from "./billing-core";
+import { dmy, PLANS, PROMO_PERCENT, PROMO_UNTIL, TRIAL_UNTIL } from "./billing-core";
 import type { Provider } from "./settings";
 
 /**
@@ -43,6 +43,7 @@ export function offerSections(p: Provider): OfferSection[] {
       items: [
         ...tariffs,
         "Yillik obuna 12 oyga beriladi va uning narxi 10 oylik to'lovga teng (2 oy bonus).",
+        `Bepul sinov davri: ${dmy(TRIAL_UNTIL)} gacha (shu kun ham) dasturdan bepul va transportlar sonini cheklamasdan foydalaniladi. Shu davrda tasdiqlangan arizalar bo'yicha to'lov hisobi chiqarilmaydi; obuna sinov davri oxirigacha amal qiladi, keyingi davr uchun Buyurtmachi tarifni tanlab, obunani uzaytiradi.`,
         `${promoDate} gacha (shu kun ham) rasmiylashtirilgan oylik va yillik to'lovlarga ${PROMO_PERCENT}% chegirma beriladi.`,
         "Transportlar soni Buyurtmachining dasturdagi faol tyagachlari soni bilan hisoblanadi. Tarif chegarasidan ortiq faol tyagach qo'shish uchun tarifni oshirish kerak.",
         "Narxlar QQS bilan yoki QQSsiz ekani Ijrochining soliq rejimiga bog'liq va to'lov hisobida ko'rsatiladi. Ijrochi narxlarni o'zgartirishi mumkin; yangi narxlar joriy (to'langan) obuna muddatiga ta'sir qilmaydi.",

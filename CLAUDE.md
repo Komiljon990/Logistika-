@@ -63,7 +63,8 @@ Newer dated subsections in §11 override the older §2–§9 text. Examples: Sup
   - up to 20 → 300 000 / 3 000 000;
   - over 20 → 400 000 / 4 000 000 (prices changed 21.11.2026);
   - yearly = 10 × monthly;
-  - 25% off invoices created through 31.12.2027.
+  - 25% off invoices created through 31.12.2027;
+  - free trial through 31.12.2026 (`TRIAL_UNTIL`): no tractor limit for any org, approval creates no invoice and sets subEnd to the trial end, upgrades closed; renewal opens 1 Dec and the paid period starts 1.01.2027.
 - Adding a tractor beyond the plan limit is blocked. Overdue subscriptions are never auto-blocked.
 - Registration stays closed until the provider requisites are filled in Super Admin settings.
 

@@ -6,7 +6,7 @@ import { Logo } from "@/components/Logo";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { OfferText } from "@/components/OfferText";
 import { getProvider, providerReady } from "@/lib/settings";
-import { discountFor, PLANS, PROMO_UNTIL, quote } from "@/lib/billing-core";
+import { discountFor, dmy, inTrial, PLANS, PROMO_UNTIL, quote, TRIAL_UNTIL } from "@/lib/billing-core";
 import { OFFER_VERSION, som } from "@/lib/offer";
 import { RegisterForm } from "./RegisterForm";
 
@@ -48,7 +48,10 @@ export default async function RegisterPage() {
               monthly: t("reg.monthly"),
               yearly: t("reg.yearly"),
               yearlyHint: t("reg.yearlyHint"),
-              promo: promo ? t("reg.promo").replace("{p}", String(promo)).replace("{d}", PROMO_UNTIL.split("-").reverse().join(".")) : "",
+              promo: [
+                inTrial(today) ? t("reg.trial").replace("{d}", dmy(TRIAL_UNTIL)) : "",
+                promo ? t("reg.promo").replace("{p}", String(promo)).replace("{d}", dmy(PROMO_UNTIL)) : "",
+              ].filter(Boolean).join(" "),
               countHint: t("reg.countHint"),
               period: t("reg.period"),
               offerTitle: t("reg.offerTitle"),
