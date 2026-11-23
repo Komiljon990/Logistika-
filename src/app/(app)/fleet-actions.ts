@@ -195,6 +195,23 @@ export async function setDriverStatus(id: string, status: Status) {
   revalidatePath(`/drivers/${id}`);
 }
 
+/**
+ * Joylashuv kuzatuvi (23.11.2026): har haydovchi uchun alohida yoqiladi/o'chiriladi. Haydovchiga botdan xabar boradi
+ * (yoqilganda — yo'riqnoma). O'chirilganda jonli holat tozalanadi; eski nuqtalar tarixda qoladi (180 kungacha).
+ */
+export async function setDriverTracking(id: string, on: boolean) {
+  const { user, orgId } = await editor("drivers");
+  const d = await db.driver.findFirst({ where: { id, ...orgScope(user) }, select: { id: true, status: true, trackLocation: true } });
+  if (!d) throw new ForbiddenError();
+  if (d.status !== "ACTIVE" || d.trackLocation === on) return;
+  await db.driver.update({ where: { id }, data: on ? { trackLocation: true, locRemindedAt: null } : { trackLocation: false, liveUntil: null } });
+  await audit({ actorId: user.id, orgId, action: "driver.tracking", entity: "Driver", entityId: id, details: { on } });
+  const { notifyTrackingChanged } = await import("@/lib/telegram-location");
+  await notifyTrackingChanged(id, on);
+  revalidatePath(`/drivers/${id}`);
+  revalidatePath("/map");
+}
+
 // ---------- Hujjatlar ----------
 
 type Owner = { kind: DocOwnerKind; id: string };

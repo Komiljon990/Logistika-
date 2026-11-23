@@ -17,6 +17,7 @@ import { EV_DONE_UZ, EV_UZ, apiBase, botToken, fmtTime, tg } from "./telegram-co
 import { STAFF_ROWS, linkStaff, staffMembers, staffText, type StaffMember } from "./telegram-staff";
 import { syncBotProfile } from "./telegram-profile";
 import { staffVoice, staffVoiceText, voiceCallback } from "./telegram-voice";
+import { BTN_LOCATION, isTrackedChat, locationStatusText, saveLocation, type TgLocation } from "./telegram-location";
 
 type TgChat = { id: number; type?: string; first_name?: string; last_name?: string; username?: string; title?: string };
 type TgUpdate = {
@@ -24,7 +25,10 @@ type TgUpdate = {
   message?: {
     message_id: number; chat: TgChat; from?: { id: number }; text?: string; contact?: { phone_number: string; user_id?: number };
     voice?: { file_id: string; duration?: number }; audio?: { file_id: string; duration?: number };
+    date?: number; location?: TgLocation;
   };
+  // 23.11.2026: jonli joylashuv har yangilanganda Telegram xabarni tahrirlaydi.
+  edited_message?: { message_id: number; chat: TgChat; date?: number; edit_date?: number; location?: TgLocation };
   callback_query?: { id: string; from: { id: number }; data?: string; message?: { message_id: number; chat: TgChat; text?: string } };
 };
 
@@ -64,9 +68,11 @@ const WELCOME = "Assalomu alaykum! 👋\nBu — ReysPro boti.\n\nHaydovchi yoki 
  * Pastki tugmalar (19.11.2026): haydovchiga «Reysim» / «Hisobim», xodimga «Bugun», «Faol reyslar», «Ogohlantirishlar»,
  * «Qidiruv». Bir kishi ham haydovchi, ham xodim bo'lsa — ikkalasi.
  */
-function keyboardFor(isDriver: boolean, isStaff: boolean) {
+function keyboardFor(isDriver: boolean, isStaff: boolean, tracked = false) {
   const rows: { text: string }[][] = [];
   if (isDriver) rows.push([{ text: BTN_TRIP }, { text: BTN_BALANCE }], [{ text: BTN_DOCS }, { text: BTN_MANAGER }]);
+  // 23.11.2026: joylashuv tugmasi — faqat kuzatuvi yoqilgan haydovchiga.
+  if (isDriver && tracked) rows.push([{ text: BTN_LOCATION }]);
   if (isStaff) for (const r of STAFF_ROWS) rows.push(r.map((text) => ({ text })));
   if (rows.length) rows.push([{ text: BTN_HELP }]);
   return rows.length ? { keyboard: rows, resize_keyboard: true, is_persistent: true } : { remove_keyboard: true };
@@ -78,7 +84,7 @@ async function isDriverChat(chatId: string): Promise<boolean> {
 
 /** Shu chat uchun to'g'ri tugmalar (haydovchi va/yoki xodim). */
 async function chatKeyboard(chatId: string, staff?: StaffMember[]) {
-  return keyboardFor(await isDriverChat(chatId), (staff ?? (await staffMembers(chatId))).length > 0);
+  return keyboardFor(await isDriverChat(chatId), (staff ?? (await staffMembers(chatId))).length > 0, await isTrackedChat(chatId));
 }
 
 const tripNo = (n: number) => `TSH-${String(n).padStart(4, "0")}`;
@@ -226,15 +232,15 @@ async function sendManager(chatId: number) {
   await tg("sendMessage", { chat_id: chatId, text: `☎️ Menejer bilan bog'lanish\n\n${parts.join("\n\n")}`, reply_markup: await chatKeyboard(String(chatId)) });
 }
 
-async function sendHelp(chatId: number, isDriver: boolean, isStaff: boolean) {
+async function sendHelp(chatId: number, isDriver: boolean, isStaff: boolean, tracked = false) {
   const parts = [
-    ...(isDriver ? [`🚚 Haydovchi uchun:\n${DRIVER_HELP}`] : []),
+    ...(isDriver ? [`🚚 Haydovchi uchun:\n${DRIVER_HELP}${tracked ? `\n«${BTN_LOCATION}» — jonli joylashuvni yoqish` : ""}`] : []),
     ...(isStaff ? [`👤 Xodim uchun:\n${STAFF_HELP}`] : []),
   ];
   await tg("sendMessage", {
     chat_id: chatId,
     text: `ℹ️ ReysPro boti\n\n${parts.join("\n\n")}\n\nMuammo bo'lsa, menejeringizga yoki rahbaringizga murojaat qiling.\nSayt: reyspro.uz`,
-    reply_markup: keyboardFor(isDriver, isStaff),
+    reply_markup: keyboardFor(isDriver, isStaff, tracked),
   });
 }
 
@@ -307,8 +313,16 @@ export async function handleUpdate(u: TgUpdate): Promise<void> {
       await tg("sendMessage", {
         chat_id: m.chat.id,
         text: `✅ Siz ulandingiz!\n${who.join("\n")}\n\n${help.join("\n\n")}`,
-        reply_markup: keyboardFor(active.length > 0, staff.length > 0),
+        reply_markup: keyboardFor(active.length > 0, staff.length > 0, active.some((d) => d.trackLocation)),
       });
+      if (active.some((d) => d.trackLocation)) await tg("sendMessage", { chat_id: m.chat.id, text: await locationStatusText(chatId) });
+      return;
+    }
+    // Joylashuv (23.11.2026): faqat shaxsiy chat, faqat kuzatuvi yoqilgan haydovchi saqlanadi.
+    if (m.location) {
+      if (m.chat.type && m.chat.type !== "private") return;
+      const reply = await saveLocation(String(m.chat.id), m.location, { edited: false, sentAt: m.date });
+      if (reply) await tg("sendMessage", { chat_id: m.chat.id, text: reply, reply_markup: await chatKeyboard(String(m.chat.id)) });
       return;
     }
     // Ovozli kiritish (21.11.2026): faqat xodim, faqat shaxsiy chat.
@@ -328,15 +342,19 @@ export async function handleUpdate(u: TgUpdate): Promise<void> {
     if (isDriver && (text === BTN_BALANCE || text === "/hisob")) { await sendBalance(m.chat.id); return; }
     if (isDriver && (text === BTN_DOCS || text === "/hujjat")) { await sendDocs(m.chat.id); return; }
     if (isDriver && (text === BTN_MANAGER || text === "/menejer")) { await sendManager(m.chat.id); return; }
+    if (isDriver && (text === BTN_LOCATION || text === "/joylashuv")) {
+      await tg("sendMessage", { chat_id: m.chat.id, text: await locationStatusText(chatId), reply_markup: await chatKeyboard(chatId) });
+      return;
+    }
     // Xodim (faqat shaxsiy chatda): tugmalar va qidiruv.
     const staff = !m.chat.type || m.chat.type === "private" ? await staffMembers(chatId) : [];
-    if ((isDriver || staff.length) && (text === BTN_HELP || text === "/yordam")) { await sendHelp(m.chat.id, isDriver, staff.length > 0); return; }
+    if ((isDriver || staff.length) && (text === BTN_HELP || text === "/yordam")) { await sendHelp(m.chat.id, isDriver, staff.length > 0, isDriver && (await isTrackedChat(chatId))); return; }
     // «✏️ Tuzatish» bosilgan bo'lsa — matn qoralamani tuzatadi (tugma va buyruqlar emas).
     if (staff.length && !text.startsWith("/") && !STAFF_ROWS.flat().includes(text) && text !== BTN_HELP && (await staffVoiceText(m.chat.id, text, staff))) return;
     if (staff.length && !text.startsWith("/start") && (await staffText(m.chat.id, text, staff, keyboardFor(isDriver, true)))) return;
     if (text.startsWith("/start") && (isDriver || staff.length)) {
       const help = [...(isDriver ? [DRIVER_HELP] : []), ...(staff.length ? [STAFF_HELP] : [])];
-      await tg("sendMessage", { chat_id: m.chat.id, text: `✅ Siz ulangansiz.\n\n${help.join("\n\n")}`, reply_markup: keyboardFor(isDriver, staff.length > 0) });
+      await tg("sendMessage", { chat_id: m.chat.id, text: `✅ Siz ulangansiz.\n\n${help.join("\n\n")}`, reply_markup: keyboardFor(isDriver, staff.length > 0, isDriver && (await isTrackedChat(chatId))) });
       return;
     }
     if (text.startsWith("/start")) {
@@ -353,6 +371,13 @@ export async function handleUpdate(u: TgUpdate): Promise<void> {
     if (!staff.length) {
       await tg("sendMessage", { chat_id: m.chat.id, text: "Botdan foydalanish uchun avval ulaning: pastdagi «📱 Telefon raqamni yuborish» tugmasini bosing.", reply_markup: CONTACT_KEYBOARD });
     }
+    return;
+  }
+  const em = u.edited_message;
+  if (em?.location) {
+    if (em.chat.type && em.chat.type !== "private") return;
+    const reply = await saveLocation(String(em.chat.id), em.location, { edited: true, sentAt: em.date });
+    if (reply) await tg("sendMessage", { chat_id: em.chat.id, text: reply });
     return;
   }
   const q = u.callback_query;
@@ -443,7 +468,7 @@ export function startPolling() {
     let offset = 0;
     for (;;) {
       try {
-        const updates = await tg<TgUpdate[]>("getUpdates", { offset, timeout: 50, allowed_updates: ["message", "callback_query"] }, 65_000);
+        const updates = await tg<TgUpdate[]>("getUpdates", { offset, timeout: 50, allowed_updates: ["message", "edited_message", "callback_query"] }, 65_000);
         for (const u of updates) {
           offset = u.update_id + 1;
           // Ovozli xabar (AI) bir necha soniya oladi — boshqa xabarlarni kutdirmaslik uchun fonda.

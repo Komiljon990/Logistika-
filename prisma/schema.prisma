@@ -271,9 +271,18 @@ model Driver {
   tripRateCurrency   String?
   membershipFee      Decimal? @db.Decimal(18, 2)
   membershipCurrency String?
+  // 23.11.2026: joylashuv kuzatuvi — ixtiyoriy, har haydovchi uchun alohida yoqiladi. Haydovchi Telegram'da
+  // "jonli joylashuv"ni ulashadi; oxirgi nuqta shu yerda, tarix DriverLocation'da.
+  trackLocation Boolean   @default(false)
+  lastLat       Float?
+  lastLng       Float?
+  lastLocAt     DateTime?
+  liveUntil     DateTime? // jonli ulashish tugaydigan vaqt (null yoki o'tgan — ulashish to'xtagan)
+  locRemindedAt DateTime? // botning oxirgi eslatmasi (tez-tez yozmaslik uchun)
   createdAt DateTime       @default(now())
   updatedAt DateTime       @updatedAt
 
+  locations      DriverLocation[]
   documents      Document[]
   permits        Permit[]
   pairedVehicles Vehicle[]     @relation("PairDriver")
@@ -284,6 +293,22 @@ model Driver {
 
   @@index([orgId, status])
   @@index([telegramChatId])
+}
+
+/// Haydovchi joylashuvi tarixi (23.11.2026). Har yangilanish emas: 5 daqiqada yoki 1 km yurganda bir nuqta.
+/// 180 kundan eskilari avtomatik o'chiriladi (moliyaviy yozuv emas).
+model DriverLocation {
+  id       String   @id @default(cuid())
+  orgId    String
+  driverId String
+  driver   Driver   @relation(fields: [driverId], references: [id])
+  lat      Float
+  lng      Float
+  at       DateTime @default(now())
+
+  @@index([driverId, at])
+  @@index([orgId, at])
+  @@index([at])
 }
 
 enum DocType {

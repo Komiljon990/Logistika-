@@ -11,7 +11,8 @@ const securityHeaders = [
       // Next.js sahifa ichiga kichik skriptlar qo'yadi; dev rejimida eval ham kerak.
       `script-src 'self' 'unsafe-inline'${dev ? " 'unsafe-eval'" : ""}`,
       "style-src 'self' 'unsafe-inline'",
-      "img-src 'self' data: blob:",
+      // 23.11.2026: haydovchilar xaritasi — OpenStreetMap kartalari (faqat rasm).
+      "img-src 'self' data: blob: https://tile.openstreetmap.org",
       "font-src 'self' data:",
       "connect-src 'self'",
       "frame-src 'self'",

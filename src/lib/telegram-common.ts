@@ -15,6 +15,16 @@ export function botToken(): string | null {
 export async function tg<T = unknown>(method: string, body: unknown, timeoutMs = 10_000): Promise<T> {
   const token = botToken();
   if (!token) throw new Error("TELEGRAM_BOT_TOKEN sozlanmagan");
+  return tgWith<T>(token, method, body, timeoutMs);
+}
+
+/** Super Admin boti (23.11.2026) — alohida bot, alohida token (SUPERADMIN_BOT_TOKEN). */
+export function adminBotToken(): string | null {
+  return process.env.SUPERADMIN_BOT_TOKEN?.trim() || null;
+}
+
+/** Istalgan bot tokeni bilan Telegram API chaqiruvi. */
+export async function tgWith<T = unknown>(token: string, method: string, body: unknown, timeoutMs = 10_000): Promise<T> {
   const res = await fetch(`${apiBase()}/bot${token}/${method}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
