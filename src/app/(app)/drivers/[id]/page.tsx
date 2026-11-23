@@ -10,7 +10,9 @@ import { StatusPill } from "@/components/StatusPill";
 import { formatDate } from "@/lib/dates";
 import { getSetting } from "@/lib/settings";
 import { DriverForm } from "../../fleet-forms";
-import { setDriverStatus } from "../../fleet-actions";
+import { setDriverStatus, setDriverTracking } from "../../fleet-actions";
+import { formatTashkent } from "@/lib/trips-core";
+import { locState } from "@/lib/location-core";
 import { Documents } from "../../Documents";
 
 export default async function DriverPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ docs?: string }> }) {
@@ -26,6 +28,8 @@ export default async function DriverPage({ params, searchParams }: { params: Pro
   const bot = await getSetting<string>("telegramBot");
   const canEdit = editor && x.status === "ACTIVE";
   const toggle = setDriverStatus.bind(null, x.id, x.status === "ACTIVE" ? "ARCHIVED" : "ACTIVE");
+  const trackToggle = setDriverTracking.bind(null, x.id, !x.trackLocation);
+  const loc = locState(x, new Date());
   return (
     <div className="grid gap-6">
       <Link href="/drivers" className="text-sm text-accent hover:underline">← {t("drv.title")}</Link>
@@ -65,6 +69,34 @@ export default async function DriverPage({ params, searchParams }: { params: Pro
             {bot && <> <a href={`https://t.me/${bot}`} target="_blank" rel="noopener" className="text-accent hover:underline">t.me/{bot}</a></>}
             {!x.phone && <span className="block text-bad">{t("drv.telegramNoPhone")}</span>}
           </span>
+        )}
+      </section>
+      {/* 23.11.2026: joylashuv kuzatuvi — ixtiyoriy, har haydovchi uchun alohida. */}
+      <section className="card grid gap-2 p-4 text-sm">
+        <div className="flex flex-wrap items-center gap-3">
+          <span className="flex-1 font-semibold">{t("loc.title")}</span>
+          {canEdit && (
+            <form action={trackToggle}>
+              <button className={x.trackLocation ? "btn-ghost" : "btn"}>{x.trackLocation ? t("loc.disable") : t("loc.enable")}</button>
+            </form>
+          )}
+        </div>
+        {x.trackLocation ? (
+          <>
+            <span className="text-accent">✓ {t("loc.onText")}</span>
+            {!x.telegramChatId && <span className="text-warn">{t("loc.needBot")}</span>}
+            <span>
+              {t("loc.status")}: <b>{t(`loc.state.${loc}`)}</b>
+              {x.lastLocAt && x.lastLat != null && x.lastLng != null && (
+                <>
+                  {" · "}{t("loc.last")}: {formatTashkent(x.lastLocAt)}
+                  {" · "}<Link href={`/map?d=${x.id}`} className="text-accent hover:underline">{t("loc.onMap")}</Link>
+                </>
+              )}
+            </span>
+          </>
+        ) : (
+          <span className="text-muted">{t("loc.offText")} {t("loc.hint")}</span>
         )}
       </section>
       <Documents owner={{ kind: "driver", id: x.id }} canEdit={canEdit} showArchived={sp.docs === "all"} />

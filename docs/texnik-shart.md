@@ -827,7 +827,7 @@ belgilandi va qaror qayerda yozilgani ko'rsatildi.
 - **Haydovchi joylashuvi Telegram orqali** (Live Location) va **AI yuk
   qidirish** bo'limi 13.11.2026 da kelishilgan (tafsiloti loyiha
   fayllaridagi TZ nusxasida), lekin foydalanuvchi qarori bilan hozircha
-  qoldirildi. Keyin alohida bosqich sifatida qaytiladi.
+  qoldirildi. Keyin alohida bosqich sifatida qaytiladi. **Joylashuv 23.11.2026 da qilindi** (pastda).
 
 ### Bot tugmalari, matnlari va profili (19.11.2026, ikkinchi qism)
 
@@ -870,6 +870,37 @@ belgilandi va qaror qayerda yozilgani ko'rsatildi.
   Shuning uchun matn kartochkada ko'rsatiladi va tasdiqsiz hech narsa yozilmaydi. Sifat yetarli bo'lmasa —
   o'zbek tiliga ixtisoslashgan pullik xizmatga o'tish ko'rib chiqiladi (kod shu qismni almashtirishga tayyor).
 - Taklif (talab emas): keyingi bosqichda ovoz bilan yangi reys ochish, prostoy va qo'shimcha xarajat kiritish.
+
+### Haydovchi joylashuvi va Super Admin boti (23.11.2026)
+
+- **Haydovchi joylashuvi** (foydalanuvchi talabi: "haydovchilar telefoni orqali joyni aniqlash, barcha haydovchilar
+  bo'lishi shart emas"; 13.11.2026 dagi Telegram Live Location qaroriga muvofiq):
+  - Kuzatuv **har haydovchi uchun alohida** yoqiladi: haydovchi kartochkasi → «Joylashuv kuzatuvi» →
+    «Kuzatuvni yoqish» (Haydovchilar bo'limida kiritish huquqi borlar). Sukut bo'yicha o'chiq. Yoqilganda va
+    o'chirilganda haydovchiga botdan xabar boradi (yoqilganda — yo'riqnoma).
+  - Haydovchi Telegram'da 📎 → Joylashuv → «Jonli joylashuvni ulashish» → **«Men o'chirgunimcha»** ni tanlaydi.
+    Bot oxirgi joyni saqlaydi; tarixga 5 daqiqada yoki 1 km yurganda bir nuqta yoziladi. Kuzatuvi yoqilmagan
+    haydovchining joylashuvi **saqlanmaydi**. Guruhdan kelgan joylashuv qabul qilinmaydi.
+  - Kuzatiladigan haydovchiga botda «📍 Joylashuv» tugmasi (holat va yo'riqnoma) va /joylashuv buyrug'i.
+  - Eslatma: faol reysi bor, kuzatuvi yoqilgan haydovchida ulashish to'xtagan (yoki 6 soat yangilanmagan) bo'lsa,
+    bot 3 soatda bir marta eslatadi, faqat 8:00–22:00 (Toshkent).
+  - **Xarita** (menyu → «Xarita», Haydovchilar bo'limini ko'ra oladiganlar uchun, faqat o'z tashkiloti):
+    OpenStreetMap ustida belgilar (tyagach raqami bilan): yashil — jonli, sariq — yangilanmayapti,
+    kulrang — ulashish to'xtagan. Ostida jadval: haydovchi, transport, faol reys, holat, oxirgi vaqt.
+    «Xaritada ko'rish» — shu haydovchining oxirgi 24 soatdagi yo'li chiziladi. Sahifa har daqiqada yangilanadi.
+  - Joylashuv tarixi moliyaviy yozuv emas: 180 kundan eskisi avtomatik o'chiriladi (taklif — muddatni
+    foydalanuvchi o'zgartirishi mumkin).
+  - Cheklov: Telegram jonli joylashuvni telefon va internet ishlaganda yuboradi; telefon o'chsa yoki internet
+    bo'lmasa, xaritada oxirgi ma'lum joy qoladi ("yangilanmayapti"). GPS-treker / Android ilova — keyinroq (13.11.2026).
+- **Super Admin boti** (foydalanuvchi qarori, 23.11.2026: "Xabar va ko'rish tugmalari"):
+  - Haydovchilar botidan **alohida** bot (`SUPERADMIN_BOT_TOKEN`, `scripts/admin-bot-sozlash.ps1`).
+    Ulanish — /start → telefon raqam; raqam faol Super Admin raqamiga mos bo'lishi shart, aks holda rad etiladi.
+  - Yangi ariza, kvitansiya yuklandi, tarifni oshirish xabarlari shu botga keladi (sozlanmagan bo'lsa — avvalgidek
+    asosiy bot va Sozlamalardagi chatga).
+  - Tugmalar (faqat ko'rish): «📊 Umumiy holat», «🆕 Arizalar», «🧾 To'lovlar», «🏢 Tashkilotlar»,
+    «⏳ Obunasi tugayotganlar» (14 kun ichida yoki o'tgan). Har kuni 9:00 da kutayotgan ish bo'lsa — xulosa.
+  - Tasdiqlash va rad etish **saytda** qoladi. Tashkilotlarning ichki ma'lumotlari (reys, mijoz, pul) botda ham
+    ko'rsatilmaydi — faqat tashkilot nomi, tarif, faol tyagachlar soni va obuna muddati.
 
 ## 12. Loyihada ishlash qoidalari (Claude uchun)
 

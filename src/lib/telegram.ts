@@ -1,6 +1,10 @@
 import "server-only";
 import { getSetting } from "./settings";
 import { botToken, tg } from "./telegram-bot";
+import { adminBotChats, sendToAdminBot } from "./telegram-admin";
+import { adminBotToken } from "./telegram-common";
+
+export { adminBotChats, adminBotToken };
 
 export { botToken };
 
@@ -19,6 +23,8 @@ export async function sendTelegram(chatId: string, text: string) {
 
 export async function notifyAdmin(text: string): Promise<boolean> {
   try {
+    // 23.11.2026: alohida Super Admin boti sozlangan va ulangan bo'lsa — xabar o'sha botga.
+    if (await sendToAdminBot(text)) return true;
     const chat = await adminChatId();
     if (!botToken() || !chat) {
       console.log(`[telegram sozlanmagan] ${text}`);
@@ -42,4 +48,8 @@ export async function recentChats(): Promise<{ id: string; name: string }[]> {
 
 export async function botUsername(): Promise<string | null> {
   return getSetting<string>("telegramBot");
+}
+
+export async function adminBotUsername(): Promise<string | null> {
+  return getSetting<string>("adminBot");
 }

@@ -14,6 +14,7 @@ export const BOT_COMMANDS: { command: string; description: string }[] = [
   { command: "hisob", description: "Mening hisobim (haydovchi)" },
   { command: "hujjat", description: "Qo'limdagi TIR/dazvol (haydovchi)" },
   { command: "menejer", description: "Menejer bilan bog'lanish (haydovchi)" },
+  { command: "joylashuv", description: "Jonli joylashuvni yoqish (haydovchi)" },
   { command: "bugun", description: "Bugungi holat (xodim)" },
   { command: "reyslar", description: "Faol reyslar (xodim)" },
   { command: "ogohlantirish", description: "Ogohlantirishlar (xodim)" },
@@ -27,6 +28,7 @@ const BOT_COMMANDS_RU: { command: string; description: string }[] = [
   { command: "hisob", description: "Мои расчёты (водитель)" },
   { command: "hujjat", description: "TIR/дозволы на руках (водитель)" },
   { command: "menejer", description: "Связаться с менеджером (водитель)" },
+  { command: "joylashuv", description: "Включить трансляцию геопозиции (водитель)" },
   { command: "bugun", description: "Сводка за день (сотрудник)" },
   { command: "reyslar", description: "Активные рейсы (сотрудник)" },
   { command: "ogohlantirish", description: "Предупреждения (сотрудник)" },
@@ -58,7 +60,7 @@ const DESCRIPTION_RU = `ReysPro — официальный бот логисти
 Сайт: reyspro.uz`;
 
 /** Profil versiyasi: matn o'zgarsa oshiriladi, shunda keyingi ishga tushishda Telegram'ga qayta yoziladi. */
-const PROFILE_VERSION = "2026-11-19";
+const PROFILE_VERSION = "2026-11-23";
 
 /**
  * Buyruqlar va tavsifni Telegram'ga yozadi (faqat versiya o'zgarganda — har ishga tushishda emas).

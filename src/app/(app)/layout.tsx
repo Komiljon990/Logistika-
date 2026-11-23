@@ -81,6 +81,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     ...(showCash ? [{ href: "/cash", label: t("nav.cash"), section: "cash" as const }] : []),
     { href: "/vehicles", label: t("nav.vehicles"), section: "vehicles" },
     { href: "/drivers", label: t("nav.drivers"), section: "drivers" },
+    { href: "/map", label: t("nav.map"), section: "drivers" },
     // TIR va dazvol — bitta bo'lim (17.11.2026), ichida ikki menyu. Mutaxassisga faqat bittasi berilgan bo'lishi mumkin.
     canView(user, "tir") || !specialist
       ? { href: "/tir", label: t("nav.tir"), section: "tir", match: ["/dazvol"] }
@@ -147,7 +148,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       {!user.isDemo && !user.grant && !user.email && (
         <Link href="/account" className="block bg-accent-soft px-4 py-2 text-center text-sm text-accent hover:underline">{t("acc.noEmailBanner")}</Link>
       )}
-      <div className="mx-auto grid max-w-6xl gap-6 px-4 py-6 md:grid-cols-[232px_minmax(0,1fr)]">
+      <div className="mx-auto grid max-w-6xl grid-cols-[minmax(0,1fr)] gap-6 px-4 py-6 md:grid-cols-[232px_minmax(0,1fr)]">
         <aside className="card self-start p-2 md:sticky md:top-20 print:hidden"><Nav items={items} /></aside>
         <main className="min-w-0">{children}</main>
       </div>
